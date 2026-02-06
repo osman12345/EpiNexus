@@ -1,6 +1,6 @@
 # EpiNexus
 
-A comprehensive **Python-only** epigenomics analysis platform for ChIP-seq, CUT&Tag, CUT&RUN, and ATAC-seq data. Analyze histone modifications, transcription factor binding, and chromatin accessibility with an intuitive web interface.
+A comprehensive epigenomics analysis platform for ChIP-seq, CUT&Tag, CUT&RUN, and ATAC-seq data. Analyze histone modifications, transcription factor binding, and chromatin accessibility with an intuitive web interface.
 
 **No R required** - Uses PyDESeq2 for differential analysis (equivalent results to DESeq2/DiffBind).
 
@@ -135,18 +135,6 @@ histone_analyzer/
 └── requirements.txt           # pip requirements
 ```
 
-## Differential Analysis: Python vs R
-
-EpiNexus uses **PyDESeq2** instead of R's DESeq2/DiffBind:
-
-| Aspect | PyDESeq2 (EpiNexus) | DESeq2 (R) |
-|--------|---------------------|------------|
-| Results | Equivalent (<1% difference) | Reference |
-| Installation | `pip install pydeseq2` | R + Bioconductor |
-| Speed | Comparable | Comparable |
-| Maintenance | Active development | Stable |
-
-**Reference**: PyDESeq2 is a peer-reviewed Python implementation published in Bioinformatics.
 
 ## Citation
 

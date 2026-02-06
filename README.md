@@ -153,9 +153,9 @@ EpiNexus uses **PyDESeq2** instead of R's DESeq2/DiffBind:
 If you use EpiNexus in your research, please cite:
 
 ```bibtex
-@software{epinexus2024,
-  title = {EpiNexus: Python-based Epigenomics Analysis Platform},
-  year = {2024},
+@software{epinexus,
+  title = {EpiNexus: A comprehensive epigenomics analysis platform.},
+  year = {2026},
   url = {https://github.com/your-repo/epinexus}
 }
 ```

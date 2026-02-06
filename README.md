@@ -1,30 +1,65 @@
-# Histone Mark Analyzer
+# EpiNexus
 
-A comprehensive Python-based web application for analyzing histone modifications from CUT&Tag and ChIP-seq data.
+A comprehensive epigenomics analysis platform for ChIP-seq, CUT&Tag, CUT&RUN, and ATAC-seq data. Analyze histone modifications, transcription factor binding, and chromatin accessibility with an intuitive web interface.
 
 ## Features
 
-- **Multi-input support**: Start from FASTQ, BAM, or peak files
-- **Multi-species**: Mouse (mm10, mm39), Human (hg38, hg19), Rat (rn6, rn7), and custom genomes
-- **DiffBind integration**: Differential peak analysis with DESeq2
-- **Multi-mark analysis**: Two-mark and three-mark chromatin state integration
-- **Interactive visualization**: Volcano plots, MA plots, heatmaps, genome browser
-- **Background job queue**: Handle long-running analyses asynchronously
+### Data Input & Processing
+- **Multiple techniques**: ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq
+- **Multiple targets**: Histone modifications and Transcription Factors
+- **Flexible input**: Start from FASTQ, BAM, or peak files
+- **Multi-species support**: Human (hg38, hg19), Mouse (mm10, mm39), Rat (rn6, rn7), custom genomes
 
-## Supported Histone Marks
+### Core Analysis
+- **Differential Analysis**: DiffBind integration with DESeq2 for robust statistical testing
+- **Quality Control**: Comprehensive QC metrics (FRiP, NSC, RSC, fragment analysis)
+- **Peak Annotation**: Gene annotation, pathway enrichment, regulatory element overlap
+- **Visualization**: Heatmaps, profile plots, volcano plots, genome browser (IGV.js)
 
-| Mark | Type | Description |
-|------|------|-------------|
-| H3K27ac | Active | Active enhancers and promoters |
-| H3K27me3 | Repressive | Polycomb repression |
-| H3K4me1 | Priming | Enhancer priming/poised |
-| H3K4me3 | Active | Active promoters |
-| H3K9me3 | Repressive | Heterochromatin |
-| H3K36me3 | Active | Transcribed gene bodies |
+### Advanced Features
+- **Multi-mark Integration**: Chromatin state analysis from multiple histone marks
+- **Super-Enhancer Detection**: ROSE algorithm for identifying super-enhancers
+- **TF Analysis**: Motif enrichment, binding site visualization, target gene prediction
+- **Expression Integration**: Correlate epigenetic changes with gene expression
+- **GWAS Overlap**: Link epigenomic features to disease-associated variants
+- **Peak-Gene Linking**: ABC model for enhancer-gene predictions
+- **ENCODE Integration**: Browse and compare with public reference data
+
+## Supported Assays
+
+### Techniques (Methods)
+| Technique | Description | Use Cases |
+|-----------|-------------|-----------|
+| ChIP-seq | Chromatin Immunoprecipitation Sequencing | Gold standard for histone and TF profiling |
+| CUT&Tag | Cleavage Under Targets and Tagmentation | Low-input, high signal-to-noise |
+| CUT&RUN | Cleavage Under Targets and Release Using Nuclease | Low background, single-cell compatible |
+| ATAC-seq | Assay for Transposase-Accessible Chromatin | Chromatin accessibility profiling |
+
+### Targets
+| Target Type | Examples |
+|-------------|----------|
+| Histone Modifications | H3K27ac, H3K4me3, H3K4me1, H3K27me3, H3K9me3, H3K36me3 |
+| Transcription Factors | Any TF with available antibody (MYC, P53, CTCF, etc.) |
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Option 1: Conda (Recommended)
+
+```bash
+# Create environment
+conda env create -f environment.yml
+conda activate epinexus
+
+# Install R packages
+Rscript -e 'BiocManager::install(c("DiffBind", "ChIPseeker", "DESeq2"))'
+
+# Run the app
+./run.sh
+```
+
+Access at: http://localhost:8501
+
+### Option 2: Docker
 
 ```bash
 cd docker
@@ -33,12 +68,11 @@ docker-compose up -d
 
 Access the application:
 - Web UI: http://localhost:8501
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- API: http://localhost:8000/docs
 
-### Option 2: Local Installation
+### Option 3: Manual Installation
 
-1. **Install system dependencies**:
+1. **System dependencies**:
 ```bash
 # Ubuntu/Debian
 sudo apt install samtools bedtools r-base bowtie2
@@ -47,135 +81,172 @@ sudo apt install samtools bedtools r-base bowtie2
 brew install samtools bedtools r bowtie2
 ```
 
-2. **Install R packages**:
-```r
-install.packages("BiocManager")
-BiocManager::install(c("DiffBind", "ChIPseeker", "DESeq2", "csaw"))
-BiocManager::install(c("TxDb.Mmusculus.UCSC.mm10.knownGene", "org.Mm.eg.db"))
-```
-
-3. **Install Python dependencies**:
+2. **Python dependencies**:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Start the application**:
+3. **R packages**:
+```r
+BiocManager::install(c("DiffBind", "ChIPseeker", "DESeq2", "csaw"))
+```
+
+4. **Run**:
 ```bash
-# Start API server
-uvicorn app.main:app --reload
-
-# In another terminal, start Streamlit
-streamlit run frontend/app.py
+streamlit run frontend/EpiNexus.py
 ```
 
-## Usage
+## Usage Guide
 
-### 1. Upload Sample Data
+### 1. Create a Project
+Navigate to **Data & Project** → Create a new project with:
+- Project name and description
+- Reference genome (hg38, mm10, etc.)
+- Experimental technique (ChIP-seq, CUT&Tag, etc.)
+- Target type (Histone Modification or Transcription Factor)
 
-Create a sample sheet CSV with the following columns:
-- `SampleID`: Unique sample identifier
-- `Condition`: Treatment group (e.g., "Treatment", "Control")
-- `Factor`: Histone mark (e.g., "H3K27ac")
-- `Replicate`: Replicate number
-- `bamReads`: Path to BAM file
-- `Peaks`: Path to peak file (BED format)
+### 2. Upload Data
 
-Example:
-```csv
-SampleID,Condition,Factor,Replicate,bamReads,Peaks
-Sample1_Trt,Treatment,H3K27ac,1,/data/sample1.bam,/data/sample1.bed
-Sample2_Trt,Treatment,H3K27ac,2,/data/sample2.bam,/data/sample2.bed
-Sample3_Ctrl,Control,H3K27ac,1,/data/sample3.bam,/data/sample3.bed
-Sample4_Ctrl,Control,H3K27ac,2,/data/sample4.bam,/data/sample4.bed
-```
+**From FASTQ files:**
+- Upload raw sequencing reads
+- Configure alignment parameters
+- Automatic peak calling with MACS2
 
-### 2. Configure Comparison
-
-Define your comparison:
-- Group 1 (Treatment): Samples to compare
-- Group 2 (Control): Reference samples
-- Histone mark
-- FDR threshold (default: 0.1)
-- Log2 fold change threshold (default: 0.5)
+**From Peak files:**
+- Upload pre-called peaks (BED, narrowPeak)
+- Optional: BAM files for signal quantification
+- Sample metadata CSV
 
 ### 3. Run Analysis
 
-Click "Run DiffBind Analysis" and monitor progress in the Jobs tab.
+- **Quality Control**: Assess sample quality metrics
+- **Differential Analysis**: Compare conditions using DiffBind
+- **Annotation**: Annotate peaks with genes and pathways
+- **Visualization**: Generate publication-ready figures
 
-### 4. View Results
+### 4. Export Results
 
-- **Volcano Plot**: Visualize significant differential peaks
-- **MA Plot**: Mean-difference plot
-- **Peak Table**: Browse and filter peaks
-- **Download**: Export CSV or PDF results
-
-## Multi-Mark Integration
-
-### Two-Mark Integration (H3K27ac vs H3K27me3)
-
-Identifies antagonistic chromatin changes:
-- **Strong Activation**: Gained H3K27ac + Lost H3K27me3
-- **Strong Repression**: Lost H3K27ac + Gained H3K27me3
-
-### Three-Mark Integration
-
-Classifies chromatin states:
-- **Active Enhancer**: H3K27ac + H3K4me1
-- **Poised Enhancer**: H3K4me1 only
-- **Active Promoter**: H3K27ac only
-- **Bivalent**: H3K27me3 + H3K4me1
-- **Repressed**: H3K27me3 only
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/samples` | GET/POST | List/create samples |
-| `/comparisons` | GET/POST | List/create comparisons |
-| `/jobs` | GET/POST | List/submit jobs |
-| `/analysis/diffbind` | POST | Run DiffBind analysis |
-| `/analysis/integration` | POST | Run multi-mark integration |
-| `/results/{job_id}` | GET | Get analysis results |
+- Download differential peak tables (CSV, Excel)
+- Export publication-ready figures
+- Generate methods section for papers
 
 ## Project Structure
 
 ```
 histone_analyzer/
-├── app/                    # Backend API
-│   ├── main.py            # FastAPI application
-│   ├── config.py          # Configuration
-│   ├── models/            # Database models
-│   └── core/              # Analysis modules
-├── frontend/              # Streamlit UI
-│   ├── app.py            # Main application
-│   └── components/       # Reusable components
-├── scripts/              # R and bash scripts
-├── docker/               # Docker configuration
-└── tests/                # Unit tests
+├── app/                          # Backend modules
+│   ├── main.py                   # FastAPI application
+│   ├── config.py                 # Configuration
+│   └── core/                     # Analysis engines
+│       ├── diffbind.py           # Differential binding
+│       ├── super_enhancers.py    # ROSE algorithm
+│       ├── tf_analysis.py        # TF analysis
+│       ├── atacseq.py            # ATAC-seq analysis
+│       ├── peak_gene_linking.py  # ABC model
+│       └── ...
+├── frontend/                     # Streamlit UI
+│   ├── EpiNexus.py              # Main application
+│   ├── pages/                    # Application pages
+│   │   ├── 01_data_project.py    # Data & Project management
+│   │   ├── 02_quality_control.py # QC metrics
+│   │   ├── 03_differential.py    # Differential analysis
+│   │   ├── 04_visualization.py   # Visualizations
+│   │   ├── 05_annotation.py      # Peak annotation
+│   │   ├── 06_multimark.py       # Multi-mark integration
+│   │   ├── 08_tf_analysis.py     # TF motif analysis
+│   │   ├── 12_super_enhancers.py # Super-enhancer detection
+│   │   ├── 16_atacseq.py         # ATAC-seq analysis
+│   │   ├── 19_gwas_overlap.py    # GWAS variant analysis
+│   │   └── 21_help.py            # Help & documentation
+│   └── components/               # Reusable UI components
+├── scripts/                      # R and shell scripts
+├── docker/                       # Docker configuration
+├── data/                         # Sample data
+└── tests/                        # Unit tests
 ```
+
+## Analysis Modules
+
+### Differential Analysis
+Uses DiffBind with DESeq2 for:
+- Consensus peak generation
+- Read counting and normalization
+- Statistical testing with multiple testing correction
+- Volcano and MA plot visualization
+
+### Multi-Mark Integration
+Identifies chromatin states based on mark combinations:
+- **Active Promoter**: H3K4me3+ H3K27ac+
+- **Strong Enhancer**: H3K4me1+ H3K27ac+
+- **Poised Enhancer**: H3K4me1+ H3K27ac-
+- **Bivalent/Poised**: H3K4me3+ H3K27me3+
+- **Repressed**: H3K27me3+
+
+### Super-Enhancer Analysis
+ROSE algorithm implementation:
+- Stitch nearby H3K27ac peaks
+- Rank by total signal
+- Hockey-stick plot for cutoff determination
+- Gene association and pathway enrichment
+
+### TF ChIP-seq Analysis
+Dedicated workflow for transcription factors:
+- Peak characterization and genomic distribution
+- Motif enrichment (known and de novo)
+- Target gene identification
+- Co-binding analysis with other TFs
 
 ## Configuration
 
-Environment variables:
-- `DATABASE_URL`: Database connection string
-- `REDIS_URL`: Redis URL for job queue
-- `DEFAULT_GENOME`: Default reference genome (mm10)
+Environment variables (optional):
+```bash
+EPINEXUS_GENOME=hg38          # Default genome
+EPINEXUS_THREADS=4            # Parallel threads
+EPINEXUS_DATA_DIR=/data       # Data directory
+```
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/api/samples` | GET/POST | Sample management |
+| `/api/analysis/diffbind` | POST | Run differential analysis |
+| `/api/analysis/super-enhancers` | POST | Run SE detection |
+| `/api/results/{job_id}` | GET | Get analysis results |
+
+## Citation
+
+If you use EpiNexus in your research, please cite:
+
+```bibtex
+@software{epinexus2024,
+  title = {EpiNexus: Comprehensive Epigenomics Analysis Platform},
+  year = {2024},
+  url = {https://github.com/your-repo/epinexus}
+}
+```
+
+Also cite the underlying tools:
+- **DiffBind**: Ross-Innes et al. (2012) Nature
+- **ChIPseeker**: Yu et al. (2015) Bioinformatics
+- **MACS2**: Zhang et al. (2008) Genome Biology
+- **DESeq2**: Love et al. (2014) Genome Biology
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `pytest`
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make changes and add tests
+4. Run tests: `pytest tests/`
 5. Submit a pull request
 
 ## License
 
-MIT License
+MIT License - see LICENSE file for details.
 
-## Citation
+## Support
 
-If you use this tool in your research, please cite:
-- DiffBind: Ross-Innes et al. (2012) Nature
-- ChIPseeker: Yu et al. (2015) Bioinformatics
+- **Documentation**: See the Help page in the application
+- **Issues**: Report bugs via GitHub Issues
+- **Contact**: your-email@example.com

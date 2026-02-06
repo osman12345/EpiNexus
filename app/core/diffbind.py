@@ -290,7 +290,6 @@ write.csv(genes_summary, genes_file, row.names = FALSE)
 cat(sprintf("Saved gene summary: %s\\n", genes_file))
 
 # Generate plots
-{"" if not config.generate_plots else '''
 cat("\\nGenerating plots...\\n")
 plots_file <- file.path(config$output_dir, "analysis_plots.pdf")
 pdf(plots_file, width = 10, height = 8)
@@ -320,7 +319,6 @@ tryCatch({{
 
 dev.off()
 cat(sprintf("Saved plots: %s\\n", plots_file))
-'''}
 
 # Summary statistics
 summary_stats <- list(

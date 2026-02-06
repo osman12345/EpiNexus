@@ -1,15 +1,12 @@
-# Histone Mark Analyzer - Python Dependencies
-# Pure Python implementation - no R required!
+# EpiNexus - Python Requirements
+# Install: pip install -r requirements.txt
 
 # Web Framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-websockets>=12.0
-
-# Streamlit Frontend
 streamlit>=1.28.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
 
-# Database
+# Database & Config
 sqlalchemy>=2.0.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
@@ -19,42 +16,26 @@ pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.11.0
 
-# Bioinformatics - Core
-pysam>=0.22.0
-pybedtools>=0.9.0
-pyBigWig>=0.3.22
-pyranges>=0.0.129
-biopython>=1.81
-
-# Differential Analysis (replaces R DESeq2/DiffBind)
+# Differential Analysis (replaces R DiffBind/DESeq2)
 pydeseq2>=0.4.0
 anndata>=0.10.0
 
-# TF Motif Analysis
-logomaker>=0.8  # Sequence logo visualization
+# Bioinformatics
+pysam>=0.22.0
+pybedtools>=0.9.0
+pybigwig>=0.3.22
+pyranges>=0.0.129
+biopython>=1.81
 
 # Visualization
 plotly>=5.18.0
 matplotlib>=3.8.0
 seaborn>=0.13.0
-
-# Background Jobs
-redis>=5.0.0
-rq>=1.15.0
+logomaker>=0.8
 
 # Utilities
-python-multipart>=0.0.6
-aiofiles>=23.2.0
-httpx>=0.25.0
 tqdm>=4.66.0
+httpx>=0.25.0
 
 # Testing
 pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-cov>=4.1.0
-
-# Development
-black>=23.11.0
-isort>=5.12.0
-flake8>=6.1.0
-mypy>=1.7.0

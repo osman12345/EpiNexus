@@ -156,14 +156,9 @@ If you use EpiNexus in your research, please cite:
 @software{epinexus,
   title = {EpiNexus: A comprehensive epigenomics analysis platform.},
   year = {2026},
-  url = {https://github.com/your-repo/epinexus}
+  url = {https://github.com/osman12345/epinexus}
 }
 ```
 
-Also cite:
-- **PyDESeq2**: Muzellec et al. (2023) Bioinformatics
-- **MACS2**: Zhang et al. (2008) Genome Biology
 
-## License
 
-MIT License

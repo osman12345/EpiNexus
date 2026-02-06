@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Main API service
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../results:/app/results
+    environment:
+      - DATABASE_URL=sqlite:///./histone_analyzer.db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # Streamlit frontend
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../data:/app/data
+      - ../results:/app/results
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    command: streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
+
+  # Background worker
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    volumes:
+      - ../data:/app/data
+      - ../results:/app/results
+    environment:
+      - DATABASE_URL=sqlite:///./histone_analyzer.db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - api
+    command: rq worker --url redis://redis:6379/0
+
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

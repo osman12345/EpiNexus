@@ -1,0 +1,29 @@
+# Histone Mark Analyzer - Background Worker (Pure Python)
+# No R required!
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libhdf5-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    samtools \
+    bedtools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create directories
+RUN mkdir -p data/uploads data/references results
+
+# Run RQ worker
+CMD ["rq", "worker", "--url", "redis://redis:6379/0", "default"]

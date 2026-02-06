@@ -1,0 +1,59 @@
+# EpiNexus - Conda Environment
+# Install: conda env create -f environment.yml
+# Activate: conda activate epinexus
+
+name: epinexus
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # Python
+  - python>=3.10
+
+  # Web Framework
+  - fastapi>=0.104.0
+  - uvicorn>=0.24.0
+
+  # Streamlit Frontend
+  - streamlit>=1.28.0
+
+  # Database
+  - sqlalchemy>=2.0.0
+  - pydantic>=2.5.0
+
+  # Data Processing
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  - scipy>=1.11.0
+
+  # Bioinformatics (from bioconda)
+  - pysam>=0.22.0
+  - pybedtools>=0.9.0
+  - pybigwig>=0.3.22
+  - pyranges>=0.0.129
+  - biopython>=1.81
+  - bedtools>=2.31.0
+  - samtools>=1.18
+
+  # Visualization
+  - plotly>=5.18.0
+  - matplotlib>=3.8.0
+  - seaborn>=0.13.0
+
+  # Utilities
+  - tqdm>=4.66.0
+  - httpx>=0.25.0
+
+  # Testing
+  - pytest>=7.4.0
+
+  # Pip-only packages
+  - pip
+  - pip:
+    - pydeseq2>=0.4.0
+    - anndata>=0.10.0
+    - logomaker>=0.8
+    - pydantic-settings>=2.1.0
+    - rq>=1.15.0

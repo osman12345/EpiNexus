@@ -65,7 +65,7 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 
 ```bash
 git clone https://github.com/osman12345/epinexus.git
-cd epinexus/histone_analyzer
+cd epinexus
 ```
 
 ### 2. Set up environment (choose one)
@@ -343,7 +343,7 @@ secondaryBackgroundColor = "#F5F5F5"
 ## Project Structure
 
 ```
-histone_analyzer/
+epinexus/
 ├── app/
 │   ├── core/                    # Core analysis modules
 │   │   ├── differential.py      # PyDESeq2-based differential analysis

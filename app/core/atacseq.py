@@ -319,15 +319,16 @@ def generate_demo_atac_data() -> Tuple[pd.DataFrame, Dict[str, Any]]:
     n_peaks = 50000
 
     # Generate peaks
+    starts = np.random.randint(1000000, 200000000, n_peaks)
+    widths = np.random.randint(200, 1000, n_peaks)
+
     peaks = pd.DataFrame({
         'chr': np.random.choice([f'chr{i}' for i in range(1, 23)], n_peaks),
-        'start': np.random.randint(1000000, 200000000, n_peaks),
-        'end': lambda: 0,
+        'start': starts,
+        'end': starts + widths,
         'score': np.random.lognormal(3, 1, n_peaks),
-        'summit': lambda: 0
+        'summit': starts + widths // 2
     })
-    peaks['end'] = peaks['start'] + np.random.randint(200, 1000, n_peaks)
-    peaks['summit'] = peaks['start'] + (peaks['end'] - peaks['start']) // 2
 
     # Generate QC stats
     bam_stats = {

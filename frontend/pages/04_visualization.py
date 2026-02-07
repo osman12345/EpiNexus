@@ -16,51 +16,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 st.set_page_config(page_title="Visualization - EpiNexus", page_icon="📈", layout="wide")
 
-# Try to import data manager
+# Try to import data manager and components
 try:
     from frontend.components.data_manager import DataManager
+    from frontend.components.empty_states import render_empty_state, check_data_loaded
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
 
-
-def has_data():
-    """Check if user has loaded data."""
-    if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
-        return peaks is not None and len(peaks) > 0
-    return len(st.session_state.get('samples', [])) > 0
-
-
-def render_empty_state():
-    """Show empty state when no data is loaded."""
-    st.markdown("---")
-
-    col1, col2, col3 = st.columns([1, 2, 1])
-
-    with col2:
-        st.markdown("""
-        <div style="text-align: center; padding: 3rem; background: #f8f9fa;
-                    border-radius: 12px; border: 2px dashed #dee2e6;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
-            <h2 style="color: #6c757d; margin-bottom: 0.5rem;">No Data Loaded</h2>
-            <p style="color: #6c757d; font-size: 1.1rem;">
-                Upload your data to generate visualizations.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("")
-
-        if st.button("📁 Go to Data & Project", type="primary", use_container_width=True):
-            st.switch_page("pages/01_data_project.py")
-
-        st.markdown("")
-        st.markdown("**Available visualizations:**")
-        st.markdown("- Signal heatmaps at genomic features")
-        st.markdown("- Average profile plots")
-        st.markdown("- Genomic distribution analysis")
-        st.markdown("- Multi-track signal browser")
+    def check_data_loaded():
+        return len(st.session_state.get('samples', [])) > 0
 
 
 def main():
@@ -68,8 +33,18 @@ def main():
     st.markdown("Explore your histone modification data with interactive visualizations.")
 
     # Check if data is loaded
-    if not has_data():
-        render_empty_state()
+    if not check_data_loaded():
+        render_empty_state(
+            title="No Data Loaded",
+            icon="📈",
+            message="Upload your data to generate visualizations.",
+            requirements=[
+                "Signal heatmaps at genomic features",
+                "Average profile plots",
+                "Genomic distribution analysis",
+                "Multi-track signal browser"
+            ]
+        )
         return
 
     tab1, tab2, tab3, tab4 = st.tabs([

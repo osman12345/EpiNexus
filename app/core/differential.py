@@ -522,7 +522,9 @@ class DifferentialAnalyzer:
             # Mann-Whitney U test
             try:
                 _, pval = stats.mannwhitneyu(g1_counts, g2_counts, alternative='two-sided')
-            except:
+            except (ValueError, TypeError) as e:
+                # Can fail if all values are identical or arrays are empty
+                logger.debug(f"Mann-Whitney test failed for {peak_id}: {e}")
                 pval = 1.0
 
             results.append({
@@ -535,11 +537,13 @@ class DifferentialAnalyzer:
         results_df = pd.DataFrame(results)
 
         # FDR correction
-        from scipy.stats import false_discovery_control
         try:
+            from scipy.stats import false_discovery_control
             results_df['FDR'] = false_discovery_control(results_df['pvalue'])
-        except:
-            # Benjamini-Hochberg manually
+        except (ImportError, AttributeError):
+            # false_discovery_control not available in older scipy versions
+            # Fall back to manual Benjamini-Hochberg
+            logger.info("Using manual Benjamini-Hochberg FDR correction")
             pvals = results_df['pvalue'].values
             n = len(pvals)
             ranks = np.argsort(np.argsort(pvals)) + 1

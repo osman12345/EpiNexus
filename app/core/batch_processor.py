@@ -244,13 +244,18 @@ class BatchProcessor:
 
     def _load_jobs(self):
         """Load existing jobs from disk."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         for job_file in self.jobs_dir.glob("*.json"):
             try:
                 with open(job_file, 'r') as f:
                     data = json.load(f)
                     job = Job.from_dict(data)
                     self.jobs[job.id] = job
-            except Exception:
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                # Skip corrupted or invalid job files
+                logger.warning(f"Failed to load job file {job_file}: {e}")
                 continue
 
     # Default job handlers

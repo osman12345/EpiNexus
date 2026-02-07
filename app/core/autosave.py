@@ -117,6 +117,9 @@ class AutoSaveManager:
 
     def get_autosaves(self) -> List[Dict[str, Any]]:
         """Get list of available auto-saves."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         saves = []
         for f in sorted(self.save_dir.glob("autosave_*.json"), reverse=True):
             try:
@@ -128,7 +131,9 @@ class AutoSaveManager:
                         "description": data.get("description", ""),
                         "file": str(f)
                     })
-            except Exception:
+            except (json.JSONDecodeError, KeyError, IOError) as e:
+                # Skip corrupted or unreadable autosave files
+                logger.debug(f"Failed to load autosave {f}: {e}")
                 continue
         return saves
 

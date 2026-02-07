@@ -185,18 +185,21 @@ def render_differential_docs():
     st.subheader("📊 Differential Analysis")
 
     st.markdown("""
-    ## The DiffBind Workflow
+    ## The Differential Analysis Workflow
+
+    EpiNexus uses **PyDESeq2** (Python implementation of DESeq2) for differential analysis,
+    providing equivalent statistical results to R-based DiffBind without requiring R installation.
 
     ```
     1. Load peak files for all samples
            ↓
-    2. Create consensus peak set
+    2. Create consensus peak set (PyRanges)
            ↓
-    3. Count reads in consensus peaks
+    3. Count reads in consensus peaks (pysam)
            ↓
-    4. Normalize counts
+    4. Normalize counts (RLE/TMM)
            ↓
-    5. Statistical testing (DESeq2/edgeR)
+    5. Statistical testing (PyDESeq2)
            ↓
     6. Filter by FDR and fold change
     ```
@@ -578,9 +581,10 @@ def render_about():
 
         ### Key Features
 
+        - 🐍 **100% Python**: No R required (uses PyDESeq2)
         - 🧬 **Multi-assay support**: ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq
         - 🔬 **Histone & TF analysis**: Specialized workflows for both
-        - 📊 **Differential binding**: DiffBind integration
+        - 📊 **Differential binding**: PyDESeq2-based (equivalent to DiffBind)
         - ⭐ **Super-enhancers**: ROSE algorithm
         - 🧬 **Multi-omics**: RNA-seq integration, GWAS overlap
         - 📈 **Interactive visualization**: Plotly-based charts
@@ -603,21 +607,23 @@ def render_about():
 
         ### Built With
 
-        - Python 3.9+
+        - Python 3.10+
         - Streamlit
         - Plotly
-        - Pandas / NumPy
+        - Pandas / NumPy / SciPy
 
         ### Bioinformatics
 
-        - DiffBind
-        - MACS2
-        - Bowtie2
-        - deepTools
+        - PyDESeq2 (differential analysis)
+        - PyRanges (genomic operations)
+        - pysam (BAM handling)
+        - pybedtools (BED operations)
 
         ### License
 
         MIT License
+
+        **No R required!**
         """)
 
     st.markdown("---")

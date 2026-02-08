@@ -42,8 +42,13 @@ class DiffBindConfig:
     min_overlap: int = 2
     summit_size: int = 250
 
-    # Normalization: RLE (DESeq2-style), TMM, or median_ratio
+    # Normalization: RLE, TMM, spike_in, library_size, quantile, median_ratio
     normalize_method: str = "RLE"
+
+    # CUT&Tag specific options
+    assay_type: str = "ChIP-seq"  # "ChIP-seq", "CUT&Tag", "CUT&RUN"
+    use_control: bool = True  # Whether IgG/input controls are available
+    spike_in_genome: Optional[str] = None  # "E_coli", "dm6", "sacCer3"
 
     # Gene annotation
     tss_upstream: int = 3000
@@ -177,7 +182,11 @@ class DiffBindRunner:
             normalize_method=config.normalize_method,
             fdr_threshold=config.fdr_threshold,
             lfc_threshold=config.lfc_threshold,
-            output_dir=config.output_dir
+            output_dir=config.output_dir,
+            # CUT&Tag specific options
+            assay_type=config.assay_type,
+            use_control=config.use_control,
+            spike_in_genome=config.spike_in_genome
         )
 
         # Run analysis
@@ -226,12 +235,16 @@ def run_diffbind(
     group2: str,
     histone_mark: str = "H3K27ac",
     output_dir: Optional[str] = None,
+    assay_type: str = "ChIP-seq",
+    use_control: bool = True,
+    spike_in_genome: Optional[str] = None,
     **kwargs
 ) -> DiffBindResults:
     """
     Run DiffBind-style differential peak analysis.
 
     This is a pure Python implementation - no R required.
+    Supports both ChIP-seq (with IgG controls) and CUT&Tag (spike-in normalization).
 
     Args:
         samples: List of sample dictionaries
@@ -240,17 +253,41 @@ def run_diffbind(
         group2: Control/reference group name
         histone_mark: Histone mark being analyzed
         output_dir: Directory for output files
+        assay_type: "ChIP-seq", "CUT&Tag", or "CUT&RUN"
+        use_control: Whether IgG/input controls are available
+        spike_in_genome: Spike-in reference genome ("E_coli", "dm6", "sacCer3")
         **kwargs: Additional config options (fdr_threshold, lfc_threshold, etc.)
 
     Returns:
         DiffBindResults object with differential peaks
+
+    Examples:
+        # Traditional ChIP-seq with IgG controls
+        results = run_diffbind(samples, "TreatvsCtrl", "Treatment", "Control",
+                               histone_mark="H3K27ac", use_control=True)
+
+        # CUT&Tag with E. coli spike-in (no IgG)
+        results = run_diffbind(samples, "TreatvsCtrl", "Treatment", "Control",
+                               histone_mark="H3K27ac", assay_type="CUT&Tag",
+                               use_control=False, spike_in_genome="E_coli",
+                               normalize_method="spike_in")
     """
+    # Auto-select normalization for CUT&Tag without controls
+    if assay_type in ["CUT&Tag", "CUT&RUN"] and not use_control:
+        if spike_in_genome and 'normalize_method' not in kwargs:
+            kwargs['normalize_method'] = 'spike_in'
+        elif 'normalize_method' not in kwargs:
+            kwargs['normalize_method'] = 'library_size'
+
     config = DiffBindConfig(
         comparison_name=comparison_name,
         group1=group1,
         group2=group2,
         histone_mark=histone_mark,
         output_dir=output_dir,
+        assay_type=assay_type,
+        use_control=use_control,
+        spike_in_genome=spike_in_genome,
         **kwargs
     )
 

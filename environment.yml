@@ -33,10 +33,12 @@ dependencies:
   - pyranges>=0.0.129
   - biopython>=1.81
 
-  # Bioinformatics tools (command line)
+  # Bioinformatics tools (command line) - for preprocessing pipeline
   - bedtools>=2.31.0
   - samtools>=1.18
   - macs2>=2.2.7.1
+  - bowtie2>=2.5.0
+  - bwa>=0.7.17
 
   # Visualization
   - plotly>=5.18.0

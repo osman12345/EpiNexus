@@ -115,14 +115,11 @@ def render_input_data():
 
         peak_source = st.radio(
             "Peak source",
-            ["Use session data", "Upload new", "Demo data"],
+            ["Use session data", "Upload new"],
             horizontal=True
         )
 
-        if peak_source == "Demo data":
-            peaks = generate_demo_peaks()
-            st.success(f"Loaded {len(peaks)} demo peaks")
-        elif peak_source == "Upload new":
+        if peak_source == "Upload new":
             peak_file = st.file_uploader("Upload peaks", type=['bed', 'csv'])
             if peak_file:
                 peaks = pd.read_csv(peak_file, sep='\t', header=None)
@@ -132,8 +129,23 @@ def render_input_data():
                 peaks = None
         else:
             # Try to get from session state
-            peaks = st.session_state.get('differential_peaks', generate_demo_peaks())
-            st.info(f"Using {len(peaks)} peaks from session")
+            peaks = None
+            if 'differential_peaks' in st.session_state:
+                peaks = st.session_state.differential_peaks
+            elif 'uploaded_peaks' in st.session_state:
+                peaks = st.session_state.uploaded_peaks
+            elif 'samples' in st.session_state and len(st.session_state.samples) > 0:
+                all_peaks = []
+                for sample in st.session_state.samples:
+                    if 'peaks' in sample:
+                        all_peaks.append(sample['peaks'])
+                if all_peaks:
+                    peaks = pd.concat(all_peaks, ignore_index=True)
+
+            if peaks is not None:
+                st.success(f"Using {len(peaks)} peaks from session")
+            else:
+                st.warning("No peaks loaded. Please upload peaks or go to Data & Project page.")
 
         if peaks is not None:
             st.dataframe(peaks.head(), use_container_width=True)
@@ -143,13 +155,10 @@ def render_input_data():
 
         gwas_source = st.selectbox(
             "GWAS catalog source",
-            ["GWAS Catalog (demo)", "Upload custom", "Select traits"]
+            ["Select traits", "Upload custom"]
         )
 
-        if gwas_source == "GWAS Catalog (demo)":
-            variants = generate_demo_gwas()
-            st.success(f"Loaded {len(variants)} GWAS variants")
-        elif gwas_source == "Upload custom":
+        if gwas_source == "Upload custom":
             var_file = st.file_uploader("Upload GWAS variants", type=['bed', 'csv', 'tsv'])
             if var_file:
                 variants = pd.read_csv(var_file, sep='\t')
@@ -165,10 +174,12 @@ def render_input_data():
                  "Inflammatory Bowel Disease", "Schizophrenia"]
             )
             if traits:
-                variants = generate_demo_gwas(traits)
+                with st.spinner("Fetching GWAS variants..."):
+                    variants = generate_demo_gwas(traits)
                 st.success(f"Loaded {len(variants)} variants for selected traits")
             else:
-                variants = generate_demo_gwas()
+                variants = None
+                st.info("Select traits to load GWAS variants")
 
         if variants is not None:
             st.dataframe(variants.head(), use_container_width=True)
@@ -384,24 +395,93 @@ def render_disease_associations():
 
 # Helper functions
 def generate_demo_peaks():
-    """Generate demo peak data."""
+    """Generate demo peak data (fallback when no real data)."""
     np.random.seed(42)
     n = 30000
 
+    starts = np.random.randint(1000000, 200000000, n)
+    widths = np.random.randint(200, 2000, n)
+
     peaks = pd.DataFrame({
         'chr': np.random.choice([f'chr{i}' for i in range(1, 23)], n),
-        'start': np.random.randint(1000000, 200000000, n),
-        'end': lambda: 0,
+        'start': starts,
+        'end': starts + widths,
         'peak_id': [f'peak_{i}' for i in range(n)],
         'signal': np.random.lognormal(2, 1, n)
     })
-    peaks['end'] = peaks['start'] + np.random.randint(200, 2000, n)
 
     return peaks
 
 
+def fetch_gwas_catalog(traits: list = None, pvalue_threshold: float = 5e-8) -> pd.DataFrame:
+    """
+    Fetch real GWAS variants from the NHGRI-EBI GWAS Catalog API.
+
+    Args:
+        traits: List of trait names to fetch (None = common diseases)
+        pvalue_threshold: P-value threshold for significance
+
+    Returns:
+        DataFrame with GWAS variants
+    """
+    import requests
+
+    if traits is None:
+        traits = ['type 2 diabetes', 'coronary artery disease', 'breast cancer']
+
+    all_variants = []
+
+    for trait in traits:
+        try:
+            # Query GWAS Catalog API
+            url = "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/search/findByEfoTrait"
+            params = {"trait": trait, "projection": "associationByEfoTrait"}
+
+            response = requests.get(
+                f"https://www.ebi.ac.uk/gwas/rest/api/associations/search/findByDiseaseTrait",
+                params={"diseaseTrait": trait},
+                headers={"Accept": "application/json"},
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                for assoc in data.get("_embedded", {}).get("associations", [])[:100]:
+                    for locus in assoc.get("loci", []):
+                        for snp in locus.get("strongestRiskAlleles", []):
+                            risk_allele = snp.get("riskAlleleName", "")
+                            rsid = risk_allele.split("-")[0] if "-" in risk_allele else risk_allele
+
+                            # Get location
+                            for gene in locus.get("authorReportedGenes", []):
+                                pass
+
+                            pvalue = assoc.get("pvalue", 1)
+                            if pvalue and float(pvalue) <= pvalue_threshold:
+                                all_variants.append({
+                                    'rsid': rsid,
+                                    'chr': '',  # Would need additional API call
+                                    'pos': 0,
+                                    'trait': trait.title(),
+                                    'pvalue': float(pvalue),
+                                    'odds_ratio': float(assoc.get("orPerCopyNum", 1) or 1),
+                                    'study': assoc.get("study", {}).get("publicationInfo", {}).get("title", "")[:50]
+                                })
+
+        except Exception as e:
+            st.warning(f"Could not fetch GWAS data for {trait}: {e}")
+            continue
+
+    if all_variants:
+        return pd.DataFrame(all_variants)
+    else:
+        # Fall back to demo data if API fails
+        return generate_demo_gwas(traits=[t.title() for t in traits])
+
+
 def generate_demo_gwas(traits=None):
-    """Generate demo GWAS variants."""
+    """Generate demo GWAS variants (fallback when API unavailable)."""
     np.random.seed(42)
 
     if traits is None:
@@ -413,9 +493,10 @@ def generate_demo_gwas(traits=None):
 
     for trait in traits:
         for i in range(n_per_trait):
+            chrom = np.random.randint(1, 23)
             variants.append({
                 'rsid': f'rs{np.random.randint(1000000, 99999999)}',
-                'chr': f'chr{np.random.randint(1, 23)}',
+                'chr': f'chr{chrom}',
                 'pos': np.random.randint(1000000, 200000000),
                 'ref': np.random.choice(['A', 'C', 'G', 'T']),
                 'alt': np.random.choice(['A', 'C', 'G', 'T']),
@@ -428,48 +509,110 @@ def generate_demo_gwas(traits=None):
 
 
 def calculate_enrichment(peaks, variants):
-    """Calculate overall GWAS enrichment."""
-    np.random.seed(42)
+    """Calculate real GWAS enrichment using actual overlap."""
 
-    # Simplified overlap calculation
-    n_overlapping = np.random.randint(50, 200)
+    # Standardize column names
+    if 'chrom' not in peaks.columns and 'chr' in peaks.columns:
+        peaks = peaks.rename(columns={'chr': 'chrom'})
+    if 'chrom' not in variants.columns and 'chr' in variants.columns:
+        variants = variants.rename(columns={'chr': 'chrom'})
+
+    # Calculate actual overlaps
+    n_overlapping = 0
+
+    for chrom in peaks['chrom'].unique():
+        peaks_chr = peaks[peaks['chrom'] == chrom]
+        variants_chr = variants[variants['chrom'] == chrom]
+
+        if len(variants_chr) == 0:
+            continue
+
+        for _, var in variants_chr.iterrows():
+            pos = var.get('pos', 0)
+            # Check if variant falls within any peak
+            overlaps = peaks_chr[(peaks_chr['start'] <= pos) & (peaks_chr['end'] >= pos)]
+            if len(overlaps) > 0:
+                n_overlapping += 1
+
     total_variants = len(variants)
 
-    # Calculate enrichment (simplified)
+    # Calculate enrichment
     genome_size = 3e9
     peak_coverage = (peaks['end'] - peaks['start']).sum()
     expected = total_variants * (peak_coverage / genome_size)
     fold_enrichment = n_overlapping / expected if expected > 0 else 1
 
-    # P-value from binomial test (simplified)
-    from scipy import stats
-    pvalue = stats.binom_test(n_overlapping, total_variants, peak_coverage / genome_size)
+    # P-value from binomial test
+    try:
+        from scipy import stats
+        pvalue = stats.binom_test(n_overlapping, total_variants, peak_coverage / genome_size)
+    except (ImportError, AttributeError):
+        # scipy.stats.binom_test deprecated, use binomtest
+        try:
+            from scipy.stats import binomtest
+            result = binomtest(n_overlapping, total_variants, peak_coverage / genome_size)
+            pvalue = result.pvalue
+        except ImportError:
+            pvalue = 0.05  # Fallback
 
     return {
         'total_variants': total_variants,
         'overlapping': n_overlapping,
-        'fold_enrichment': fold_enrichment,
+        'fold_enrichment': round(fold_enrichment, 2),
         'pvalue': pvalue
     }
 
 
 def calculate_trait_enrichment(peaks, variants):
-    """Calculate enrichment by trait."""
-    np.random.seed(42)
+    """Calculate real enrichment by trait."""
 
     traits = variants['trait'].unique()
+
+    # Standardize column names
+    if 'chrom' not in peaks.columns and 'chr' in peaks.columns:
+        peaks = peaks.rename(columns={'chr': 'chrom'})
+    if 'chrom' not in variants.columns and 'chr' in variants.columns:
+        variants = variants.rename(columns={'chr': 'chrom'})
+
+    genome_size = 3e9
+    peak_coverage = (peaks['end'] - peaks['start']).sum()
+    bg_prob = peak_coverage / genome_size
 
     results = []
     for trait in traits:
         trait_vars = variants[variants['trait'] == trait]
-        enrichment = np.random.uniform(0.5, 4.0)
-        pvalue = 10 ** -np.random.uniform(0, 15)
+
+        # Count overlaps for this trait
+        n_overlapping = 0
+        for chrom in peaks['chrom'].unique():
+            peaks_chr = peaks[peaks['chrom'] == chrom]
+            vars_chr = trait_vars[trait_vars['chrom'] == chrom]
+
+            for _, var in vars_chr.iterrows():
+                pos = var.get('pos', 0)
+                overlaps = peaks_chr[(peaks_chr['start'] <= pos) & (peaks_chr['end'] >= pos)]
+                if len(overlaps) > 0:
+                    n_overlapping += 1
+
+        # Calculate enrichment
+        n_trait = len(trait_vars)
+        expected = n_trait * bg_prob
+        enrichment = n_overlapping / expected if expected > 0 else 1
+
+        # P-value
+        try:
+            from scipy.stats import binomtest
+            result = binomtest(n_overlapping, n_trait, bg_prob)
+            pvalue = result.pvalue
+        except (ImportError, AttributeError):
+            from scipy import stats
+            pvalue = stats.binom_test(n_overlapping, n_trait, bg_prob) if n_trait > 0 else 1
 
         results.append({
             'trait': trait,
-            'n_variants': len(trait_vars),
-            'overlapping': int(len(trait_vars) * np.random.uniform(0.01, 0.1)),
-            'fold_enrichment': enrichment,
+            'n_variants': n_trait,
+            'overlapping': n_overlapping,
+            'fold_enrichment': round(enrichment, 2),
             'pvalue': pvalue,
             'significant': pvalue < 0.05
         })

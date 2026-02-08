@@ -190,6 +190,7 @@ def render_differential_docs():
     EpiNexus uses **PyDESeq2** (Python implementation of DESeq2) for differential analysis,
     providing equivalent statistical results to R-based DiffBind without requiring R installation.
 
+    ### Standard Workflow (ChIP-seq with controls)
     ```
     1. Load peak files for all samples
            ↓
@@ -203,6 +204,34 @@ def render_differential_docs():
            ↓
     6. Filter by FDR and fold change
     ```
+
+    ### CUT&Tag Workflow (spike-in normalization, no IgG)
+
+    CUT&Tag/CUT&RUN experiments often don't require IgG controls. Instead, they use
+    **spike-in normalization** for quantitative calibration:
+
+    ```
+    1. Load peak files for all samples
+           ↓
+    2. Create consensus peak set (PyRanges)
+           ↓
+    3. Count reads in consensus peaks (pysam)
+           ↓
+    4. Count spike-in reads (E. coli/Dm/Yeast)
+           ↓
+    5. Calculate spike-in scaling factors
+           ↓
+    6. Apply spike-in normalization
+           ↓
+    7. Statistical testing (PyDESeq2)
+           ↓
+    8. Filter by FDR and fold change
+    ```
+
+    **Why spike-in normalization?**
+    - Accounts for global changes in histone levels (e.g., H3K27me3 loss in EZH2 KO)
+    - More quantitative than RLE/TMM when modifications change globally
+    - Recommended by CUT&Tag protocol developers (Henikoff lab)
 
     ## Understanding Volcano Plots
     """)
@@ -425,16 +454,16 @@ def render_contact():
 
         st.markdown("""
         **Report Issues / Bugs**
-        - [GitHub Issues](https://github.com/your-repo/epinexus/issues)
+        - [GitHub Issues](https://github.com/osman12345/EpiNexus/issues)
 
         **Feature Requests**
-        - [GitHub Discussions](https://github.com/your-repo/epinexus/discussions)
+        - [GitHub Discussions](https://github.com/osman12345/epinexus/discussions)
 
         **General Questions**
-        - Email: support@epinexus.org
+        - Email: ayman23977@gmail.com
 
         **Community**
-        - [GitHub Repository](https://github.com/your-repo/epinexus)
+        - [GitHub Repository](https://github.com/osman12345/epinexus)
         """)
 
     with col2:
@@ -446,7 +475,7 @@ def render_contact():
         - [API Reference](https://epinexus.readthedocs.io/api)
 
         **Source Code**
-        - [GitHub](https://github.com/your-repo/epinexus)
+        - [GitHub](https://github.com/osman12345/epinexus)
 
         **Related Tools**
         - [DiffBind](https://bioconductor.org/packages/DiffBind)
@@ -475,10 +504,47 @@ def render_faq():
             "a": """
 Both can profile histones and transcription factors, but:
 
-- **ChIP-seq**: Uses crosslinking and sonication, higher background, needs more cells
-- **CUT&Tag/CUT&RUN**: Enzyme-based, lower background, works with fewer cells
+- **ChIP-seq**: Uses crosslinking and sonication, higher background, needs more cells, typically uses IgG controls
+- **CUT&Tag/CUT&RUN**: Enzyme-based, lower background, works with fewer cells, often uses spike-in normalization instead of IgG
 
-EpiNexus supports both with appropriate peak calling settings.
+EpiNexus supports both with appropriate peak calling and normalization settings.
+            """
+        },
+        {
+            "q": "Do I need IgG controls for CUT&Tag?",
+            "a": """
+**No, IgG controls are often NOT needed for CUT&Tag/CUT&RUN.** Here's why:
+
+1. **Lower background**: CUT&Tag has much cleaner signal-to-noise than ChIP-seq
+2. **Spike-in normalization**: E. coli carry-over from pA-Tn5 production provides internal calibration
+3. **IgG CUT&Tag issues**: IgG antibody yields very few reads, making it unreliable as a control
+
+**Recommended approach for CUT&Tag:**
+- Use **spike-in normalization** (E. coli, Drosophila, or yeast)
+- In EpiNexus: Select "CUT&Tag" assay type → Uncheck "I have IgG controls" → Select spike-in genome
+
+**When to use IgG controls:**
+- Traditional ChIP-seq
+- Very low-input experiments where spike-in may be unreliable
+- When comparing to historical ChIP-seq data normalized with IgG
+            """
+        },
+        {
+            "q": "What normalization method should I use?",
+            "a": """
+**For CUT&Tag/CUT&RUN (no IgG):**
+- **Spike-in (E. coli)**: Best choice if you have spike-in reads - quantitative calibration
+- **Library size**: Simple but effective when no spike-in available
+
+**For ChIP-seq (with IgG):**
+- **RLE (DESeq2)**: Robust default, handles varying library sizes
+- **TMM (edgeR)**: Good for samples with many differences
+
+**Special cases:**
+- **Quantile**: When comparing across very different conditions/batches
+- **Spike-in with exogenous DNA**: If you added Drosophila/yeast spike-in
+
+EpiNexus auto-selects the best method based on your assay type and control settings.
             """
         },
         {
@@ -595,7 +661,7 @@ def render_about():
         If you use EpiNexus in your research, please cite:
         ```
         EpiNexus: A comprehensive epigenomics analysis platform
-        [Your Name et al., 2026]
+        [Ayman Osman, 2026]
         ```
         """)
 
@@ -603,7 +669,7 @@ def render_about():
         st.markdown("""
         ### Version
 
-        **Version:** 1.0.0
+        **Version:** 0.1.0
 
         ### Built With
 
@@ -621,7 +687,9 @@ def render_about():
 
         ### License
 
-        MIT License
+        **Dual License:**
+        - Academic: Free (AGPL-3.0)
+        - Commercial: Paid license
 
         **No R required!**
         """)

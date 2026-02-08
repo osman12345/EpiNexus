@@ -11,6 +11,7 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
+- [Preprocessing Pipeline](#preprocessing-pipeline)
 - [Usage Guide](#usage-guide)
 - [Supported Assays](#supported-assays)
 - [Analysis Workflows](#analysis-workflows)
@@ -26,11 +27,13 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 
 ## Features
 
-### Data Input & Processing
+### Data Input & Preprocessing
 - **Multiple techniques**: ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq
 - **Multiple targets**: Histone modifications and Transcription Factors
 - **Flexible input**: Start from FASTQ, BAM, or peak files
 - **Multi-species support**: Human (hg38, hg19), Mouse (mm10, mm39), Rat (rn6, rn7)
+- **Built-in Alignment**: Bowtie2 and BWA-MEM support
+- **Peak Calling**: MACS2 and SEACR integration
 
 ### Core Analysis
 - **Differential Analysis**: PyDESeq2-based (equivalent to DiffBind/DESeq2)
@@ -98,11 +101,19 @@ Open your browser to **http://localhost:8501**
 
 ### 4. Start analyzing!
 
+**Option A: Start from Peak Files (Recommended for beginners)**
 1. Go to **Data & Project** → Create a new project
 2. Upload your peak files (BED/narrowPeak format)
 3. Navigate to **Quality Control** to assess sample quality
 4. Run **Differential Analysis** to find significantly changed regions
 5. Explore results with **Visualization** and **Annotation**
+
+**Option B: Start from FASTQ Files (Full Pipeline)**
+1. Go to **Data & Project** → Create a new project
+2. Navigate to **Preprocessing → Alignment** → Upload FASTQ files
+3. Configure aligner (Bowtie2 or BWA) and run alignment
+4. Go to **Preprocessing → Peak Calling** → Call peaks with MACS2 or SEACR
+5. Continue with Quality Control and Differential Analysis
 
 ---
 
@@ -167,6 +178,131 @@ Run the test suite to ensure everything is working:
 
 ```bash
 pytest tests/ -v
+```
+
+---
+
+## Preprocessing Pipeline
+
+EpiNexus includes a complete preprocessing pipeline for processing raw sequencing data. You can start from FASTQ files and go all the way to analyzed results, or skip directly to analysis with existing peak files.
+
+### Pipeline Overview
+
+```
+FASTQ files → [Alignment] → BAM files → [Peak Calling] → Peaks → [Analysis]
+                  ↑                           ↑
+             Bowtie2/BWA               MACS2/SEACR
+```
+
+### Alignment (FASTQ → BAM)
+
+Navigate to **Preprocessing → Alignment** to align raw reads:
+
+**Supported Aligners:**
+| Aligner | Best For | Notes |
+|---------|----------|-------|
+| **Bowtie2** | ChIP-seq, CUT&Tag, CUT&RUN | Fast, memory efficient |
+| **BWA-MEM** | ATAC-seq, large genomes | Better for longer reads |
+
+**Requirements:**
+- FASTQ files (single-end or paired-end, gzipped supported)
+- Reference genome index (Bowtie2 or BWA format)
+- Samtools installed
+
+**Alignment features:**
+- Single sample or batch processing
+- Configurable parameters (threads, presets)
+- Automatic BAM sorting and indexing
+- Real-time alignment statistics (mapping rate, properly paired reads)
+
+**Example command-line equivalent:**
+```bash
+# Bowtie2 paired-end alignment
+bowtie2 -x /path/to/index -1 sample_R1.fastq.gz -2 sample_R2.fastq.gz \
+    --very-sensitive -p 8 | samtools sort -@ 8 -o sample.sorted.bam
+samtools index sample.sorted.bam
+```
+
+### Peak Calling (BAM → Peaks)
+
+Navigate to **Preprocessing → Peak Calling** to identify enriched regions:
+
+**Supported Peak Callers:**
+| Tool | Best For | Peak Types |
+|------|----------|------------|
+| **MACS2** | ChIP-seq, ATAC-seq | Narrow & Broad |
+| **SEACR** | CUT&Tag, CUT&RUN | Relaxed & Stringent |
+
+**Peak calling features:**
+- Use BAMs from alignment step or upload separately
+- Control/Input BAM support for background subtraction
+- Narrow peaks (TFs, H3K4me3) or broad peaks (H3K27me3, H3K36me3)
+- Upload existing peak files (BED/narrowPeak/broadPeak)
+- Peak statistics and quality visualization
+
+**Example command-line equivalent:**
+```bash
+# MACS2 narrow peaks
+macs2 callpeak -t treatment.bam -c control.bam -g hs -n sample \
+    --call-summits -q 0.05
+
+# MACS2 broad peaks (for H3K27me3, H3K36me3)
+macs2 callpeak -t treatment.bam -c control.bam -g hs -n sample \
+    --broad -q 0.05
+
+# SEACR for CUT&Tag
+bash SEACR_1.3.sh treatment.bedgraph control.bedgraph norm relaxed output
+```
+
+### Installing Preprocessing Tools
+
+**Conda (Recommended):**
+```bash
+conda install -c bioconda bowtie2 bwa samtools macs2 bedtools
+```
+
+**Manual Installation:**
+```bash
+# Ubuntu/Debian
+sudo apt install bowtie2 bwa samtools bedtools
+pip install MACS2
+
+# macOS
+brew install bowtie2 bwa samtools bedtools
+pip install MACS2
+```
+
+### Building Reference Genome Indices
+
+Before alignment, you need to build genome indices:
+
+**Bowtie2 Index:**
+```bash
+# Download genome FASTA (example: hg38)
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+gunzip hg38.fa.gz
+
+# Build Bowtie2 index
+bowtie2-build hg38.fa hg38
+```
+
+**BWA Index:**
+```bash
+bwa index hg38.fa
+```
+
+**Recommended directory structure:**
+```
+~/genomes/
+├── hg38/
+│   ├── hg38.fa
+│   ├── hg38.chrom.sizes
+│   ├── bowtie2_index/
+│   │   └── hg38.*
+│   └── bwa_index/
+│       └── hg38.*
+└── mm10/
+    └── ...
 ```
 
 ---
@@ -264,13 +400,21 @@ Export options available from each analysis page:
 
 ## Analysis Workflows
 
+### Workflow 0: Full Pipeline (FASTQ → Results)
+
+```
+FASTQ → Alignment (Bowtie2/BWA) → BAM → Peak Calling (MACS2/SEACR) → Peaks → Analysis
+```
+
+Best for: Starting from raw sequencing data with no prior processing
+
 ### Workflow 1: Basic Differential Analysis
 
 ```
 Peak Files → Quality Control → Differential Analysis → Annotation → Export
 ```
 
-Best for: Comparing two conditions with histone ChIP-seq
+Best for: Comparing two conditions with histone ChIP-seq (when you already have peaks)
 
 ### Workflow 2: Multi-mark Chromatin States
 
@@ -356,7 +500,12 @@ epinexus/
 │   └── models/                  # Data models
 ├── frontend/
 │   ├── EpiNexus.py              # Main Streamlit application
-│   ├── pages/                   # Analysis pages (01-21)
+│   ├── pages/                   # Analysis pages
+│   │   ├── 00_workflow.py       # Workflow guide
+│   │   ├── 01_data_project.py   # Data & project management
+│   │   ├── 22_alignment.py      # FASTQ alignment (Bowtie2/BWA)
+│   │   ├── 23_peak_calling.py   # Peak calling (MACS2/SEACR)
+│   │   └── ...                  # Additional analysis pages
 │   └── components/              # Reusable UI components
 │       ├── data_manager.py      # Data handling
 │       └── empty_states.py      # Empty state UI
@@ -558,7 +707,33 @@ Also consider citing the underlying tools:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+EpiNexus uses a **dual licensing** model:
+
+### Academic/Non-Commercial Use (Free)
+
+Free for universities, research institutions, non-profits, and individual researchers under [AGPL-3.0](LICENSE-ACADEMIC).
+
+```
+✓ Universities and colleges
+✓ Non-profit research institutes
+✓ Government research labs
+✓ Individual academic researchers
+✓ Students for educational use
+```
+
+### Commercial Use (Paid)
+
+Commercial entities require a paid license. See [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for details.
+
+| Tier | Employees | Annual Fee |
+|------|-----------|------------|
+| Startup | < 50 | $2,500 |
+| Business | 50-500 | $10,000 |
+| Enterprise | 500+ | Contact us |
+
+**Contact:** licensing@epinexus.org
+
+See the [LICENSE](LICENSE) file for complete details.
 
 ---
 

@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.core.peak_gene_linking import PeakGeneLinkingEngine, generate_demo_genes
+from app.core.peak_gene_linking import PeakGeneLinkingEngine, generate_demo_genes, load_gene_annotations
 
 st.set_page_config(
     page_title="Peak-Gene Linking - EpiNexus",
@@ -151,11 +151,20 @@ def render_input_data():
     with col1:
         st.subheader("Enhancer Peaks")
 
-        use_demo_peaks = st.checkbox("Use demo peaks", value=True, key='demo_peaks')
+        # Try to get peaks from session state
+        peaks = None
+        if HAS_DATA_MANAGER:
+            peaks = DataManager.get_data('peaks')
+        if peaks is None and 'uploaded_peaks' in st.session_state:
+            peaks = st.session_state.uploaded_peaks
+        if peaks is None and 'samples' in st.session_state:
+            for sample in st.session_state.samples:
+                if 'peaks' in sample:
+                    peaks = sample['peaks'].copy()
+                    break
 
-        if use_demo_peaks:
-            peaks = generate_demo_peaks()
-            st.success(f"Loaded {len(peaks)} demo peaks")
+        if peaks is not None:
+            st.success(f"Using {len(peaks)} peaks from session")
         else:
             peak_file = st.file_uploader(
                 "Upload peak file",
@@ -166,8 +175,6 @@ def render_input_data():
                 peaks = pd.read_csv(peak_file, sep='\t', header=None)
                 peaks.columns = ['chr', 'start', 'end', 'name', 'signal'][:len(peaks.columns)]
                 st.success(f"Loaded {len(peaks)} peaks")
-            else:
-                peaks = None
 
         if peaks is not None:
             st.dataframe(peaks.head(10), use_container_width=True)
@@ -175,11 +182,23 @@ def render_input_data():
     with col2:
         st.subheader("Gene Annotations")
 
-        use_demo_genes = st.checkbox("Use demo genes", value=True, key='demo_genes')
+        gene_source = st.radio(
+            "Gene source",
+            ["Built-in (GENCODE)", "Demo genes", "Upload custom"],
+            horizontal=True,
+            key='gene_source'
+        )
 
-        if use_demo_genes:
+        if gene_source == "Built-in (GENCODE)":
+            genome = st.selectbox("Genome", ["hg38", "hg19", "mm10", "mm39"], key='gene_genome')
+            with st.spinner("Loading gene annotations..."):
+                genes = load_gene_annotations(genome)
+            st.success(f"Loaded {len(genes)} curated genes ({genome})")
+
+        elif gene_source == "Demo genes":
             genes = generate_demo_genes()
-            st.success(f"Loaded {len(genes)} genes")
+            st.success(f"Loaded {len(genes)} demo genes")
+
         else:
             gene_file = st.file_uploader(
                 "Upload gene annotation",
@@ -188,6 +207,10 @@ def render_input_data():
             )
             if gene_file:
                 genes = pd.read_csv(gene_file, sep='\t')
+                # Standardize column names if needed
+                col_map = {'chrom': 'chr', 'chromosome': 'chr', 'txStart': 'tss',
+                          'name2': 'gene_symbol', 'geneName': 'gene_symbol', 'name': 'gene_id'}
+                genes = genes.rename(columns={k: v for k, v in col_map.items() if k in genes.columns})
                 st.success(f"Loaded {len(genes)} genes")
             else:
                 genes = None
@@ -412,19 +435,76 @@ def render_gene_summary(links):
         st.plotly_chart(fig, use_container_width=True)
 
 
-def generate_demo_peaks():
-    """Generate demo peak data."""
-    np.random.seed(42)
-    n = 500
+def generate_demo_peaks(n: int = 500, genome: str = "hg38"):
+    """
+    Generate demo enhancer peak data based on realistic characteristics.
 
-    peaks = pd.DataFrame({
-        'chr': np.random.choice([f'chr{i}' for i in range(1, 23)], n),
-        'start': np.random.randint(1000000, 200000000, n),
-        'end': lambda: 0,
-        'peak_id': [f'enhancer_{i}' for i in range(n)],
-        'signal': np.random.lognormal(2, 1, n)
-    })
-    peaks['end'] = peaks['start'] + np.random.randint(500, 3000, n)
+    Creates peaks near known gene loci with realistic signal distributions
+    typical of H3K27ac ChIP-seq data at enhancers.
+    """
+    np.random.seed(42)
+
+    # Known enhancer regions near important genes (hg38 coordinates)
+    known_enhancers = [
+        # MYC super-enhancer region
+        {'chr': 'chr8', 'region_start': 128700000, 'region_end': 128900000, 'n_peaks': 20},
+        # TP53 regulatory region
+        {'chr': 'chr17', 'region_start': 7500000, 'region_end': 7800000, 'n_peaks': 15},
+        # EGFR regulatory region
+        {'chr': 'chr7', 'region_start': 55000000, 'region_end': 55300000, 'n_peaks': 12},
+        # VEGFA regulatory region
+        {'chr': 'chr6', 'region_start': 43600000, 'region_end': 43900000, 'n_peaks': 10},
+        # CCND1 regulatory region
+        {'chr': 'chr11', 'region_start': 69500000, 'region_end': 69800000, 'n_peaks': 8},
+        # BCL2 regulatory region
+        {'chr': 'chr18', 'region_start': 63000000, 'region_end': 63300000, 'n_peaks': 10},
+    ]
+
+    peaks_list = []
+    peak_id = 0
+
+    # Generate peaks in known enhancer regions
+    for region in known_enhancers:
+        region_size = region['region_end'] - region['region_start']
+        for _ in range(region['n_peaks']):
+            start = region['region_start'] + np.random.randint(0, region_size - 2000)
+            width = np.random.randint(500, 3000)
+            # Higher signals for super-enhancer regions
+            signal = np.random.lognormal(3, 0.8) if 'MYC' in str(region) else np.random.lognormal(2, 1)
+
+            peaks_list.append({
+                'chr': region['chr'],
+                'start': start,
+                'end': start + width,
+                'peak_id': f'enhancer_{peak_id}',
+                'signal': signal
+            })
+            peak_id += 1
+
+    # Generate random peaks across the genome for the remaining count
+    chromosomes = [f'chr{i}' for i in range(1, 23)] + ['chrX']
+    chr_weights = np.array([8, 7, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 3])
+    chr_weights = chr_weights / chr_weights.sum()
+
+    remaining = n - len(peaks_list)
+    for i in range(remaining):
+        chrom = np.random.choice(chromosomes, p=chr_weights)
+        start = np.random.randint(1000000, 200000000)
+        width = np.random.randint(500, 3000)
+
+        peaks_list.append({
+            'chr': chrom,
+            'start': start,
+            'end': start + width,
+            'peak_id': f'enhancer_{peak_id}',
+            'signal': np.random.lognormal(2, 1)
+        })
+        peak_id += 1
+
+    peaks = pd.DataFrame(peaks_list)
+
+    # Ensure end > start
+    peaks['end'] = peaks['start'] + np.abs(peaks['end'] - peaks['start'])
 
     return peaks
 

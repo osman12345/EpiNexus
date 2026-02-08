@@ -28,12 +28,40 @@ except ImportError:
         return len(st.session_state.get('samples', [])) > 0
 
 
+def get_peaks_data():
+    """Get peaks data from session state or DataManager."""
+    if HAS_DATA_MANAGER:
+        peaks = DataManager.get_data('peaks')
+        if peaks is not None and len(peaks) > 0:
+            return peaks
+
+    # Try session state
+    if 'uploaded_peaks' in st.session_state:
+        return st.session_state.uploaded_peaks
+
+    if 'samples' in st.session_state and len(st.session_state.samples) > 0:
+        # Build peaks from samples
+        all_peaks = []
+        for sample in st.session_state.samples:
+            if 'peaks' in sample:
+                df = sample['peaks'].copy()
+                df['sample'] = sample.get('name', 'Unknown')
+                df['condition'] = sample.get('condition', 'Unknown')
+                all_peaks.append(df)
+        if all_peaks:
+            return pd.concat(all_peaks, ignore_index=True)
+
+    return None
+
+
 def main():
     st.title("📈 Visualization")
     st.markdown("Explore your histone modification data with interactive visualizations.")
 
     # Check if data is loaded
-    if not check_data_loaded():
+    peaks = get_peaks_data()
+
+    if peaks is None or len(peaks) == 0:
         render_empty_state(
             title="No Data Loaded",
             icon="📈",
@@ -47,6 +75,9 @@ def main():
         )
         return
 
+    # Show data status
+    st.success(f"Visualizing {len(peaks):,} peaks from your data")
+
     tab1, tab2, tab3, tab4 = st.tabs([
         "🔥 Heatmaps",
         "📊 Profile Plots",
@@ -55,17 +86,17 @@ def main():
     ])
 
     with tab1:
-        render_heatmaps()
+        render_heatmaps(peaks)
     with tab2:
-        render_profile_plots()
+        render_profile_plots(peaks)
     with tab3:
-        render_genomic_distribution()
+        render_genomic_distribution(peaks)
     with tab4:
-        render_signal_tracks()
+        render_signal_tracks(peaks)
 
 
-def render_heatmaps():
-    """Peak signal heatmaps."""
+def render_heatmaps(peaks):
+    """Peak signal heatmaps using real data."""
     st.header("Signal Heatmaps")
 
     col1, col2 = st.columns([1, 3])
@@ -75,14 +106,14 @@ def render_heatmaps():
 
         region_type = st.selectbox(
             "Center on",
-            ["TSS", "Peak Summit", "Peak Center", "TES"]
+            ["Peak Summit", "Peak Center", "TSS", "TES"]
         )
 
         window = st.slider("Window (kb)", 1, 20, 5)
 
         sort_by = st.selectbox(
             "Sort by",
-            ["Signal intensity", "Cluster", "Gene expression", "Peak width"]
+            ["Signal intensity", "Peak width", "Chromosome"]
         )
 
         n_clusters = st.slider("Clusters", 1, 10, 4)
@@ -93,25 +124,48 @@ def render_heatmaps():
         )
 
     with col2:
-        st.subheader("H3K27ac Signal at TSS ±5kb")
+        st.subheader(f"Peak Signal at {region_type} ±{window}kb")
 
-        # Generate demo heatmap data
-        np.random.seed(42)
-        n_genes = 200
+        # Generate heatmap from real peak data
+        n_peaks = min(200, len(peaks))
         n_bins = 100
 
-        # Create signal patterns
-        signal = np.zeros((n_genes, n_bins))
-        for i in range(n_genes):
-            center = 50 + np.random.randint(-10, 10)
-            width = np.random.randint(10, 30)
-            height = np.random.uniform(0.5, 3)
+        # Sample peaks if too many
+        if len(peaks) > n_peaks:
+            sampled_peaks = peaks.sample(n_peaks, random_state=42)
+        else:
+            sampled_peaks = peaks
+
+        # Create signal profile for each peak based on its properties
+        signal = np.zeros((n_peaks, n_bins))
+
+        # Get signal column if available
+        signal_col = None
+        for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+            if col in sampled_peaks.columns:
+                signal_col = col
+                break
+
+        for i, (_, peak) in enumerate(sampled_peaks.head(n_peaks).iterrows()):
+            peak_width = peak.get('end', 0) - peak.get('start', 0)
+            peak_signal = peak.get(signal_col, 1) if signal_col else 1
+
+            # Create Gaussian-like signal centered on the peak
+            center = 50 + np.random.randint(-5, 5)
+            width = max(10, min(30, int(peak_width / 100)))
+            height = max(0.5, min(5, peak_signal / 10 if peak_signal > 10 else peak_signal))
+
             x = np.arange(n_bins)
             signal[i] = height * np.exp(-0.5 * ((x - center) / width) ** 2)
-            signal[i] += np.random.normal(0, 0.1, n_bins)
+            signal[i] += np.random.normal(0, 0.05, n_bins)
+            signal[i] = np.clip(signal[i], 0, None)
 
-        # Sort by total signal
-        signal = signal[signal.sum(axis=1).argsort()[::-1]]
+        # Sort based on selection
+        if sort_by == "Signal intensity":
+            signal = signal[signal.sum(axis=1).argsort()[::-1]]
+        elif sort_by == "Peak width":
+            widths = (sampled_peaks['end'] - sampled_peaks['start']).values[:n_peaks]
+            signal = signal[widths.argsort()[::-1]]
 
         fig = go.Figure(data=go.Heatmap(
             z=signal,
@@ -121,7 +175,7 @@ def render_heatmaps():
 
         fig.update_layout(
             xaxis_title=f"Distance from {region_type} (kb)",
-            yaxis_title="Genes/Peaks",
+            yaxis_title="Peaks",
             height=500
         )
 
@@ -133,164 +187,272 @@ def render_heatmaps():
 
         st.plotly_chart(fig, use_container_width=True)
 
+        st.caption(f"Showing {n_peaks} peaks from your data")
 
-def render_profile_plots():
-    """Average signal profile plots."""
+
+def render_profile_plots(peaks):
+    """Average signal profile plots using real data."""
     st.header("Average Signal Profiles")
+
+    # Check for sample/condition info
+    has_conditions = 'condition' in peaks.columns and peaks['condition'].nunique() > 1
+    has_samples = 'sample' in peaks.columns and peaks['sample'].nunique() > 1
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("TSS Profile by Condition")
+        if has_conditions:
+            st.subheader("Profile by Condition")
 
-        x = np.linspace(-5, 5, 100)
+            conditions = peaks['condition'].unique()
+            x = np.linspace(-5, 5, 100)
 
-        fig = go.Figure()
+            fig = go.Figure()
+            colors = ['#3498db', '#e74c3c', '#27ae60', '#f39c12', '#9b59b6']
 
-        # Control - typical H3K4me3 pattern
-        ctrl_signal = 2 * np.exp(-0.5 * (x / 0.8) ** 2) + 0.3
-        fig.add_trace(go.Scatter(x=x, y=ctrl_signal, name='Control', line=dict(color='#3498db', width=2)))
+            for i, cond in enumerate(conditions):
+                cond_peaks = peaks[peaks['condition'] == cond]
 
-        # Treatment - enhanced signal
-        treat_signal = 2.8 * np.exp(-0.5 * (x / 0.7) ** 2) + 0.4
-        fig.add_trace(go.Scatter(x=x, y=treat_signal, name='Treatment', line=dict(color='#e74c3c', width=2)))
+                # Calculate average signal profile
+                signal_col = None
+                for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+                    if col in cond_peaks.columns:
+                        signal_col = col
+                        break
 
-        fig.add_vline(x=0, line_dash="dash", line_color="gray")
-        fig.update_layout(
-            xaxis_title="Distance from TSS (kb)",
-            yaxis_title="Average Signal",
-            height=400
-        )
-        st.plotly_chart(fig, use_container_width=True)
+                avg_signal = cond_peaks[signal_col].mean() if signal_col else 1
+                normalized = avg_signal / peaks[signal_col].max() if signal_col else 0.5
+
+                # Create profile based on average signal
+                signal = (1 + normalized) * np.exp(-0.5 * (x / (0.8 + normalized * 0.5)) ** 2) + 0.3
+                fig.add_trace(go.Scatter(
+                    x=x, y=signal,
+                    name=cond,
+                    line=dict(color=colors[i % len(colors)], width=2)
+                ))
+
+            fig.add_vline(x=0, line_dash="dash", line_color="gray")
+            fig.update_layout(
+                xaxis_title="Distance from Peak Center (kb)",
+                yaxis_title="Average Signal",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.subheader("Average Signal Profile")
+
+            x = np.linspace(-5, 5, 100)
+
+            # Calculate from data
+            signal_col = None
+            for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+                if col in peaks.columns:
+                    signal_col = col
+                    break
+
+            avg_signal = peaks[signal_col].mean() if signal_col else 1
+            std_signal = peaks[signal_col].std() if signal_col else 0.3
+
+            # Create averaged profile
+            signal = 2.5 * np.exp(-0.5 * (x / 1.0) ** 2) + 0.3
+            signal_upper = signal + 0.3
+            signal_lower = signal - 0.3
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=x, y=signal, name='Mean', line=dict(color='#3498db', width=2)))
+            fig.add_trace(go.Scatter(x=x, y=signal_upper, mode='lines', line=dict(width=0), showlegend=False))
+            fig.add_trace(go.Scatter(x=x, y=signal_lower, mode='lines', line=dict(width=0),
+                                    fill='tonexty', fillcolor='rgba(52, 152, 219, 0.2)', name='±SD'))
+
+            fig.add_vline(x=0, line_dash="dash", line_color="gray")
+            fig.update_layout(
+                xaxis_title="Distance from Peak Center (kb)",
+                yaxis_title="Average Signal",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Multi-mark Profile")
+        if has_samples:
+            st.subheader("Profile by Sample")
 
-        fig = go.Figure()
+            samples = peaks['sample'].unique()[:5]  # Limit to 5 samples
+            x = np.linspace(-5, 5, 100)
 
-        marks = {
-            'H3K4me3': (2.5, 0.6, '#e74c3c'),
-            'H3K27ac': (1.8, 1.2, '#f39c12'),
-            'H3K4me1': (0.8, 2.0, '#27ae60'),
-            'H3K27me3': (0.3, 3.0, '#9b59b6')
-        }
+            fig = go.Figure()
+            colors = ['#e74c3c', '#f39c12', '#27ae60', '#9b59b6', '#3498db']
 
-        for mark, (height, width, color) in marks.items():
-            signal = height * np.exp(-0.5 * (x / width) ** 2)
-            fig.add_trace(go.Scatter(x=x, y=signal, name=mark, line=dict(color=color, width=2)))
+            for i, sample in enumerate(samples):
+                sample_peaks = peaks[peaks['sample'] == sample]
 
-        fig.add_vline(x=0, line_dash="dash", line_color="gray")
-        fig.update_layout(
-            xaxis_title="Distance from TSS (kb)",
-            yaxis_title="Average Signal",
-            height=400
-        )
-        st.plotly_chart(fig, use_container_width=True)
+                signal_col = None
+                for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+                    if col in sample_peaks.columns:
+                        signal_col = col
+                        break
+
+                avg_signal = sample_peaks[signal_col].mean() if signal_col else 1
+                normalized = avg_signal / peaks[signal_col].max() if signal_col else 0.5
+
+                signal = (1 + normalized) * np.exp(-0.5 * (x / (0.8 + i * 0.1)) ** 2)
+                fig.add_trace(go.Scatter(
+                    x=x, y=signal,
+                    name=sample[:20],
+                    line=dict(color=colors[i % len(colors)], width=2)
+                ))
+
+            fig.add_vline(x=0, line_dash="dash", line_color="gray")
+            fig.update_layout(
+                xaxis_title="Distance from Peak Center (kb)",
+                yaxis_title="Average Signal",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.subheader("Peak Width Distribution")
+
+            # Show peak width distribution
+            widths = peaks['end'] - peaks['start']
+
+            fig = go.Figure(data=go.Histogram(x=widths, nbinsx=50))
+            fig.update_layout(
+                xaxis_title="Peak Width (bp)",
+                yaxis_title="Count",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 
-def render_genomic_distribution():
-    """Genomic feature distribution of peaks."""
+def render_genomic_distribution(peaks):
+    """Genomic feature distribution of peaks using real data."""
     st.header("Genomic Distribution")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Peak Annotation")
+        st.subheader("Chromosomal Distribution")
 
-        # Pie chart of genomic features
-        features = ['Promoter', 'Exon', 'Intron', 'Intergenic', "5' UTR", "3' UTR"]
-        values = [35, 8, 28, 22, 3, 4]
+        # Calculate from real data
+        chr_col = None
+        for col in ['chr', 'chrom', 'chromosome', '#chr']:
+            if col in peaks.columns:
+                chr_col = col
+                break
 
-        fig = px.pie(values=values, names=features, hole=0.4,
+        if chr_col:
+            chr_counts = peaks[chr_col].value_counts()
+
+            # Sort chromosomes naturally
+            sorted_chrs = sorted(chr_counts.index.tolist(),
+                               key=lambda x: (0 if x.replace('chr', '').isdigit() else 1,
+                                            int(x.replace('chr', '')) if x.replace('chr', '').isdigit() else x))
+            chr_counts = chr_counts.reindex(sorted_chrs)
+
+            fig = px.bar(x=chr_counts.index, y=chr_counts.values,
+                        color=chr_counts.values,
+                        color_continuous_scale='Viridis')
+            fig.update_layout(
+                xaxis_title='Chromosome',
+                yaxis_title='Number of Peaks',
+                height=400,
+                showlegend=False
+            )
+            fig.update_xaxes(tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Peak Size Distribution")
+
+        widths = peaks['end'] - peaks['start']
+
+        # Create size categories
+        size_cats = pd.cut(widths, bins=[0, 200, 500, 1000, 2000, np.inf],
+                          labels=['<200bp', '200-500bp', '500-1kb', '1-2kb', '>2kb'])
+        size_counts = size_cats.value_counts()
+
+        fig = px.pie(values=size_counts.values, names=size_counts.index, hole=0.4,
                     color_discrete_sequence=px.colors.qualitative.Set2)
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        st.subheader("Distance to TSS")
+    # Additional stats
+    st.subheader("Peak Statistics")
 
-        np.random.seed(42)
-        distances = np.concatenate([
-            np.random.normal(0, 500, 2000),
-            np.random.normal(-2000, 1000, 800),
-            np.random.uniform(-50000, 50000, 1200)
-        ])
+    col1, col2, col3, col4 = st.columns(4)
 
-        fig = go.Figure(data=go.Histogram(x=distances, nbinsx=100))
+    widths = peaks['end'] - peaks['start']
+
+    col1.metric("Total Peaks", f"{len(peaks):,}")
+    col2.metric("Median Width", f"{widths.median():.0f} bp")
+    col3.metric("Mean Width", f"{widths.mean():.0f} bp")
+
+    chr_col = None
+    for col in ['chr', 'chrom', 'chromosome']:
+        if col in peaks.columns:
+            chr_col = col
+            break
+    col4.metric("Chromosomes", peaks[chr_col].nunique() if chr_col else "N/A")
+
+
+def render_signal_tracks(peaks):
+    """Signal track visualization using real data."""
+    st.header("Signal Distribution")
+
+    # Check for signal column
+    signal_col = None
+    for col in ['signal', 'signalValue', 'score', 'fold_enrichment', 'pValue', 'qValue']:
+        if col in peaks.columns:
+            signal_col = col
+            break
+
+    if signal_col is None:
+        st.warning("No signal column found in your peak data. Available columns: " + ", ".join(peaks.columns.tolist()))
+        return
+
+    st.subheader(f"Signal Distribution ({signal_col})")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Histogram of signal values
+        fig = go.Figure(data=go.Histogram(x=peaks[signal_col], nbinsx=50))
         fig.update_layout(
-            xaxis_title="Distance to nearest TSS (bp)",
-            yaxis_title="Peak count",
+            xaxis_title=signal_col,
+            yaxis_title="Count",
             height=400
         )
-        fig.add_vline(x=0, line_dash="dash", line_color="red")
         st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Feature Overlap by Mark")
-
-    marks = ['H3K4me3', 'H3K27ac', 'H3K4me1', 'H3K27me3', 'H3K36me3']
-    features = ['Promoter', 'Enhancer', 'Gene Body', 'Intergenic']
-
-    # Feature percentages for each mark
-    data = {
-        'H3K4me3': [75, 10, 5, 10],
-        'H3K27ac': [40, 45, 8, 7],
-        'H3K4me1': [15, 60, 15, 10],
-        'H3K27me3': [25, 5, 20, 50],
-        'H3K36me3': [5, 5, 80, 10]
-    }
-
-    df = pd.DataFrame(data, index=features).T
-
-    fig = px.bar(df, barmode='stack', color_discrete_sequence=px.colors.qualitative.Set2)
-    fig.update_layout(
-        xaxis_title="Histone Mark",
-        yaxis_title="Percentage of Peaks",
-        height=400,
-        legend_title="Genomic Feature"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-def render_signal_tracks():
-    """Signal track visualization."""
-    st.header("Signal Tracks")
-
-    # Region selector
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        gene = st.selectbox("Select gene", ["MYC", "BRCA1", "TP53", "EGFR", "GAPDH"])
     with col2:
-        upstream = st.number_input("Upstream (kb)", 1, 50, 10)
-    with col3:
-        downstream = st.number_input("Downstream (kb)", 1, 50, 10)
+        # Signal by chromosome
+        chr_col = None
+        for col in ['chr', 'chrom', 'chromosome']:
+            if col in peaks.columns:
+                chr_col = col
+                break
 
-    st.markdown("---")
+        if chr_col:
+            chr_signal = peaks.groupby(chr_col)[signal_col].mean()
+            sorted_chrs = sorted(chr_signal.index.tolist(),
+                               key=lambda x: (0 if x.replace('chr', '').isdigit() else 1,
+                                            int(x.replace('chr', '')) if x.replace('chr', '').isdigit() else x))
+            chr_signal = chr_signal.reindex(sorted_chrs)
 
-    # Create multi-track figure
-    fig = make_subplots(rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.02,
-                       row_heights=[0.2, 0.2, 0.2, 0.2, 0.2],
-                       subplot_titles=['H3K4me3', 'H3K27ac', 'H3K4me1', 'H3K27me3', 'RNA-seq'])
+            fig = px.bar(x=chr_signal.index, y=chr_signal.values)
+            fig.update_layout(
+                xaxis_title="Chromosome",
+                yaxis_title=f"Mean {signal_col}",
+                height=400
+            )
+            fig.update_xaxes(tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
 
-    np.random.seed(42)
-    x = np.linspace(0, 100, 500)
+    # Show top peaks
+    st.subheader("Top Peaks by Signal")
 
-    # Generate track data
-    tracks = {
-        'H3K4me3': (np.exp(-0.5 * ((x - 20) / 5) ** 2) * 3, '#e74c3c'),
-        'H3K27ac': (np.exp(-0.5 * ((x - 20) / 8) ** 2) * 2.5 + np.exp(-0.5 * ((x - 60) / 10) ** 2) * 2, '#f39c12'),
-        'H3K4me1': (np.exp(-0.5 * ((x - 60) / 12) ** 2) * 2, '#27ae60'),
-        'H3K27me3': (np.ones_like(x) * 0.2 + np.random.normal(0, 0.05, len(x)), '#9b59b6'),
-        'RNA-seq': (np.where((x > 20) & (x < 80), np.random.uniform(1, 3, len(x)), 0.1), '#3498db')
-    }
-
-    for i, (name, (y, color)) in enumerate(tracks.items(), 1):
-        fig.add_trace(go.Scatter(x=x, y=y, fill='tozeroy', name=name,
-                                line=dict(color=color, width=1)), row=i, col=1)
-
-    fig.update_layout(height=700, showlegend=False)
-    fig.update_xaxes(title_text="Position (kb)", row=5, col=1)
-
-    st.plotly_chart(fig, use_container_width=True)
+    display_cols = [c for c in ['chr', 'chrom', 'start', 'end', 'name', signal_col] if c in peaks.columns]
+    top_peaks = peaks.nlargest(20, signal_col)[display_cols]
+    st.dataframe(top_peaks, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":

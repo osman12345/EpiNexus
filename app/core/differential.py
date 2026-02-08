@@ -11,6 +11,13 @@ Provides equivalent functionality to DiffBind:
 - Read counting in peaks
 - Normalization (RLE/TMM)
 - Differential analysis with DESeq2
+
+Copyright (c) 2026 EpiNexus Contributors
+SPDX-License-Identifier: AGPL-3.0-or-later OR Commercial
+
+This file is part of EpiNexus.
+- Academic/Non-commercial use: AGPL-3.0 (see LICENSE-ACADEMIC)
+- Commercial use: Requires commercial license (see LICENSE-COMMERCIAL.md)
 """
 
 import logging
@@ -72,8 +79,17 @@ class DifferentialConfig:
     min_overlap: int = 2  # Minimum samples with peak
     summit_extend: int = 250  # Extend summit in each direction
 
-    # Normalization
-    normalize_method: str = "RLE"  # RLE, TMM, or median_ratio
+    # Normalization - supports multiple methods for different experimental designs
+    # Options: "RLE", "TMM", "median_ratio", "spike_in", "library_size", "quantile"
+    normalize_method: str = "RLE"
+
+    # CUT&Tag specific options (for experiments without IgG controls)
+    use_control: bool = False  # Whether IgG/input controls are available
+    spike_in_genome: Optional[str] = None  # e.g., "E_coli", "dm6", "sacCer3"
+    spike_in_bam_suffix: str = "_spikein"  # Suffix for spike-in BAM files
+
+    # Assay type for automatic parameter selection
+    assay_type: str = "ChIP-seq"  # "ChIP-seq", "CUT&Tag", "CUT&RUN"
 
     # Significance thresholds
     fdr_threshold: float = 0.1
@@ -355,22 +371,45 @@ class DifferentialAnalyzer:
     def normalize_counts(
         self,
         counts: pd.DataFrame,
-        method: str = "RLE"
+        method: str = "RLE",
+        spike_in_counts: Optional[pd.Series] = None
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Normalize count matrix.
 
+        Supports multiple normalization methods suitable for different experimental designs:
+        - RLE: DESeq2-style normalization (good for ChIP-seq with controls)
+        - TMM: edgeR-style trimmed mean of M-values
+        - spike_in: Calibrate using exogenous spike-in reads (ideal for CUT&Tag)
+        - library_size: Simple total read normalization
+        - quantile: Quantile normalization across samples
+        - median_ratio: Simple median ratio normalization
+
         Args:
             counts: Raw count matrix (peaks x samples)
-            method: Normalization method (RLE, TMM, median_ratio)
+            method: Normalization method
+            spike_in_counts: Series of spike-in read counts per sample (required for spike_in method)
 
         Returns:
-            Tuple of (normalized counts, size factors)
+            Tuple of (normalized counts, size factors/scaling factors)
         """
         if method == "RLE":
             size_factors = self._rle_normalization(counts)
         elif method == "TMM":
             size_factors = self._tmm_normalization(counts)
+        elif method == "spike_in":
+            if spike_in_counts is None:
+                logger.warning("Spike-in counts not provided, falling back to RLE")
+                size_factors = self._rle_normalization(counts)
+            else:
+                size_factors = self._spike_in_normalization(spike_in_counts)
+        elif method == "library_size":
+            size_factors = self._library_size_normalization(counts)
+        elif method == "quantile":
+            # Quantile normalization returns normalized counts directly
+            normalized = self._quantile_normalization(counts)
+            size_factors = pd.Series(1.0, index=counts.columns)
+            return normalized, size_factors
         else:  # median_ratio
             size_factors = self._median_ratio_normalization(counts)
 
@@ -429,6 +468,152 @@ class DifferentialAnalyzer:
             size_factors[sample] = np.nanmedian(ratios)
 
         return pd.Series(size_factors)
+
+    def _spike_in_normalization(self, spike_in_counts: pd.Series) -> pd.Series:
+        """
+        Spike-in normalization for CUT&Tag and calibrated ChIP-seq.
+
+        This is the recommended normalization for CUT&Tag data that uses
+        E. coli carry-over DNA or exogenous spike-ins for calibration.
+        It's particularly useful when comparing samples with global changes
+        in histone modifications (where RLE/TMM assumptions may fail).
+
+        The scaling factor is the inverse of spike-in proportion:
+        scale_factor = median(spike_in) / sample_spike_in
+
+        Args:
+            spike_in_counts: Series with spike-in read counts per sample
+
+        Returns:
+            Scaling factors per sample
+        """
+        # Calculate scaling factors relative to median
+        median_spikein = spike_in_counts.median()
+
+        # Avoid division by zero
+        spike_in_counts = spike_in_counts.replace(0, 1)
+
+        # Scale factors: samples with fewer spike-in reads should be scaled up
+        # (fewer spike-in reads = more target chromatin captured)
+        scale_factors = median_spikein / spike_in_counts
+
+        logger.info(f"Spike-in scaling factors range: {scale_factors.min():.3f} - {scale_factors.max():.3f}")
+
+        return scale_factors
+
+    def _library_size_normalization(self, counts: pd.DataFrame) -> pd.Series:
+        """
+        Simple library size normalization.
+
+        Scales by total mapped reads in peaks. Suitable when there are
+        no global changes expected between conditions.
+
+        Args:
+            counts: Count matrix
+
+        Returns:
+            Size factors based on total counts
+        """
+        total_counts = counts.sum(axis=0)
+        # Normalize to median library size
+        median_size = total_counts.median()
+        size_factors = total_counts / median_size
+
+        return size_factors
+
+    def _quantile_normalization(self, counts: pd.DataFrame) -> pd.DataFrame:
+        """
+        Quantile normalization.
+
+        Forces all samples to have the same distribution.
+        Can be aggressive but useful for removing batch effects.
+
+        Args:
+            counts: Count matrix
+
+        Returns:
+            Quantile-normalized count matrix
+        """
+        # Rank the values
+        ranked = counts.rank(axis=0)
+
+        # Calculate mean for each rank across samples
+        sorted_means = counts.apply(lambda x: sorted(x)).mean(axis=1)
+
+        # Map ranks to mean values
+        normalized = counts.copy()
+        for col in counts.columns:
+            normalized[col] = sorted_means.iloc[(ranked[col] - 1).astype(int).values].values
+
+        return normalized
+
+    def count_spike_in_reads(
+        self,
+        samples: List[Sample],
+        spike_in_genome: str = "E_coli"
+    ) -> pd.Series:
+        """
+        Count reads mapping to spike-in genome for each sample.
+
+        For CUT&Tag, E. coli DNA carry-over from pA-Tn5 production
+        serves as an internal calibration control.
+
+        Args:
+            samples: List of samples with BAM files
+            spike_in_genome: Spike-in reference name in BAM headers
+
+        Returns:
+            Series of spike-in read counts per sample
+        """
+        if not PYSAM_AVAILABLE:
+            raise ImportError("pysam required for spike-in counting")
+
+        spike_counts = {}
+
+        for sample in samples:
+            if not sample.bam_file or not Path(sample.bam_file).exists():
+                logger.warning(f"BAM not found for {sample.sample_id}")
+                spike_counts[sample.sample_id] = 0
+                continue
+
+            # Look for spike-in specific BAM or count from main BAM
+            spikein_bam = Path(sample.bam_file).with_suffix('.spikein.bam')
+
+            if spikein_bam.exists():
+                # Dedicated spike-in BAM exists
+                with pysam.AlignmentFile(str(spikein_bam), "rb") as bam:
+                    spike_counts[sample.sample_id] = bam.mapped
+            else:
+                # Count reads mapping to spike-in chromosomes in main BAM
+                try:
+                    with pysam.AlignmentFile(sample.bam_file, "rb") as bam:
+                        # Find spike-in chromosomes (e.g., those starting with spike_in_genome prefix)
+                        spikein_refs = [
+                            ref for ref in bam.references
+                            if spike_in_genome.lower() in ref.lower()
+                        ]
+
+                        if spikein_refs:
+                            count = sum(
+                                bam.count(ref, 0, bam.get_reference_length(ref))
+                                for ref in spikein_refs
+                            )
+                        else:
+                            # No spike-in refs found - might need separate alignment
+                            logger.warning(
+                                f"No spike-in refs found for {sample.sample_id}. "
+                                f"Consider providing separate spike-in BAM."
+                            )
+                            count = 0
+
+                        spike_counts[sample.sample_id] = count
+                except Exception as e:
+                    logger.error(f"Error counting spike-in for {sample.sample_id}: {e}")
+                    spike_counts[sample.sample_id] = 0
+
+            logger.info(f"Spike-in counts for {sample.sample_id}: {spike_counts[sample.sample_id]:,}")
+
+        return pd.Series(spike_counts)
 
     def run_deseq2(
         self,
@@ -561,6 +746,9 @@ class DifferentialAnalyzer:
         """
         Run complete differential analysis pipeline.
 
+        Supports both traditional ChIP-seq (with IgG controls) and
+        CUT&Tag workflows (with spike-in normalization, no controls).
+
         Args:
             samples: List of Sample objects
             config: Analysis configuration
@@ -570,6 +758,7 @@ class DifferentialAnalyzer:
         """
         logger.info(f"Starting differential analysis: {config.comparison_name}")
         logger.info(f"Comparing {config.group1} vs {config.group2}")
+        logger.info(f"Assay type: {config.assay_type}, Use controls: {config.use_control}")
 
         # Step 1: Create consensus peaks
         logger.info("Creating consensus peaks...")
@@ -583,9 +772,17 @@ class DifferentialAnalyzer:
         logger.info("Counting reads in peaks...")
         counts = self.count_reads_in_peaks(consensus, samples)
 
-        # Step 3: Normalize
+        # Step 3: Get spike-in counts if using spike-in normalization
+        spike_in_counts = None
+        if config.normalize_method == "spike_in" and config.spike_in_genome:
+            logger.info(f"Counting spike-in reads ({config.spike_in_genome})...")
+            spike_in_counts = self.count_spike_in_reads(samples, config.spike_in_genome)
+
+        # Step 4: Normalize
         logger.info(f"Normalizing with {config.normalize_method}...")
-        normalized, size_factors = self.normalize_counts(counts, config.normalize_method)
+        normalized, size_factors = self.normalize_counts(
+            counts, config.normalize_method, spike_in_counts
+        )
 
         # Step 4: Differential analysis
         logger.info("Running differential analysis...")

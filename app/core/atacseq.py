@@ -7,6 +7,13 @@ Provides:
 - Differential accessibility
 - Footprinting analysis
 - Integration with histone marks
+
+Copyright (c) 2026 EpiNexus Contributors
+SPDX-License-Identifier: AGPL-3.0-or-later OR Commercial
+
+This file is part of EpiNexus.
+- Academic/Non-commercial use: AGPL-3.0 (see LICENSE-ACADEMIC)
+- Commercial use: Requires commercial license (see LICENSE-COMMERCIAL.md)
 """
 
 import numpy as np

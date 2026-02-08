@@ -14,8 +14,16 @@ import shutil
 import tempfile
 import os
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import workflow manager for step recording
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    HAS_WORKFLOW_MANAGER = False
 
 st.set_page_config(
     page_title="Alignment - EpiNexus",
@@ -389,6 +397,30 @@ def render_single_alignment(tools):
                     'aligner': aligner,
                     'genome': genome
                 })
+
+                # Record workflow step
+                if HAS_WORKFLOW_MANAGER:
+                    WorkflowManager.record_step(
+                        step_type="alignment",
+                        parameters={
+                            'aligner': aligner,
+                            'genome': genome,
+                            'threads': threads,
+                            'paired_end': is_paired,
+                        },
+                        inputs={
+                            'fastq_r1': fastq_r1.name if input_method == "Upload FASTQ" else fastq_r1_path,
+                            'fastq_r2': (fastq_r2.name if fastq_r2 else None) if input_method == "Upload FASTQ" else fastq_r2_path,
+                        },
+                        outputs={'bam': output_bam},
+                        tool_versions={aligner.lower(): WorkflowManager.get_tool_version(aligner)},
+                        output_metadata={
+                            'total_reads': stats.get('total_reads', 0),
+                            'mapped_reads': stats.get('mapped_reads', 0),
+                            'mapping_rate': stats.get('mapping_rate', 0),
+                        },
+                        command_line=result.get('command', '')
+                    )
 
             else:
                 st.error("❌ Alignment failed!")

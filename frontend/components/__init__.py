@@ -9,6 +9,7 @@ from .plots import (
 )
 from .job_status import JobStatusWidget
 from .file_uploader import SampleSheetUploader
+from .workflow_manager import WorkflowManager, WorkflowStep, ValidationResult
 
 __all__ = [
     "create_volcano_plot",
@@ -17,5 +18,8 @@ __all__ = [
     "create_heatmap",
     "create_chromatin_state_plot",
     "JobStatusWidget",
-    "SampleSheetUploader"
+    "SampleSheetUploader",
+    "WorkflowManager",
+    "WorkflowStep",
+    "ValidationResult",
 ]

@@ -14,9 +14,19 @@ import numpy as np
 from pathlib import Path
 import subprocess
 import tempfile
+import sys
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import workflow manager for step recording
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    HAS_WORKFLOW_MANAGER = False
 
 # =============================================================================
 # CONFIGURATION
@@ -496,6 +506,26 @@ def main():
 
                     if len(dmrs) > 0:
                         st.success(f"Found {len(dmrs)} DMRs")
+
+                        # Record workflow step
+                        if HAS_WORKFLOW_MANAGER:
+                            hyper = (dmrs['direction'] == 'hyper').sum()
+                            hypo = (dmrs['direction'] == 'hypo').sum()
+                            WorkflowManager.record_step(
+                                step_type="dmr_analysis",
+                                parameters={
+                                    'min_diff': min_diff,
+                                    'min_cpgs': min_cpgs,
+                                    'window_size': window_size,
+                                    'sample1': sample1,
+                                    'sample2': sample2,
+                                },
+                                output_metadata={
+                                    'total_dmrs': len(dmrs),
+                                    'hypermethylated': int(hyper),
+                                    'hypomethylated': int(hypo),
+                                }
+                            )
                     else:
                         st.warning("No DMRs found with current parameters")
 

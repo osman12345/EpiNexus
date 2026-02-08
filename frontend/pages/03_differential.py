@@ -24,6 +24,13 @@ except ImportError:
     def check_data_loaded():
         return len(st.session_state.get('samples', [])) > 0
 
+# Import workflow manager for step recording
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    HAS_WORKFLOW_MANAGER = False
+
 st.set_page_config(page_title="Differential Analysis - EpiNexus", page_icon="📊", layout="wide")
 
 
@@ -267,6 +274,32 @@ def render_analysis_setup():
             st.session_state.diff_results = generate_results(ctrl_samples, treat_samples, config)
             st.session_state.diff_config = config
             st.success(f"Analysis complete! Found {len(st.session_state.diff_results):,} peaks analyzed.")
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                results_df = st.session_state.diff_results
+                sig_peaks = len(results_df[(results_df['FDR'] < 0.05) & (abs(results_df['log2FC']) > 1)])
+                up_peaks = len(results_df[(results_df['FDR'] < 0.05) & (results_df['log2FC'] > 1)])
+                down_peaks = len(results_df[(results_df['FDR'] < 0.05) & (results_df['log2FC'] < -1)])
+
+                WorkflowManager.record_step(
+                    step_type="differential",
+                    parameters={
+                        'assay_type': config.get('assay_type'),
+                        'norm_method': config.get('normalize_method'),
+                        'spike_in_genome': config.get('spike_in_genome'),
+                        'min_overlap': config.get('min_overlap'),
+                        'control_samples': ctrl_samples,
+                        'treatment_samples': treat_samples,
+                        'method': 'DESeq2-like'
+                    },
+                    output_metadata={
+                        'total_peaks': len(results_df),
+                        'significant_peaks': sig_peaks,
+                        'upregulated': up_peaks,
+                        'downregulated': down_peaks,
+                    }
+                )
 
 
 def generate_results(ctrl_samples, treat_samples, config=None):

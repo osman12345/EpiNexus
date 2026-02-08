@@ -22,6 +22,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Hide Streamlit deploy button, menu, and header
+st.markdown("""
+<style>
+    /* Hide deploy button */
+    .stDeployButton {display: none !important;}
+    [data-testid="stAppDeployButton"] {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+
+    /* Hide main menu hamburger */
+    #MainMenu {visibility: hidden !important;}
+    [data-testid="stMainMenu"] {display: none !important;}
+
+    /* Hide header */
+    header[data-testid="stHeader"] {display: none !important;}
+
+    /* Hide footer */
+    footer {visibility: hidden !important;}
+    [data-testid="stFooter"] {display: none !important;}
+</style>
+""", unsafe_allow_html=True)
+
 # =============================================================================
 # INITIALIZE SESSION STATE
 # =============================================================================
@@ -35,6 +56,9 @@ def init_session_state():
         "using_demo_data": True,
         "data_loaded": False,
         "selected_genome": "hg38",
+        # Workflow tracking
+        "workflow_steps": [],
+        "workflow_metadata": {},
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -193,6 +217,9 @@ pages = {
         st.Page(str(pages_dir / "14_encode_integration.py"), title="ENCODE Data", icon="🏛️"),
         st.Page(str(pages_dir / "07_reports.py"), title="Reports", icon="📑"),
         st.Page(str(pages_dir / "13_batch_processing.py"), title="Batch Processing", icon="📦"),
+    ],
+    "Workflow": [
+        st.Page(str(pages_dir / "26_workflow_export.py"), title="Export & Reproduce", icon="📤"),
     ],
     "Help": [
         st.Page(str(pages_dir / "21_help.py"), title="Help & Docs", icon="❓"),

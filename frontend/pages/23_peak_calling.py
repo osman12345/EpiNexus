@@ -16,6 +16,13 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Import workflow manager for step recording
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    HAS_WORKFLOW_MANAGER = False
+
 st.set_page_config(
     page_title="Peak Calling - EpiNexus",
     page_icon="📍",
@@ -538,6 +545,27 @@ def render_peak_calling(tools):
                     'n_peaks': r['n_peaks'],
                     'caller': peak_caller
                 })
+
+        # Record workflow step
+        if HAS_WORKFLOW_MANAGER and success_count > 0:
+            total_peaks = sum(r['n_peaks'] for r in results if r['success'])
+            WorkflowManager.record_step(
+                step_type="peak_calling",
+                parameters={
+                    'caller': peak_caller,
+                    'qvalue': qvalue if peak_caller == "MACS2" else None,
+                    'broad_peaks': broad_peaks if peak_caller == "MACS2" else None,
+                    'call_summits': call_summits if peak_caller == "MACS2" else None,
+                    'samples_processed': len(sample_selection),
+                },
+                inputs={'bam_files': [b['bam'] for b in bams if b['sample'] in sample_selection]},
+                outputs={'peaks_dir': output_dir},
+                tool_versions={peak_caller.lower(): WorkflowManager.get_tool_version(peak_caller.lower())},
+                output_metadata={
+                    'samples_successful': success_count,
+                    'total_peaks': total_peaks,
+                }
+            )
 
 
 def render_peak_upload():

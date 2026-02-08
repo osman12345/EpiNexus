@@ -141,7 +141,7 @@ def render_home_dashboard():
 
     # Footer
     st.markdown("---")
-    st.caption("EpiNexus v1.0.0 · © 2026 EpiNexus Contributors · AGPL-3.0 / Commercial")
+    st.caption("EpiNexus v0.2.0 · © 2026 EpiNexus Contributors · AGPL-3.0 / Commercial")
 
 
 # =============================================================================
@@ -211,16 +211,7 @@ with st.sidebar:
         st.caption(f"⚙️ {len(st.session_state.jobs)} jobs")
 
     st.markdown("---")
-
-    # Genome selector at bottom
-    st.selectbox(
-        "Reference Genome",
-        ["hg38", "hg19", "mm10", "mm39", "dm6"],
-        key="selected_genome",
-    )
-
-    st.markdown("---")
-    st.caption("v1.0.0 · [Docs](https://epinexus.readthedocs.io) · [GitHub](https://github.com/epinexus)")
+    st.caption("v1.0.0 · [Docs](https://epinexus.readthedocs.io) · [GitHub](https://github.com/osman12345/EpiNexus)")
     st.caption("© 2026 EpiNexus Contributors")
 
 # =============================================================================

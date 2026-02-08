@@ -118,7 +118,7 @@ def render_step1_project():
             index=0 if assay_type != "ATAC-seq" else 2
         )
 
-        genome = st.selectbox("Reference Genome", ["hg38", "hg19", "mm10", "mm39"])
+        genome = st.selectbox("Reference Genome", ["hg38", "hg19", "mm10", "mm39", "dm6"])
 
         if st.button("Create Project", type="primary", use_container_width=True):
             st.session_state.project_name = project_name

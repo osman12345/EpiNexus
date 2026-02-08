@@ -40,6 +40,10 @@ dependencies:
   - bowtie2>=2.5.0
   - bwa>=0.7.17
 
+  # DNA Methylation tools
+  - bismark>=0.24.0
+  - methyldackel>=0.6.0
+
   # Visualization
   - plotly>=5.18.0
   - matplotlib>=3.8.0

@@ -35,6 +35,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 # Initialize session state
 if 'tf_results' not in st.session_state:
     st.session_state.tf_results = None
@@ -203,6 +214,20 @@ def render_motif_enrichment():
                 results = run_motif_enrichment(target_df, bg_df)
                 st.session_state.enrichment_results = results
                 st.success("Analysis complete!")
+
+                # Record workflow step
+                if HAS_WORKFLOW_MANAGER:
+                    WorkflowManager.record_step(
+                        step_name="TF Motif Enrichment",
+                        tool="EpiNexus TF Analysis",
+                        parameters={
+                            'background': bg_option,
+                            'enrichment_fdr': enrichment_fdr,
+                            'n_target_peaks': len(target_df)
+                        },
+                        inputs=['peaks'],
+                        outputs=['motif_enrichment_results']
+                    )
             else:
                 st.error("Please upload target peaks first.")
 

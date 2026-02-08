@@ -28,6 +28,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def get_peaks_data():
     """Get peaks data from session state or DataManager."""
@@ -303,6 +314,20 @@ def render_differential(peaks):
 
         if st.button("Run Analysis", type="primary"):
             st.session_state.atac_diff_run = True
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="ATAC-seq Differential Analysis",
+                    tool="EpiNexus ATAC-seq Module",
+                    parameters={
+                        'fdr_threshold': fdr_thresh,
+                        'min_fold_change': min_fc,
+                        'method': method
+                    },
+                    inputs=['atac_peaks'],
+                    outputs=['differential_accessibility']
+                )
 
     with col2:
         if not has_conditions:

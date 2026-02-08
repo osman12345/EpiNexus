@@ -22,6 +22,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def get_peaks_data():
     """Get peaks data from session state or DataManager."""
@@ -203,6 +214,19 @@ def render_gene_annotation(peaks):
                 st.session_state.annotated_peaks = annotated
             st.success("Annotation complete!")
 
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Peak Annotation",
+                    tool="EpiNexus Annotation Module",
+                    parameters={
+                        'tss_distance': tss_distance * 1000,
+                        'n_peaks': len(peaks)
+                    },
+                    inputs=['peaks'],
+                    outputs=['annotated_peaks']
+                )
+
     with col2:
         st.subheader("Annotated Peaks")
 
@@ -254,6 +278,20 @@ def render_pathway_analysis(peaks):
 
         if st.button("Run Pathway Analysis", type="primary"):
             st.success("Analysis complete!")
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Pathway Analysis",
+                    tool="EpiNexus Pathway Module",
+                    parameters={
+                        'gene_set': gene_set,
+                        'background': background,
+                        'method': method
+                    },
+                    inputs=['annotated_peaks'],
+                    outputs=['pathway_enrichment']
+                )
 
     with col2:
         st.subheader("Enriched Pathways")

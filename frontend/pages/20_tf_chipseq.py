@@ -37,6 +37,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def has_data():
     """Check if user has loaded TF ChIP-seq data."""
@@ -580,6 +591,22 @@ def render_cobinding_analysis():
             st.session_state.cobinding_results = results
             st.session_state.tf1_name_cobind = tf1_name
             st.session_state.tf2_name_cobind = tf2_name
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="TF Co-binding Analysis",
+                    tool="EpiNexus TF ChIP-seq Module",
+                    parameters={
+                        'tf1': tf1_name,
+                        'tf2': tf2_name,
+                        'overlap_threshold': 100,
+                        'overlapping_peaks': results['overlapping_peaks'],
+                        'fold_enrichment': results['fold_enrichment']
+                    },
+                    inputs=['tf1_peaks', 'tf2_peaks'],
+                    outputs=['cobinding_results']
+                )
 
     # Display results
     results = st.session_state.get('cobinding_results', None)

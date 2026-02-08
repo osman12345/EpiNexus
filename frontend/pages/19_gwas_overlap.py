@@ -31,6 +31,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def has_data():
     """Check if user has loaded peak data."""
@@ -257,6 +268,18 @@ def render_variant_prioritization(peaks, variants):
         return
 
     st.success(f"Found {len(overlapping)} variants overlapping peaks")
+
+    # Record workflow step
+    if HAS_WORKFLOW_MANAGER:
+        WorkflowManager.record_step(
+            step_name="GWAS Variant Overlap",
+            tool="EpiNexus GWAS Module",
+            parameters={
+                'n_variants': len(overlapping)
+            },
+            inputs=['peaks', 'gwas_variants'],
+            outputs=['gwas_overlap_results']
+        )
 
     # Add prioritization scores
     overlapping = add_prioritization_scores(overlapping)

@@ -1,8 +1,8 @@
 # EpiNexus
 
-**A comprehensive epigenomics analysis platform for ChIP-seq, CUT&Tag, CUT&RUN, and ATAC-seq data.**
+**A comprehensive epigenomics analysis platform for ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq, and DNA methylation data.**
 
-Analyze histone modifications, transcription factor binding, and chromatin accessibility with an intuitive web interface — all in Python, no R required.
+Analyze histone modifications, transcription factor binding, chromatin accessibility, and DNA methylation with an intuitive web interface — all in Python, no R required.
 
 ---
 
@@ -12,6 +12,8 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Preprocessing Pipeline](#preprocessing-pipeline)
+- [DNA Methylation](#dna-methylation)
+- [Workflow Export & Reproduce](#workflow-export--reproduce)
 - [Usage Guide](#usage-guide)
 - [Supported Assays](#supported-assays)
 - [Analysis Workflows](#analysis-workflows)
@@ -28,18 +30,20 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 ## Features
 
 ### Data Input & Preprocessing
-- **Multiple techniques**: ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq
-- **Multiple targets**: Histone modifications and Transcription Factors
+- **Multiple techniques**: ChIP-seq, CUT&Tag, CUT&RUN, ATAC-seq, Bisulfite-seq
+- **Multiple targets**: Histone modifications, Transcription Factors, DNA methylation
 - **Flexible input**: Start from FASTQ, BAM, or peak files
-- **Multi-species support**: Human (hg38, hg19), Mouse (mm10, mm39), Rat (rn6, rn7)
-- **Built-in Alignment**: Bowtie2 and BWA-MEM support
+- **Multi-species support**: Human (hg38, hg19), Mouse (mm10, mm39), Drosophila (dm6)
+- **Built-in Alignment**: Bowtie2, BWA-MEM, and Bismark support
 - **Peak Calling**: MACS2 and SEACR integration
+- **Methylation Calling**: Bismark and MethylDackel support
 
 ### Core Analysis
 - **Differential Analysis**: PyDESeq2-based (equivalent to DiffBind/DESeq2)
 - **Quality Control**: Comprehensive QC metrics (FRiP, NSC, RSC, fragment analysis)
 - **Peak Annotation**: PyRanges-based gene annotation and overlap analysis
 - **Visualization**: Heatmaps, profile plots, volcano plots, genome browser (IGV.js)
+- **DMR Analysis**: Differentially methylated region detection
 
 ### Advanced Features
 - **Multi-mark Integration**: Chromatin state analysis from multiple histone marks
@@ -49,6 +53,8 @@ Analyze histone modifications, transcription factor binding, and chromatin acces
 - **GWAS Overlap**: Link epigenomic features to disease variants
 - **Peak-Gene Linking**: ABC model for enhancer-gene predictions
 - **ENCODE Integration**: Browse and compare with public reference data
+- **DNA Methylation**: Full bisulfite-seq/array analysis with DMR detection
+- **Workflow Export**: Export complete analysis workflows for reproducibility
 
 ### Why EpiNexus?
 
@@ -307,6 +313,93 @@ bwa index hg38.fa
 
 ---
 
+## DNA Methylation
+
+EpiNexus includes comprehensive DNA methylation analysis capabilities for bisulfite sequencing (WGBS, RRBS, EM-seq) and methylation arrays (450K, EPIC).
+
+### Methylation Preprocessing
+
+Navigate to **DNA Methylation → Meth Preprocessing** for:
+
+- **Bismark Alignment**: Align bisulfite-converted reads
+- **Methylation Calling**: Extract CpG methylation levels
+- **Upload Existing Files**: Import pre-computed methylation calls (.cov, .bedGraph)
+
+**Supported Tools:**
+| Tool | Purpose |
+|------|---------|
+| **Bismark** | Bisulfite alignment and methylation extraction |
+| **MethylDackel** | Fast methylation calling from any aligner |
+
+### Methylation Analysis
+
+Navigate to **DNA Methylation → Meth Analysis** for:
+
+- **QC & Statistics**: Coverage, methylation distribution, chromosome-level stats
+- **DMR Detection**: Find differentially methylated regions between conditions
+- **Visualization**: Histograms, heatmaps, sample comparisons
+- **Integration**: Correlate with histone marks, accessibility, and expression
+- **Export**: bedGraph, methylKit, BED formats
+
+**DMR Analysis Parameters:**
+```
+Min Methylation Difference: 20%
+Min CpGs per DMR: 3
+Window Size: 1000 bp
+```
+
+---
+
+## Workflow Export & Reproduce
+
+EpiNexus automatically tracks your analysis steps for reproducibility. Navigate to **Workflow → Export & Reproduce**.
+
+### Features
+
+- **Automatic Recording**: Analysis steps captured with full parameters
+- **Workflow History**: Timeline view of all completed steps
+- **Export Formats**: JSON workflow files, shell scripts
+- **Import & Validate**: Load workflows and check data integrity
+- **Methods Generation**: Auto-generate publication-ready methods sections
+
+### Export Format
+
+Workflows are exported as `.epinexus.json` files containing:
+
+```json
+{
+  "format_version": "2.0",
+  "metadata": {
+    "name": "Project Name",
+    "exported_at": "2026-02-08T14:32:00Z",
+    "epinexus_version": "0.2.0"
+  },
+  "project": {
+    "assay_type": "ChIP-seq",
+    "genome": "hg38",
+    "samples": [...]
+  },
+  "workflow_steps": [
+    {
+      "step_type": "alignment",
+      "parameters": {"aligner": "bowtie2", "threads": 8},
+      "tool_versions": {"bowtie2": "2.4.5"},
+      "command_line": "bowtie2 -x hg38 ..."
+    }
+  ],
+  "checksums": {"sample.bam": "sha256:abc123..."}
+}
+```
+
+### Reproducing Workflows
+
+1. Import a workflow file from a collaborator
+2. Validate: Check file existence and tool compatibility
+3. Modify parameters if needed
+4. Re-run selected steps or export as shell script
+
+---
+
 ## Usage Guide
 
 ### Creating a Project
@@ -386,6 +479,8 @@ Export options available from each analysis page:
 | **CUT&Tag** | Cleavage Under Targets and Tagmentation | Low input, low background |
 | **CUT&RUN** | Cleavage Under Targets and Release Using Nuclease | Low input, sharp peaks |
 | **ATAC-seq** | Assay for Transposase-Accessible Chromatin | Chromatin accessibility |
+| **WGBS/RRBS** | Whole Genome / Reduced Representation Bisulfite Sequencing | DNA methylation |
+| **EM-seq** | Enzymatic Methyl-seq | DNA methylation (enzyme-based) |
 
 ### Target Types
 
@@ -395,6 +490,7 @@ Export options available from each analysis page:
 | **Repressive Marks** | H3K27me3, H3K9me3 | Broad |
 | **Transcription Elongation** | H3K36me3 | Gene body |
 | **Transcription Factors** | MYC, P53, CTCF, STAT3 | Narrow |
+| **DNA Methylation** | 5mC, 5hmC | CpG sites |
 
 ---
 
@@ -439,6 +535,22 @@ Peaks + RNA-seq → Expression Page → Correlation → Target Gene Identificati
 ```
 
 Best for: Linking epigenetic changes to gene expression
+
+### Workflow 5: DNA Methylation Analysis
+
+```
+Bisulfite FASTQ → Bismark Alignment → Methylation Calling → DMR Analysis → Integration
+```
+
+Best for: Analyzing DNA methylation patterns and changes between conditions
+
+### Workflow 6: Multi-omics Integration
+
+```
+ChIP-seq + Methylation + RNA-seq → Multi-omics Page → Integrated Analysis
+```
+
+Best for: Comprehensive epigenomic profiling with multiple data types
 
 ---
 
@@ -505,9 +617,13 @@ epinexus/
 │   │   ├── 01_data_project.py   # Data & project management
 │   │   ├── 22_alignment.py      # FASTQ alignment (Bowtie2/BWA)
 │   │   ├── 23_peak_calling.py   # Peak calling (MACS2/SEACR)
+│   │   ├── 24_methylation.py    # DNA methylation analysis
+│   │   ├── 25_methylation_preprocessing.py  # Bismark alignment
+│   │   ├── 26_workflow_export.py  # Workflow export & reproduce
 │   │   └── ...                  # Additional analysis pages
 │   └── components/              # Reusable UI components
 │       ├── data_manager.py      # Data handling
+│       ├── workflow_manager.py  # Workflow tracking & export
 │       └── empty_states.py      # Empty state UI
 ├── tests/                       # Unit tests
 │   ├── test_differential.py

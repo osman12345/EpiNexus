@@ -15,6 +15,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.core.motif_logo import MotifLogoGenerator, MotifMatrix, KNOWN_MOTIFS, list_available_motifs
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 st.set_page_config(
     page_title="Motif Viewer - EpiNexus",
     page_icon="🔤",

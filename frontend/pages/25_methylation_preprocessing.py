@@ -49,6 +49,17 @@ GENOMES = {
     "mm39": "Mouse (GRCm39)",
 }
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
@@ -418,6 +429,20 @@ def main():
 
                     st.success("Alignment complete!")
 
+                    # Record workflow step
+                    if HAS_WORKFLOW_MANAGER:
+                        WorkflowManager.record_step(
+                            step_name="Bisulfite Alignment",
+                            tool="Bismark",
+                            parameters={
+                                'aligner': aligner,
+                                'genome': genome,
+                                'sample': sample_name
+                            },
+                            inputs=['fastq_files', 'genome_index'],
+                            outputs=['aligned_bam']
+                        )
+
     # =========================================================================
     # TAB 2: METHYLATION CALLING
     # =========================================================================
@@ -485,6 +510,20 @@ def main():
                     })
 
                     st.success("Methylation calling complete!")
+
+                    # Record workflow step
+                    if HAS_WORKFLOW_MANAGER:
+                        WorkflowManager.record_step(
+                            step_name="Methylation Calling",
+                            tool=caller,
+                            parameters={
+                                'bam_file': selected_bam,
+                                'min_coverage': min_cov,
+                                'contexts': contexts
+                            },
+                            inputs=['aligned_bam'],
+                            outputs=['methylation_calls']
+                        )
             else:
                 st.error("Please select or upload a BAM file")
 

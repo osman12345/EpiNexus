@@ -26,6 +26,17 @@ except ImportError:
     def render_empty_state(title, icon, message, requirements):
         st.warning(f"{icon} {title}: {message}")
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def check_data_loaded():
     """Check if we have data to analyze."""
@@ -509,6 +520,22 @@ def render_qc_report(peaks_df, samples):
 
     if passing == total_samples:
         st.success("✅ **All samples passed QC** - Ready for downstream analysis!")
+
+    # Record workflow step
+    if HAS_WORKFLOW_MANAGER:
+        WorkflowManager.record_step(
+            step_name="Quality Control",
+            tool="EpiNexus QC Module",
+            parameters={
+                'total_samples': total_samples,
+                'passing': passing,
+                'warnings': warning,
+                'failing': failing,
+                'avg_quality_score': float(qc_df['Quality Score'].mean())
+            },
+            inputs=['peaks'],
+            outputs=['qc_report']
+        )
 
     # Download report
     st.markdown("---")

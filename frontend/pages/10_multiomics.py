@@ -35,6 +35,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def has_data():
     """Check if user has loaded data."""
@@ -548,13 +559,43 @@ def render_summary_report():
         if st.button("📊 Export Gene Table"):
             st.success("Gene-level integration table ready for download")
 
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Multi-omics Gene Table Export",
+                    tool="EpiNexus Multi-omics Module",
+                    parameters={'export_type': 'gene_table'},
+                    inputs=['multiomics_data'],
+                    outputs=['gene_integration_table']
+                )
+
     with col2:
         if st.button("🔗 Export Network"):
             st.success("Regulatory network exported (Cytoscape format)")
 
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Regulatory Network Export",
+                    tool="EpiNexus Multi-omics Module",
+                    parameters={'export_type': 'network', 'format': 'cytoscape'},
+                    inputs=['multiomics_data'],
+                    outputs=['regulatory_network']
+                )
+
     with col3:
         if st.button("📋 Generate Report"):
             st.success("Full PDF report generated")
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Multi-omics Report",
+                    tool="EpiNexus Multi-omics Module",
+                    parameters={'report_format': 'pdf'},
+                    inputs=['multiomics_data'],
+                    outputs=['multiomics_report']
+                )
 
 
 if __name__ == "__main__":

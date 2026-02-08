@@ -27,6 +27,17 @@ except ImportError:
     def check_data_loaded():
         return len(st.session_state.get('samples', [])) > 0
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def get_peaks_data():
     """Get peaks data from session state or DataManager."""

@@ -23,6 +23,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def get_peaks_data():
     """Get peaks data from session state or DataManager."""
@@ -206,6 +217,20 @@ def render_cooccurrence(peaks, has_marks):
         )
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
+
+        # Record workflow step
+        if HAS_WORKFLOW_MANAGER:
+            WorkflowManager.record_step(
+                step_name="Multi-Mark Co-occurrence Analysis",
+                tool="EpiNexus Multi-Mark Module",
+                parameters={
+                    'selected_marks': selected_marks,
+                    'overlap_thresh': overlap_thresh,
+                    'jaccard_method': jaccard_method
+                },
+                inputs=['peaks'],
+                outputs=['cooccurrence_matrix']
+            )
 
     st.subheader("Peak Statistics by Mark")
 

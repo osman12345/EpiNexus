@@ -32,6 +32,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 # Session state
 if 'expression_data' not in st.session_state:
     st.session_state.expression_data = None
@@ -235,6 +246,18 @@ def render_integration_analysis():
             results = run_integration_analysis()
             st.session_state.integration_results = results
             st.success("Integration complete!")
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Expression Integration",
+                    tool="EpiNexus Expression Module",
+                    parameters={
+                        'integration_type': 'expression_histone'
+                    },
+                    inputs=['expression_data', 'peaks'],
+                    outputs=['integration_results']
+                )
 
     if st.session_state.integration_results:
         results = st.session_state.integration_results

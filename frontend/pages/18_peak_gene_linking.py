@@ -29,6 +29,17 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 
 def has_data():
     """Check if user has loaded peak data."""
@@ -248,6 +259,22 @@ def render_linking_results(peaks, genes, method, max_distance, min_abc):
             col2.metric("Unique Enhancers", f"{summary['unique_enhancers']:,}")
             col3.metric("Unique Genes", f"{summary['unique_genes']:,}")
             col4.metric("Mean ABC Score", f"{summary['mean_abc_score']:.3f}")
+
+            # Record workflow step
+            if HAS_WORKFLOW_MANAGER:
+                WorkflowManager.record_step(
+                    step_name="Peak-Gene Linking",
+                    tool="EpiNexus ABC Model",
+                    parameters={
+                        'method': method,
+                        'max_distance': max_distance,
+                        'min_abc_score': min_abc,
+                        'total_links': summary['total_links'],
+                        'unique_genes': summary['unique_genes']
+                    },
+                    inputs=['peaks', 'genes'],
+                    outputs=['peak_gene_links']
+                )
 
     # Display links from session state
     links = st.session_state.get('peak_gene_links', None)

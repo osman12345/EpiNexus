@@ -16,6 +16,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.core.super_enhancers import SuperEnhancerDetector, generate_hockey_stick_data
 
+# Try to import workflow manager
+try:
+    from frontend.components.workflow_manager import WorkflowManager
+    HAS_WORKFLOW_MANAGER = True
+except ImportError:
+    try:
+        from components.workflow_manager import WorkflowManager
+        HAS_WORKFLOW_MANAGER = True
+    except ImportError:
+        HAS_WORKFLOW_MANAGER = False
+
 st.set_page_config(
     page_title="Super-Enhancers - EpiNexus",
     page_icon="⭐",
@@ -161,6 +172,20 @@ def render_input_and_run(stitch_distance, tss_exclusion, min_size):
 
                 # Show summary
                 st.success("Analysis complete!")
+
+                # Record workflow step
+                if HAS_WORKFLOW_MANAGER:
+                    WorkflowManager.record_step(
+                        step_name="Super-Enhancer Detection",
+                        tool="EpiNexus ROSE Algorithm",
+                        parameters={
+                            'stitch_distance': stitch_distance,
+                            'tss_exclusion': tss_exclusion,
+                            'min_enhancer_size': min_size
+                        },
+                        inputs=['peaks'],
+                        outputs=['super_enhancers', 'typical_enhancers']
+                    )
 
                 col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Total Enhancers", result.statistics['total_enhancers'])

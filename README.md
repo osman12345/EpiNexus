@@ -823,33 +823,33 @@ Also consider citing the underlying tools:
 
 ## License
 
-EpiNexus uses a **dual licensing** model:
+EpiNexus is dual-licensed under **AGPL-3.0-or-later** and a **Commercial License**.
 
-### Academic/Non-Commercial Use (Free)
+### Open Source (AGPL-3.0-or-later)
 
-Free for universities, research institutions, non-profits, and individual researchers under [AGPL-3.0](LICENSE-ACADEMIC).
+Free to use, modify, and distribute under the [GNU Affero General Public License v3.0](LICENSE) if you:
+
+- Share any modifications under the same license
+- Disclose source code if providing as a network service
+- Keep all copyright and license notices
 
 ```
-✓ Universities and colleges
-✓ Non-profit research institutes
-✓ Government research labs
-✓ Individual academic researchers
-✓ Students for educational use
+SPDX-License-Identifier: AGPL-3.0-or-later
 ```
 
-### Commercial Use (Paid)
+### Commercial License
 
-Commercial entities require a paid license. See [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for details.
+For organizations that cannot comply with AGPL terms (e.g., want to keep modifications proprietary), a Commercial License is available.
 
-| Tier | Employees | Annual Fee |
-|------|-----------|------------|
-| Startup | < 50 | $2,500 |
-| Business | 50-500 | $10,000 |
-| Enterprise | 500+ | Contact us |
+**Commercial License includes:**
+- ✅ No copyleft requirements
+- ✅ Keep modifications private
+- ✅ Priority support
+- ✅ Custom development options
 
-**Contact:** licensing@epinexus.org
+**Contact for licensing:** licensing@epinexus.org
 
-See the [LICENSE](LICENSE) file for complete details.
+See [LICENSE](LICENSE) and [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for details.
 
 ---
 

@@ -1,95 +1,49 @@
-# EpiNexus Dual License
-
-EpiNexus is available under two licenses:
-
-1. **Open Source License** (AGPL-3.0-or-later) - Free for all users who comply with AGPL terms
-2. **Commercial License** - For organizations who need proprietary use rights
-
----
-
-## Open Source Use (AGPL-3.0-or-later)
-
-EpiNexus is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
-
-Under this license, you may freely use, modify, and distribute EpiNexus if you:
-
-- **Share modifications:** Any modifications you make must be released under AGPL-3.0-or-later
-- **Disclose source:** If you run a modified version as a network service, users must be able to obtain the source code
-- **Keep license notices:** You must retain all copyright and license notices
-- **State changes:** You must document any changes you make to the source code
-
-See [LICENSE-ACADEMIC](LICENSE-ACADEMIC) for the full AGPL-3.0 license text.
-
-### SPDX Identifier
-
-```
-SPDX-License-Identifier: AGPL-3.0-or-later
-```
-
----
-
-## Commercial Use
-
-Organizations that cannot or prefer not to comply with AGPL-3.0 terms may obtain a Commercial License.
-
-**Commercial License includes:**
-
-- ✅ No copyleft requirements (keep your modifications private)
-- ✅ No source code disclosure obligations
-- ✅ Use in proprietary products and services
-- ✅ Priority support and maintenance
-- ✅ Indemnification and warranty options
-- ✅ Custom development and consulting available
-
-See [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for commercial license terms.
-
-**Contact for Commercial Licensing:**
-
-📧 Email: licensing@epinexus.org
-
----
-
-## Which License Do I Need?
-
-| Your Situation | License | Cost |
-|----------------|---------|------|
-| Academic research (willing to share modifications) | AGPL-3.0-or-later | Free |
-| Open source project | AGPL-3.0-or-later | Free |
-| Personal/educational use | AGPL-3.0-or-later | Free |
-| Non-profit (willing to share modifications) | AGPL-3.0-or-later | Free |
-| Company (willing to open-source your application) | AGPL-3.0-or-later | Free |
-| Company (want to keep code proprietary) | Commercial | Contact us |
-| SaaS provider (don't want to share backend code) | Commercial | Contact us |
-| Embedded in proprietary product | Commercial | Contact us |
-
----
-
-## Contributor License Agreement
-
-By contributing to EpiNexus, you agree that:
-
-1. Your contributions are licensed under AGPL-3.0-or-later
-2. You grant the project maintainers the right to also offer your contributions under the Commercial License
-3. This enables the project to maintain dual licensing
-
-This is a standard practice for dual-licensed open source projects and allows the project to sustain development through commercial licensing revenue.
-
----
-
-## FAQ
-
-**Q: Can I use EpiNexus for free in my company?**
-A: Yes, if you comply with AGPL-3.0 terms (share modifications, disclose source for network services).
-
-**Q: What if I modify EpiNexus but only use it internally?**
-A: Under AGPL, internal use doesn't require disclosure. But if you provide it as a service to others, you must share the source.
-
-**Q: Can I use EpiNexus in a commercial product?**
-A: Yes, but the entire product must be AGPL-licensed. If you need proprietary licensing, contact us for a Commercial License.
-
-**Q: Is there a trial period for the Commercial License?**
-A: Contact us to discuss evaluation options.
-
----
-
+EpiNexus - Epigenomics Analysis Platform
 Copyright (c) 2026 EpiNexus Contributors
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+This software is licensed under the GNU Affero General Public License v3.0
+or later (AGPL-3.0-or-later).
+
+Full license text: https://www.gnu.org/licenses/agpl-3.0.txt
+
+================================================================================
+DUAL LICENSING
+================================================================================
+
+EpiNexus is available under two licensing options:
+
+1. OPEN SOURCE (AGPL-3.0-or-later)
+   - Free to use, modify, and distribute
+   - Modifications must be shared under the same license
+   - Network use requires source code disclosure
+   - See: https://www.gnu.org/licenses/agpl-3.0.txt
+
+2. COMMERCIAL LICENSE
+   - For organizations that cannot comply with AGPL terms
+   - Keeps modifications private
+   - Priority support available
+   - Contact: licensing@epinexus.org
+   - See: LICENSE-COMMERCIAL.md
+
+================================================================================
+SUMMARY OF AGPL-3.0-or-later
+================================================================================
+
+You are free to:
+  - Use the software for any purpose
+  - Study and modify the source code
+  - Distribute copies
+  - Distribute modified versions
+
+Under the following conditions:
+  - Disclose source code of modifications
+  - License modifications under AGPL-3.0-or-later
+  - State changes made to the code
+  - Provide source to users who interact over a network
+  - Keep all copyright notices
+
+This is a summary only. The full license at the URL above is the legal document.
+
+================================================================================

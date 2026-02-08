@@ -59,10 +59,6 @@ def render_home_dashboard():
     </p>
     """, unsafe_allow_html=True)
 
-    # Demo mode notice
-    if st.session_state.using_demo_data:
-        st.info("📌 **Demo Mode**: Upload your own data to analyze real experiments.")
-
     # Quick start cards
     st.markdown("### 🚀 Quick Start")
 
@@ -207,22 +203,6 @@ pg = st.navigation(pages)
 # =============================================================================
 
 with st.sidebar:
-    # Status indicator
-    if st.session_state.using_demo_data:
-        st.markdown("""
-        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;
-                    padding: 0.4rem; text-align: center; margin-bottom: 0.5rem; font-size: 0.85rem;">
-            📌 Demo Mode
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 4px;
-                    padding: 0.4rem; text-align: center; margin-bottom: 0.5rem; font-size: 0.85rem;">
-            ✅ Your Data
-        </div>
-        """, unsafe_allow_html=True)
-
     # Quick stats
     col1, col2 = st.columns(2)
     with col1:

@@ -161,6 +161,10 @@ pages = {
         st.Page(str(pages_dir / "22_alignment.py"), title="Alignment", icon="🧬"),
         st.Page(str(pages_dir / "23_peak_calling.py"), title="Peak Calling", icon="📍"),
     ],
+    "DNA Methylation": [
+        st.Page(str(pages_dir / "25_methylation_preprocessing.py"), title="Meth Preprocessing", icon="🔬"),
+        st.Page(str(pages_dir / "24_methylation.py"), title="Meth Analysis", icon="🧬"),
+    ],
     "Quality Control": [
         st.Page(str(pages_dir / "02_quality_control.py"), title="QC Dashboard", icon="📋"),
         st.Page(str(pages_dir / "16_atacseq.py"), title="ATAC-seq QC", icon="🔓"),

@@ -5,6 +5,10 @@ Comprehensive integration of:
 - Histone modifications
 - Transcription factor binding
 - Gene expression data
+- DNA methylation
+
+Copyright (c) 2026 EpiNexus Contributors
+SPDX-License-Identifier: AGPL-3.0-or-later OR Commercial
 """
 
 import streamlit as st
@@ -63,6 +67,7 @@ def render_empty_state():
         st.markdown("- Histone modifications")
         st.markdown("- TF binding data")
         st.markdown("- Gene expression")
+        st.markdown("- DNA methylation")
         st.markdown("- Regulatory network inference")
 
 
@@ -70,7 +75,7 @@ def main():
     st.title("🔬 Integrated Multi-omics Analysis")
     st.markdown("""
     Comprehensive integration of histone modifications, transcription factor binding,
-    and gene expression data to uncover regulatory mechanisms.
+    gene expression, and DNA methylation data to uncover regulatory mechanisms.
     """)
 
     # Check if data is loaded
@@ -102,7 +107,7 @@ def render_data_overview():
     """Overview of all integrated data types."""
     st.header("Data Overview")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.subheader("🧬 Histone Modifications")
@@ -150,21 +155,57 @@ def render_data_overview():
         **Integration Status:**
         - Genes with histone data: 18,542
         - Genes with TF predictions: 12,891
-        - Complete multi-omics: 10,234
         """)
 
-        st.metric("Genes with All Data Types", "10,234")
+        st.metric("DEGs Integrated", "3,156")
+
+    with col4:
+        st.subheader("🧬 DNA Methylation")
+
+        # Check for methylation data
+        has_meth = 'methylation_samples' in st.session_state and st.session_state.methylation_samples
+
+        if has_meth:
+            n_samples = len(st.session_state.methylation_samples)
+            st.markdown(f"""
+            **Samples Loaded:** {n_samples}
+
+            **DMR Analysis:**
+            - Hypermethylated: varies
+            - Hypomethylated: varies
+
+            **Integration:**
+            - Promoter methylation
+            - Enhancer methylation
+            - Gene body methylation
+            """)
+            st.metric("Methylation Samples", n_samples)
+        else:
+            st.markdown("""
+            **No methylation data loaded**
+
+            Load methylation data to integrate:
+            - Promoter methylation vs expression
+            - Enhancer methylation vs H3K27ac
+            - DMR overlap with histone changes
+            """)
+            if st.button("Load Methylation Data", key="load_meth_overview"):
+                st.switch_page("pages/24_methylation.py")
 
     st.markdown("---")
 
     st.subheader("Data Quality Summary")
 
+    # Check methylation status
+    meth_status = '✅ Loaded' if ('methylation_samples' in st.session_state and st.session_state.methylation_samples) else '⚠️ Not loaded'
+    meth_samples = str(len(st.session_state.get('methylation_samples', {}))) if st.session_state.get('methylation_samples') else '-'
+
     quality_data = pd.DataFrame({
-        'Data Type': ['Histone ChIP-seq', 'TF Motif Analysis', 'RNA-seq', 'Integration'],
-        'Samples': ['8', '-', '6', '-'],
-        'Features': ['45,231 peaks', '1,892 motifs', '21,432 genes', '10,234 genes'],
-        'Quality': ['✅ Pass', '✅ Pass', '✅ Pass', '✅ Complete'],
-        'Notes': ['High FRiP, good replication', 'Validated motif database', 'High mapping rate', 'All data types linked']
+        'Data Type': ['Histone ChIP-seq', 'TF Motif Analysis', 'RNA-seq', 'DNA Methylation', 'Integration'],
+        'Samples': ['8', '-', '6', meth_samples, '-'],
+        'Features': ['45,231 peaks', '1,892 motifs', '21,432 genes', 'CpG sites', '10,234 genes'],
+        'Quality': ['✅ Pass', '✅ Pass', '✅ Pass', meth_status, '✅ Complete'],
+        'Notes': ['High FRiP, good replication', 'Validated motif database', 'High mapping rate', 'Bisulfite-seq/Array', 'All data types linked']
     })
 
     st.dataframe(quality_data, use_container_width=True, hide_index=True)

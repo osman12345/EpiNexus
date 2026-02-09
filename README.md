@@ -847,7 +847,7 @@ For organizations that cannot comply with AGPL terms (e.g., want to keep modific
 - ✅ Priority support
 - ✅ Custom development options
 
-**Contact for licensing:** licensing@epinexus.org
+**Contact for licensing:** info@epinexus.io
 
 See [LICENSE](LICENSE) and [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for details.
 

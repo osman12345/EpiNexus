@@ -823,33 +823,30 @@ Also consider citing the underlying tools:
 
 ## License
 
-EpiNexus is dual-licensed under **AGPL-3.0-or-later** and a **Commercial License**.
+EpiNexus and the contents of this repository are provided under an **Academic Non‑Commercial License** (see `LICENSE`). This license allows free use, modification, and redistribution of EpiNexus for non‑commercial academic research and teaching.
 
-### Open Source (AGPL-3.0-or-later)
+Any **commercial use** of EpiNexus, including but not limited to:
 
-Free to use, modify, and distribute under the [GNU Affero General Public License v3.0](LICENSE) if you:
+- Use by or on behalf of for‑profit organizations  
+- Use in a paid service or product  
+- Use in consultancy or contract research work billed to clients  
 
-- Share any modifications under the same license
-- Disclose source code if providing as a network service
-- Keep all copyright and license notices
+requires a separate **Commercial License** agreement. Example terms are described in `LICENSE-COMMERCIAL.md`. For commercial licensing and hosted EpiNexus service inquiries, please contact <your email / website>.
 
-```
-SPDX-License-Identifier: AGPL-3.0-or-later
-```
+## Third‑party tools and libraries
 
-### Commercial License
+EpiNexus orchestrates and depends on several third‑party tools and libraries which are **not** covered by the license of this repository. These include, for example:
 
-For organizations that cannot comply with AGPL terms (e.g., want to keep modifications proprietary), a Commercial License is available.
+- Command‑line bioinformatics tools: `bedtools`, `samtools`, `bowtie2`, `bwa`, `macs2`, `bismark`, `methyldackel`, and others required for specific workflows  
+- Python libraries: `python>=3.10`, `streamlit`, `fastapi`, `uvicorn`, `sqlalchemy`, `pydantic`, `pandas`, `numpy`, `scipy`, `pysam`, `pybedtools`, `pybigwig`, `pyranges`, `biopython`, `plotly`, `matplotlib`, `seaborn`, `tqdm`, `httpx`, `pytest`, `pydeseq2`, `anndata`, `logomaker`, `pydantic-settings`, and any other dependencies listed in `requirements.txt` and `environment.yml`
 
-**Commercial License includes:**
-- ✅ No copyleft requirements
-- ✅ Keep modifications private
-- ✅ Priority support
-- ✅ Custom development options
+These components are licensed separately by their respective authors (e.g. MIT, BSD, GPL, Apache‑2.0, and other licenses). You must obtain, install, and use them under their own licenses and comply with all applicable terms.
+
+If Docker images or prebuilt environments are provided for EpiNexus, they may contain third‑party tools and libraries under their respective licenses. Inclusion of these components does not change their original licenses, and you remain responsible for compliance with all third‑party license terms.
 
 **Contact for licensing:** info@epinexus.io
 
-See [LICENSE](LICENSE) and [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) for details.
+See [LICENSE](LICENSE) 
 
 ---
 

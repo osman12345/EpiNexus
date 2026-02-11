@@ -1,49 +1,31 @@
-EpiNexus - Epigenomics Analysis Platform
-Copyright (c) 2026 EpiNexus Contributors
+Copyright (c) 2026 Ayman Osman
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+All rights reserved.
 
-This software is licensed under the GNU Affero General Public License v3.0
-or later (AGPL-3.0-or-later).
+Permission is hereby granted, free of charge, to individuals and institutions to use, reproduce, and modify this software (EpiNexus) for non‑commercial academic research and teaching purposes only, subject to the following conditions:
 
-Full license text: https://www.gnu.org/licenses/agpl-3.0.txt
+1. Non‑commercial use  
+1.1. “Non‑commercial” means use that is not intended for or directed toward commercial advantage or monetary compensation.  
+1.2. Use by non‑profit academic institutions in the course of research, teaching, and academic collaboration is deemed non‑commercial.
 
-================================================================================
-DUAL LICENSING
-================================================================================
+2. Commercial use  
+2.1. Any use of the Software by or for a for‑profit entity, or in connection with a product or service that is offered for a fee, constitutes commercial use and is not permitted under this license.  
+2.2. Commercial use requires a separate written agreement (a “Commercial License”) with the copyright holder.  
+2.3. For commercial licensing inquiries regarding EpiNexus, contact: <your email / website>.
 
-EpiNexus is available under two licensing options:
+3. Redistribution  
+3.1. Redistribution of the Software, with or without modification, is permitted for non‑commercial academic purposes, provided that:  
+   (a) this license notice is included in all copies or substantial portions of the Software; and  
+   (b) any redistribution is made under the terms of this same license or terms that are no less restrictive for commercial use.  
+3.2. You may not sublicense, relicense, or distribute the Software under terms that permit commercial use without a Commercial License from the copyright holder.
 
-1. OPEN SOURCE (AGPL-3.0-or-later)
-   - Free to use, modify, and distribute
-   - Modifications must be shared under the same license
-   - Network use requires source code disclosure
-   - See: https://www.gnu.org/licenses/agpl-3.0.txt
+4. Third‑party software  
+4.1. The Software may interface with, invoke, or require separate installation of third‑party tools and libraries (including but not limited to bedtools, samtools, BWA, Bowtie2, MACS2, Bismark, MethylDackel, and various Python packages).  
+4.2. Such third‑party components are not covered by this license and are licensed to you under their respective licenses by their respective copyright holders.  
+4.3. You are solely responsible for complying with all applicable third‑party licenses.
 
-2. COMMERCIAL LICENSE
-   - For organizations that cannot comply with AGPL terms
-   - Keeps modifications private
-   - Priority support available
-   - Contact: licensing@epinexus.org
-   - See: LICENSE-COMMERCIAL.md
+5. No warranty  
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON‑INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-================================================================================
-SUMMARY OF AGPL-3.0-or-later
-================================================================================
-
-You are free to:
-  - Use the software for any purpose
-  - Study and modify the source code
-  - Distribute copies
-  - Distribute modified versions
-
-Under the following conditions:
-  - Disclose source code of modifications
-  - License modifications under AGPL-3.0-or-later
-  - State changes made to the code
-  - Provide source to users who interact over a network
-  - Keep all copyright notices
-
-This is a summary only. The full license at the URL above is the legal document.
-
-================================================================================
+6. Governing law  
+This license shall be governed by and construed in accordance with the laws of Sweden, without regard to its conflict‑of‑law principles.

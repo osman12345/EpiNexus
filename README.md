@@ -831,7 +831,7 @@ Any **commercial use** of EpiNexus, including but not limited to:
 - Use in a paid service or product  
 - Use in consultancy or contract research work billed to clients  
 
-requires a separate **Commercial License** agreement. Example terms are described in `LICENSE-COMMERCIAL.md`. For commercial licensing and hosted EpiNexus service inquiries, please contact <info@epinexus.io / epinexus.io>.
+requires a separate **Commercial License** agreement. Example terms are described in `LICENSE-COMMERCIAL.md`. For commercial licensing and hosted EpiNexus service inquiries, please contact <info@epinexus.io>.
 
 ## Third‑party tools and libraries
 

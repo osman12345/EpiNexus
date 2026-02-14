@@ -8,18 +8,23 @@ Queue and process multiple samples/analyses:
 - Result aggregation
 """
 
-import os
+import fcntl
 import json
+import logging
+import os
+import threading
 import time
 import uuid
-import threading
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class JobStatus(Enum):
@@ -73,10 +78,20 @@ class BatchProcessor:
     - Annotation of multiple peak sets
     """
 
+    # Default timeout per job type (seconds).
+    DEFAULT_TIMEOUTS: Dict[str, int] = {
+        "differential_analysis": 3600,   # 1 hour
+        "qc_analysis": 1800,             # 30 min
+        "peak_annotation": 1800,         # 30 min
+        "super_enhancer": 1800,          # 30 min
+    }
+    GLOBAL_TIMEOUT: int = 7200  # 2 hours fallback
+
     def __init__(
         self,
         max_workers: int = 4,
-        jobs_dir: str = "batch_jobs"
+        jobs_dir: str = "batch_jobs",
+        job_timeouts: Optional[Dict[str, int]] = None,
     ):
         self.max_workers = max_workers
         self.jobs_dir = Path(jobs_dir)
@@ -85,6 +100,7 @@ class BatchProcessor:
         self.jobs: Dict[str, Job] = {}
         self.executor: Optional[ThreadPoolExecutor] = None
         self.job_handlers: Dict[str, Callable] = {}
+        self.job_timeouts: Dict[str, int] = {**self.DEFAULT_TIMEOUTS, **(job_timeouts or {})}
 
         # Register default handlers
         self._register_default_handlers()
@@ -146,7 +162,8 @@ class BatchProcessor:
         return created_jobs
 
     def start_processing(self, job_ids: List[str] = None):
-        """Start processing jobs."""
+        """Start processing jobs, enforcing per-job-type timeouts."""
+        from concurrent.futures import TimeoutError as FuturesTimeout
 
         if self.executor is None:
             self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
@@ -163,10 +180,37 @@ class BatchProcessor:
             future = self.executor.submit(self._run_job, job)
             futures[future] = job
 
+        # Monitor for timeouts in a background thread
+        def _monitor_futures():
+            for future in as_completed(futures):
+                job = futures[future]
+                timeout = self.job_timeouts.get(job.job_type, self.GLOBAL_TIMEOUT)
+                try:
+                    future.result(timeout=timeout)
+                except FuturesTimeout:
+                    logger.error(
+                        f"Job {job.id} ({job.job_type}) timed out after {timeout}s"
+                    )
+                    job.status = JobStatus.FAILED
+                    job.error = f"Timed out after {timeout} seconds"
+                    job.completed_at = datetime.now().isoformat()
+                    self._save_job(job)
+                    future.cancel()
+                except Exception:
+                    pass  # Already handled inside _run_job
+
+        monitor = threading.Thread(target=_monitor_futures, daemon=True)
+        monitor.start()
+
         return len(futures)
 
-    def _run_job(self, job: Job):
-        """Execute a single job."""
+    def _run_job(self, job: Job) -> None:
+        """Execute a single job through its registered handler.
+
+        Updates job status to RUNNING, invokes the handler with a progress
+        callback, and transitions the job to COMPLETED or FAILED on
+        completion/error.  Results are persisted via ``_save_job``.
+        """
 
         job.status = JobStatus.RUNNING
         job.started_at = datetime.now().isoformat()
@@ -236,26 +280,50 @@ class BatchProcessor:
                 job_file.unlink()
             del self.jobs[jid]
 
-    def _save_job(self, job: Job):
-        """Save job to disk."""
+    def _save_job(self, job: Job) -> None:
+        """Persist job state as JSON to the jobs directory.
+
+        Uses an exclusive file lock (``fcntl.flock``) to prevent concurrent
+        writes from corrupting the JSON file when multiple threads or
+        processes update job state simultaneously.
+        """
         job_file = self.jobs_dir / f"{job.id}.json"
-        with open(job_file, 'w') as f:
-            json.dump(job.to_dict(), f, indent=2)
+        tmp_file = job_file.with_suffix(".json.tmp")
+        try:
+            with open(tmp_file, 'w') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    json.dump(job.to_dict(), f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            # Atomic rename to prevent partial reads
+            tmp_file.rename(job_file)
+        except OSError as e:
+            logger.error("Failed to save job %s: %s", job.id, e)
+            if tmp_file.exists():
+                tmp_file.unlink(missing_ok=True)
 
-    def _load_jobs(self):
-        """Load existing jobs from disk."""
-        import logging
-        logger = logging.getLogger(__name__)
+    def _load_jobs(self) -> None:
+        """Restore previously persisted jobs from the jobs directory on startup.
 
+        Acquires a shared file lock on each job file to avoid reading a
+        partially-written file from a concurrent ``_save_job`` call.
+        """
         for job_file in self.jobs_dir.glob("*.json"):
             try:
                 with open(job_file, 'r') as f:
-                    data = json.load(f)
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                    try:
+                        data = json.load(f)
+                    finally:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
                     job = Job.from_dict(data)
                     self.jobs[job.id] = job
-            except (json.JSONDecodeError, KeyError, TypeError) as e:
+            except (json.JSONDecodeError, KeyError, TypeError, OSError) as e:
                 # Skip corrupted or invalid job files
-                logger.warning(f"Failed to load job file {job_file}: {e}")
+                logger.warning("Failed to load job file %s: %s", job_file, e)
                 continue
 
     # Real job handlers
@@ -316,7 +384,7 @@ class BatchProcessor:
             }
 
         except Exception as e:
-            logging.error(f"Differential analysis failed: {e}")
+            logger.error(f"Differential analysis failed: {e}")
             # Return error state instead of mock data
             return {
                 "error": str(e),
@@ -376,7 +444,7 @@ class BatchProcessor:
             # QC module not available, use basic calculation
             return self._handle_qc_basic(params, progress_cb)
         except Exception as e:
-            logging.error(f"QC analysis failed: {e}")
+            logger.error(f"QC analysis failed: {e}")
             return {
                 "error": str(e),
                 "samples_processed": len(params.get("samples", [])),
@@ -470,7 +538,7 @@ class BatchProcessor:
                 }
 
         except Exception as e:
-            logging.error(f"Annotation failed: {e}")
+            logger.error(f"Annotation failed: {e}")
             return {
                 "error": str(e),
                 "peaks_annotated": 0,
@@ -523,10 +591,10 @@ class BatchProcessor:
             }
 
         except ImportError:
-            logging.warning("SuperEnhancerDetector not available")
+            logger.warning("SuperEnhancerDetector not available")
             return self._handle_super_enhancer_basic(params, progress_cb)
         except Exception as e:
-            logging.error(f"Super-enhancer detection failed: {e}")
+            logger.error(f"Super-enhancer detection failed: {e}")
             return {
                 "error": str(e),
                 "total_enhancers": 0,

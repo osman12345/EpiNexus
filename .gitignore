@@ -1,2 +1,60 @@
-website/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+k8s/secrets.yaml
+!k8s/secrets.yaml.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Data (tracked separately or too large for git)
+data/uploads/
+data/references/
+results/
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Runtime (run.sh)
+logs/
+.pids/
+
+# Misc
+website/
+*.log

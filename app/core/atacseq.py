@@ -16,10 +16,13 @@ This file is part of EpiNexus.
 - Commercial use: Requires commercial license (see LICENSE-COMMERCIAL.md)
 """
 
+import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -68,6 +71,7 @@ class ATACSeqAnalyzer:
         tss_scores: np.ndarray = None
     ) -> ATACQCMetrics:
         """Calculate comprehensive QC metrics."""
+        logger.info("Calculating ATAC-seq QC metrics for %d peaks", len(peaks))
 
         total = bam_stats.get('total_reads', 0)
         mapped = bam_stats.get('mapped_reads', 0)
@@ -164,6 +168,11 @@ class ATACSeqAnalyzer:
         Returns:
             DataFrame with differential accessibility results
         """
+
+        logger.info(
+            "Running differential accessibility: %d regions, %d vs %d samples (%s)",
+            len(count_matrix), len(condition1), len(condition2), method,
+        )
 
         # Get counts for each condition
         counts1 = count_matrix[condition1].values
@@ -267,6 +276,10 @@ class ATACSeqAnalyzer:
         Classify accessible regions by their histone modification patterns.
         """
 
+        logger.info(
+            "Integrating ATAC-seq peaks (%d) with %d histone marks",
+            len(atac_peaks), len(histone_peaks),
+        )
         results = atac_peaks.copy()
 
         # Check overlap with each histone mark
@@ -305,18 +318,16 @@ class ATACSeqAnalyzer:
         peaks_b: pd.DataFrame,
         min_overlap: int = 1
     ) -> np.ndarray:
-        """Count overlapping peaks (simplified version)."""
+        """Count overlapping peaks using interval-tree algorithm.
 
-        overlaps = np.zeros(len(peaks_a))
-
-        for i, (_, peak_a) in enumerate(peaks_a.iterrows()):
-            for _, peak_b in peaks_b.iterrows():
-                if peak_a['chr'] == peak_b['chr']:
-                    overlap = min(peak_a['end'], peak_b['end']) - max(peak_a['start'], peak_b['start'])
-                    if overlap >= min_overlap:
-                        overlaps[i] += 1
-
-        return overlaps
+        Uses genomic_utils.count_overlaps for O(n log n) performance.
+        """
+        from .genomic_utils import count_overlaps
+        return count_overlaps(
+            peaks_a, peaks_b,
+            chrom_col="chr", start_col="start", end_col="end",
+            min_overlap_bp=min_overlap,
+        )
 
 
 def generate_demo_atac_data() -> Tuple[pd.DataFrame, Dict[str, Any]]:

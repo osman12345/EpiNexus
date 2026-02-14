@@ -117,6 +117,7 @@ def main():
         render_functional_enrichment(peaks)
 
 
+@st.cache_data(show_spinner="Annotating peaks...")
 def annotate_peaks_with_genes(peaks, tss_distance=10000):
     """Annotate peaks with nearest genes (simplified version)."""
     # Add annotation columns based on peak location

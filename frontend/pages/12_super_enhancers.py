@@ -12,6 +12,8 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
+from frontend.components.theme import COLORS
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.core.super_enhancers import SuperEnhancerDetector, generate_hockey_stick_data
@@ -267,7 +269,7 @@ def render_hockey_stick(result):
         })
 
         fig2 = px.box(size_data, x='Class', y='Size (kb)', color='Class',
-                     color_discrete_map={'Super-Enhancer': '#e74c3c', 'Typical Enhancer': '#3498db'})
+                     color_discrete_map=COLORS.SE_MAP)
         fig2.update_layout(height=350, showlegend=False)
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -282,7 +284,7 @@ def render_hockey_stick(result):
         })
 
         fig3 = px.box(const_data, x='Class', y='Constituent Peaks', color='Class',
-                     color_discrete_map={'Super-Enhancer': '#e74c3c', 'Typical Enhancer': '#3498db'})
+                     color_discrete_map=COLORS.SE_MAP)
         fig3.update_layout(height=350, showlegend=False)
         st.plotly_chart(fig3, use_container_width=True)
 

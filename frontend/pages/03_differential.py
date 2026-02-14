@@ -11,6 +11,8 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
+from frontend.components.theme import COLORS
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Import data manager and components
@@ -374,7 +376,7 @@ def render_volcano_plot(fdr_thresh, fc_thresh):
     df.loc[(df['FDR'] < fdr_thresh) & (df['log2FC'] > fc_thresh), 'Significant'] = 'Up'
     df.loc[(df['FDR'] < fdr_thresh) & (df['log2FC'] < -fc_thresh), 'Significant'] = 'Down'
 
-    color_map = {'Up': '#e74c3c', 'Down': '#3498db', 'Not Significant': '#95a5a6'}
+    color_map = COLORS.DIRECTION_MAP
 
     fig = px.scatter(
         df, x='log2FC', y=-np.log10(df['FDR']),

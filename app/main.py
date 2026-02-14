@@ -9,6 +9,7 @@ Provides REST API endpoints for:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -64,12 +65,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - restricted to configured origins
+_cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:8501").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=[origin.strip() for origin in _cors_origins],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -153,7 +155,7 @@ async def create_sample(sample: SampleCreate, db: Session = Depends(get_db)):
         fastq_r2=sample.fastq_r2,
         bam_file=sample.bam_file,
         peak_file=sample.peak_file,
-        metadata=sample.metadata
+        sample_metadata=sample.metadata
     )
     db.add(db_sample)
     db.commit()
@@ -191,7 +193,15 @@ async def upload_sample_sheet(
     import io
 
     content = await file.read()
-    df = pd.read_csv(io.BytesIO(content))
+    if not content or not content.strip():
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    try:
+        df = pd.read_csv(io.BytesIO(content))
+    except pd.errors.EmptyDataError:
+        raise HTTPException(status_code=400, detail="Uploaded file contains no data")
+    except pd.errors.ParserError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {e}")
 
     required_cols = ["SampleID", "Condition", "Factor"]
     missing = [c for c in required_cols if c not in df.columns]
@@ -338,7 +348,8 @@ async def create_job(
     db.refresh(db_job)
 
     # Queue the job for background execution
-    # background_tasks.add_task(execute_job, db_job.id)
+    from .workers.executor import execute_job
+    background_tasks.add_task(execute_job, db_job.id, SessionLocal)
 
     return JobResponse.model_validate(db_job)
 
@@ -401,8 +412,9 @@ async def run_diffbind_analysis(
     db.commit()
     db.refresh(job)
 
-    # TODO: Queue for background execution
-    # background_tasks.add_task(run_diffbind, job.id, config)
+    # Queue for background execution
+    from .workers.executor import execute_job
+    background_tasks.add_task(execute_job, job.id, SessionLocal)
 
     return {"job_id": job.id, "message": "DiffBind analysis submitted"}
 
@@ -435,6 +447,10 @@ async def run_integration_analysis(
     db.add(job)
     db.commit()
     db.refresh(job)
+
+    # Queue for background execution
+    from .workers.executor import execute_job
+    background_tasks.add_task(execute_job, job.id, SessionLocal)
 
     return {"job_id": job.id, "message": "Integration analysis submitted"}
 
@@ -472,7 +488,16 @@ async def download_result_file(
     filename: str,
     db: Session = Depends(get_db)
 ):
-    """Download a specific result file."""
+    """Download a specific result file.
+
+    Includes path traversal protection: the resolved file path must reside
+    within the job's output directory.  Encoded traversal sequences
+    (e.g. ``..``, ``%2e%2e``) are rejected before any filesystem access.
+    """
+    # ── Guard: reject path-traversal components in the raw filename ──
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -480,7 +505,13 @@ async def download_result_file(
     if not job.output_dir:
         raise HTTPException(status_code=404, detail="No output directory")
 
-    file_path = Path(job.output_dir) / filename
+    output_dir = Path(job.output_dir).resolve()
+    file_path = (output_dir / filename).resolve()
+
+    # ── Guard: resolved path must be inside the output directory ──
+    if not file_path.is_relative_to(output_dir):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 

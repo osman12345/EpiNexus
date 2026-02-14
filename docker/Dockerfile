@@ -26,8 +26,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p data/uploads data/references results
+# Create non-root user for security
+RUN groupadd -r epinexus && useradd -r -g epinexus -m epinexus
+
+# Create necessary directories with correct ownership
+RUN mkdir -p data/uploads data/references results \
+    && chown -R epinexus:epinexus /app
+
+USER epinexus
 
 # Expose ports
 EXPOSE 8000 8501

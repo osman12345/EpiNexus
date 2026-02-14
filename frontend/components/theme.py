@@ -5,10 +5,83 @@ Provides:
 - Theme switching (dark/light/auto)
 - Custom color palettes
 - Consistent styling across app
+- Semantic color maps for genomics visualisations
 """
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Dict, Any, List
+
+
+# ============================================================================
+# Semantic color constants for genomics plots
+# ============================================================================
+# Import these directly: ``from frontend.components.theme import COLORS``
+
+class COLORS:
+    """Centralized color constants for consistent plot styling.
+
+    Usage::
+
+        from frontend.components.theme import COLORS
+        fig = px.scatter(..., color_discrete_map=COLORS.DIRECTION_MAP)
+    """
+
+    # Directional change (differential analysis, volcano, MA)
+    UP = "#e74c3c"
+    DOWN = "#3498db"
+    NOT_SIG = "#95a5a6"
+    DIRECTION_MAP = {"Up": UP, "Down": DOWN, "Not Significant": NOT_SIG}
+
+    # Accessibility (ATAC-seq)
+    MORE_ACCESSIBLE = "#27ae60"
+    LESS_ACCESSIBLE = "#e74c3c"
+    ACCESS_MAP = {
+        "More Accessible": MORE_ACCESSIBLE,
+        "Less Accessible": LESS_ACCESSIBLE,
+        "Not Significant": NOT_SIG,
+    }
+
+    # Expression integration
+    CONCORDANT_ACT = "#4DAF4A"
+    CONCORDANT_REP = "#E41A1C"
+    DISCORDANT = "#984EA3"
+    NO_CHANGE = "#999999"
+    EXPRESSION_MAP = {
+        "Concordant Activation": CONCORDANT_ACT,
+        "Concordant Repression": CONCORDANT_REP,
+        "Discordant": DISCORDANT,
+        "No Change": NO_CHANGE,
+    }
+
+    # Methylation
+    HYPER = "#e74c3c"
+    HYPO = "#3498db"
+    METH_MAP = {"hyper": HYPER, "hypo": HYPO}
+
+    # Super-enhancers
+    SUPER_ENHANCER = "#e74c3c"
+    TYPICAL_ENHANCER = "#3498db"
+    SE_MAP = {
+        "Super-Enhancer": SUPER_ENHANCER,
+        "Typical Enhancer": TYPICAL_ENHANCER,
+    }
+
+    # Significance
+    SIG_HIGH = "#E41A1C"
+    SIG_MEDIUM = "#FF7F00"
+    SIG_LOW = "#999999"
+    SIG_MAP = {"High": SIG_HIGH, "Medium": SIG_MEDIUM, "Low": SIG_LOW}
+
+    # General qualitative palette (matches light theme default)
+    QUALITATIVE = [
+        "#3498db", "#e74c3c", "#27ae60", "#f39c12", "#9b59b6",
+        "#2ecc71", "#e67e22", "#1abc9c", "#34495e", "#7f8c8d",
+    ]
+
+    # Continuous scales (strings accepted by Plotly)
+    SCALE_DIVERGING = "RdBu_r"
+    SCALE_SEQUENTIAL = "Viridis"
+    SCALE_HEAT = "Reds"
 
 # Theme definitions
 THEMES = {

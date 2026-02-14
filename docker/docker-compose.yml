@@ -1,6 +1,35 @@
 version: '3.8'
 
 services:
+  # PostgreSQL database (replaces SQLite for concurrent access)
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: epinexus
+      POSTGRES_USER: epinexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U epinexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for job queue (no external port exposure)
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme_in_production} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_in_production}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Main API service
   api:
     build:
@@ -12,10 +41,20 @@ services:
       - ../data:/app/data
       - ../results:/app/results
     environment:
-      - DATABASE_URL=sqlite:///./histone_analyzer.db
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://epinexus:${POSTGRES_PASSWORD:-changeme_in_production}@db:5432/epinexus
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_in_production}@redis:6379/0
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8501}
     depends_on:
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   # Streamlit frontend
@@ -31,8 +70,9 @@ services:
     environment:
       - API_URL=http://api:8000
     depends_on:
-      - api
-    command: streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
+      api:
+        condition: service_healthy
+    command: streamlit run frontend/EpiNexus.py --server.port 8501 --server.address 0.0.0.0
 
   # Background worker
   worker:
@@ -43,20 +83,15 @@ services:
       - ../data:/app/data
       - ../results:/app/results
     environment:
-      - DATABASE_URL=sqlite:///./histone_analyzer.db
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://epinexus:${POSTGRES_PASSWORD:-changeme_in_production}@db:5432/epinexus
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_in_production}@redis:6379/0
     depends_on:
-      - redis
-      - api
-    command: rq worker --url redis://redis:6379/0
-
-  # Redis for job queue
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: rq worker --url redis://:${REDIS_PASSWORD:-changeme_in_production}@redis:6379/0
 
 volumes:
+  postgres_data:
   redis_data:

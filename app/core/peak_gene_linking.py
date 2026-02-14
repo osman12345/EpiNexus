@@ -510,5 +510,5 @@ def load_hic_matrix(hic_file: str, chromosome: str, resolution: int = 10000) -> 
         return np.array([])
 
     except Exception as e:
-        print(f"Error loading Hi-C matrix: {e}")
+        logger.warning(f"Error loading Hi-C matrix: {e}")
         return np.array([])

@@ -441,6 +441,7 @@ def render_correlation_analysis(peaks_df, samples):
             st.warning("⚠️ Low overlap - samples may be quite different or have quality issues")
 
 
+@st.cache_data(show_spinner="Computing peak overlap matrix...")
 def compute_peak_overlap_matrix(peaks_df, sources):
     """Compute Jaccard overlap between samples."""
     n = len(sources)

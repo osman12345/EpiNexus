@@ -10,6 +10,7 @@ Complete pipeline from raw FASTQ to analysis-ready files:
 6. BigWig generation
 """
 
+import logging
 import os
 import subprocess
 from pathlib import Path
@@ -17,6 +18,8 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+
+logger = logging.getLogger(__name__)
 
 
 class AssayType(Enum):
@@ -243,6 +246,12 @@ class FASTQPipeline:
         output_bam = str(self.dirs['aligned'] / f"{sample.sample_id}.bam")
         genome_idx = self.GENOME_INDICES[self.config.genome][self.config.aligner]
 
+        # Validate all file paths to prevent shell injection
+        import shlex
+        for path_arg in [r1, r2, genome_idx, output_bam]:
+            if path_arg and not self._validate_path(path_arg):
+                raise ValueError(f"Invalid characters in path: {path_arg}")
+
         if self.config.aligner == "bowtie2":
             if r2:
                 cmd = [
@@ -263,18 +272,26 @@ class FASTQPipeline:
                     "-p", str(self.config.threads)
                 ]
 
-            # Pipe to samtools for BAM conversion and sorting
-            full_cmd = f"{' '.join(cmd)} | samtools view -bS - | samtools sort -@ {self.config.threads} -o {output_bam}"
-            self._execute_shell(full_cmd, f"Aligning {sample.sample_id}")
+            # Use subprocess pipes instead of shell=True to prevent injection
+            self._execute_piped(
+                cmd,
+                ["samtools", "view", "-bS", "-"],
+                ["samtools", "sort", "-@", str(self.config.threads), "-o", output_bam],
+                f"Aligning {sample.sample_id}",
+            )
 
         elif self.config.aligner == "bwa":
             if r2:
-                cmd = f"bwa mem -t {self.config.threads} {genome_idx} {r1} {r2}"
+                cmd = ["bwa", "mem", "-t", str(self.config.threads), genome_idx, r1, r2]
             else:
-                cmd = f"bwa mem -t {self.config.threads} {genome_idx} {r1}"
+                cmd = ["bwa", "mem", "-t", str(self.config.threads), genome_idx, r1]
 
-            full_cmd = f"{cmd} | samtools view -bS - | samtools sort -@ {self.config.threads} -o {output_bam}"
-            self._execute_shell(full_cmd, f"Aligning {sample.sample_id}")
+            self._execute_piped(
+                cmd,
+                ["samtools", "view", "-bS", "-"],
+                ["samtools", "sort", "-@", str(self.config.threads), "-o", output_bam],
+                f"Aligning {sample.sample_id}",
+            )
 
         # Index BAM
         self._execute(["samtools", "index", output_bam], "Indexing BAM")
@@ -423,20 +440,39 @@ class FASTQPipeline:
 
         return stats
 
+    @staticmethod
+    def _validate_path(path: str) -> bool:
+        """Validate a file path contains no shell injection characters."""
+        import re
+        # Allow alphanumeric, dots, dashes, underscores, slashes, and tildes
+        return bool(re.match(r'^[a-zA-Z0-9._/~\-]+$', path))
+
     def _execute(self, cmd: List[str], description: str):
-        """Execute a command."""
-        print(f"Running: {description}")
-        print(f"Command: {' '.join(cmd)}")
+        """Execute a command safely (no shell)."""
+        logger.info(f"Running: {description}")
+        logger.info(f"Command: {' '.join(cmd)}")
         # In production, uncomment:
-        # subprocess.run(cmd, check=True)
+        # subprocess.run(cmd, check=True, shell=False)
         return True
 
-    def _execute_shell(self, cmd: str, description: str):
-        """Execute a shell command."""
-        print(f"Running: {description}")
-        print(f"Command: {cmd}")
+    def _execute_piped(self, cmd1: List[str], cmd2: List[str], cmd3: List[str],
+                       description: str):
+        """Execute a pipeline of commands safely using subprocess pipes (no shell=True).
+
+        Equivalent to: cmd1 | cmd2 | cmd3
+        """
+        logger.info(f"Running: {description}")
+        logger.info(f"Pipeline: {' '.join(cmd1)} | {' '.join(cmd2)} | {' '.join(cmd3)}")
         # In production, uncomment:
-        # subprocess.run(cmd, shell=True, check=True)
+        # import subprocess
+        # p1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
+        # p2 = subprocess.Popen(cmd2, stdin=p1.stdout, stdout=subprocess.PIPE)
+        # p1.stdout.close()
+        # p3 = subprocess.Popen(cmd3, stdin=p2.stdout)
+        # p2.stdout.close()
+        # p3.communicate()
+        # if p3.returncode != 0:
+        #     raise subprocess.CalledProcessError(p3.returncode, ' | '.join([str(c) for c in [cmd1, cmd2, cmd3]]))
         return True
 
 

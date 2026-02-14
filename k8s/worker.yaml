@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: epinexus
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: background
+    app.kubernetes.io/part-of: epinexus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+    spec:
+      containers:
+        - name: worker
+          image: epinexus/worker:latest    # Replace with your registry
+          command: ["/bin/sh", "-c"]
+          args: ["rq worker --url redis://:$REDIS_PASSWORD@redis:6379/0"]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: epinexus-secrets
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: epinexus-secrets
+                  key: REDIS_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql://epinexus:$(POSTGRES_PASSWORD)@postgres:5432/epinexus"
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@redis:6379/0"
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits:   { cpu: "4",  memory: 4Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: results
+              mountPath: /app/results
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: epinexus-data
+        - name: results
+          persistentVolumeClaim:
+            claimName: epinexus-results

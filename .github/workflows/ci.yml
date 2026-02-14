@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install linter
+        run: pip install ruff
+      - name: Run ruff check
+        run: ruff check app/ frontend/ tests/
+      - name: Run ruff format check
+        run: ruff format --check app/ frontend/ tests/
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install mypy types-requests types-PyYAML
+      - name: Run mypy type checking
+        run: |
+          mypy app/ --ignore-missing-imports --no-strict-optional --warn-return-any \
+            --disallow-untyped-defs --exclude 'migrations/' || true
+        # NOTE: Running with '|| true' initially to collect baseline errors.
+        # Once type errors are addressed, remove '|| true' to enforce strict checks.
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install security tools
+        run: pip install bandit pip-audit
+      - name: Run bandit security linter
+        run: |
+          bandit -r app/ -ll -ii --skip B101 -f json -o bandit-report.json || true
+          bandit -r app/ -ll -ii --skip B101
+      - name: Check dependencies for known vulnerabilities
+        run: pip-audit -r requirements.txt --desc || true
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          if-no-files-found: ignore
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y samtools bedtools libhdf5-dev zlib1g-dev libbz2-dev liblzma-dev
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+      - name: Check coverage threshold
+        run: |
+          pytest tests/ --cov=app --cov-fail-under=30 -q || \
+            echo "::warning::Test coverage below 30% threshold"
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [test, type-check, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t epinexus:latest .
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: epinexus:latest
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 0  # Set to 1 to fail build on vulnerabilities
+      - name: Verify image starts
+        run: |
+          docker run -d --name epinexus-test -p 8000:8000 epinexus:latest
+          sleep 10
+          curl -f http://localhost:8000/health || (docker logs epinexus-test && exit 1)
+          docker stop epinexus-test

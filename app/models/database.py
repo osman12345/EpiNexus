@@ -153,8 +153,9 @@ class Sample(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # Additional metadata
-    metadata = Column(JSON, nullable=True)
+    # Additional metadata (column named 'sample_metadata' to avoid
+    # conflict with SQLAlchemy's reserved 'metadata' attribute)
+    sample_metadata = Column("sample_metadata", JSON, nullable=True)
 
     # Relationships
     comparisons = relationship(

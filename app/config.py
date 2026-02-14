@@ -145,6 +145,9 @@ class Settings(BaseSettings):
     seacr_mode: str = "stringent"  # or "relaxed"
     macs2_qvalue: float = 0.05
 
+    # CORS
+    cors_origins: str = "http://localhost:8501"  # Comma-separated allowed origins
+
     # Server
     api_host: str = "0.0.0.0"
     api_port: int = 8000

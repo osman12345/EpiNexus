@@ -3,6 +3,8 @@ Visualization Page
 Interactive visualizations for histone modification data.
 """
 
+from typing import Optional
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -24,8 +26,10 @@ try:
 except ImportError:
     HAS_DATA_MANAGER = False
 
-    def check_data_loaded():
+    def check_data_loaded() -> bool:
         return len(st.session_state.get('samples', [])) > 0
+
+from frontend.components.theme import COLORS
 
 # Try to import workflow manager
 try:
@@ -39,7 +43,7 @@ except ImportError:
         HAS_WORKFLOW_MANAGER = False
 
 
-def get_peaks_data():
+def get_peaks_data() -> Optional[pd.DataFrame]:
     """Get peaks data from session state or DataManager."""
     if HAS_DATA_MANAGER:
         peaks = DataManager.get_data('peaks')
@@ -65,7 +69,7 @@ def get_peaks_data():
     return None
 
 
-def main():
+def main() -> None:
     st.title("📈 Visualization")
     st.markdown("Explore your histone modification data with interactive visualizations.")
 
@@ -106,7 +110,7 @@ def main():
         render_signal_tracks(peaks)
 
 
-def render_heatmaps(peaks):
+def render_heatmaps(peaks: pd.DataFrame) -> None:
     """Peak signal heatmaps using real data."""
     st.header("Signal Heatmaps")
 
@@ -201,7 +205,7 @@ def render_heatmaps(peaks):
         st.caption(f"Showing {n_peaks} peaks from your data")
 
 
-def render_profile_plots(peaks):
+def render_profile_plots(peaks: pd.DataFrame) -> None:
     """Average signal profile plots using real data."""
     st.header("Average Signal Profiles")
 
@@ -219,7 +223,7 @@ def render_profile_plots(peaks):
             x = np.linspace(-5, 5, 100)
 
             fig = go.Figure()
-            colors = ['#3498db', '#e74c3c', '#27ae60', '#f39c12', '#9b59b6']
+            colors = COLORS.QUALITATIVE[:5]
 
             for i, cond in enumerate(conditions):
                 cond_peaks = peaks[peaks['condition'] == cond]
@@ -270,7 +274,7 @@ def render_profile_plots(peaks):
             signal_lower = signal - 0.3
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=x, y=signal, name='Mean', line=dict(color='#3498db', width=2)))
+            fig.add_trace(go.Scatter(x=x, y=signal, name='Mean', line=dict(color=COLORS.DOWN, width=2)))
             fig.add_trace(go.Scatter(x=x, y=signal_upper, mode='lines', line=dict(width=0), showlegend=False))
             fig.add_trace(go.Scatter(x=x, y=signal_lower, mode='lines', line=dict(width=0),
                                     fill='tonexty', fillcolor='rgba(52, 152, 219, 0.2)', name='±SD'))
@@ -291,7 +295,7 @@ def render_profile_plots(peaks):
             x = np.linspace(-5, 5, 100)
 
             fig = go.Figure()
-            colors = ['#e74c3c', '#f39c12', '#27ae60', '#9b59b6', '#3498db']
+            colors = [COLORS.QUALITATIVE[i] for i in [1, 3, 2, 4, 0]]
 
             for i, sample in enumerate(samples):
                 sample_peaks = peaks[peaks['sample'] == sample]
@@ -334,7 +338,7 @@ def render_profile_plots(peaks):
             st.plotly_chart(fig, use_container_width=True)
 
 
-def render_genomic_distribution(peaks):
+def render_genomic_distribution(peaks: pd.DataFrame) -> None:
     """Genomic feature distribution of peaks using real data."""
     st.header("Genomic Distribution")
 
@@ -405,7 +409,7 @@ def render_genomic_distribution(peaks):
     col4.metric("Chromosomes", peaks[chr_col].nunique() if chr_col else "N/A")
 
 
-def render_signal_tracks(peaks):
+def render_signal_tracks(peaks: pd.DataFrame) -> None:
     """Signal track visualization using real data."""
     st.header("Signal Distribution")
 

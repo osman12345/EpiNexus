@@ -98,6 +98,32 @@ class DifferentialConfig:
     # Output
     output_dir: Optional[str] = None
 
+    VALID_NORM_METHODS = {"RLE", "TMM", "median_ratio", "spike_in", "library_size", "quantile"}
+    VALID_ASSAY_TYPES = {"ChIP-seq", "CUT&Tag", "CUT&RUN"}
+
+    def __post_init__(self):
+        """Validate configuration parameters."""
+        from .exceptions import InvalidParameterError
+
+        if self.min_overlap < 1:
+            raise InvalidParameterError("min_overlap", self.min_overlap, ">= 1")
+        if self.summit_extend < 0:
+            raise InvalidParameterError("summit_extend", self.summit_extend, ">= 0")
+        if not 0 <= self.fdr_threshold <= 1:
+            raise InvalidParameterError("fdr_threshold", self.fdr_threshold, "0.0 to 1.0")
+        if self.lfc_threshold < 0:
+            raise InvalidParameterError("lfc_threshold", self.lfc_threshold, ">= 0")
+        if self.normalize_method not in self.VALID_NORM_METHODS:
+            raise InvalidParameterError(
+                "normalize_method", self.normalize_method,
+                f"one of {self.VALID_NORM_METHODS}"
+            )
+        if self.assay_type not in self.VALID_ASSAY_TYPES:
+            raise InvalidParameterError(
+                "assay_type", self.assay_type,
+                f"one of {self.VALID_ASSAY_TYPES}"
+            )
+
 
 @dataclass
 class DifferentialResults:
@@ -157,22 +183,62 @@ class DifferentialAnalyzer:
 
         Returns:
             DataFrame with columns: chrom, start, end, name, score, summit
-        """
-        # Detect format by extension and column count
-        with open(peak_file) as f:
-            first_line = f.readline().strip()
-            n_cols = len(first_line.split('\t'))
 
-        if n_cols >= 10:  # narrowPeak format
-            cols = ['chrom', 'start', 'end', 'name', 'score', 'strand',
-                   'signalValue', 'pValue', 'qValue', 'summit']
-            df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols])
-        else:  # BED format
-            cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
-            df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols])
+        Raises:
+            FileNotFoundError: If peak_file does not exist.
+            PeakFileFormatError: If file is empty or cannot be parsed.
+        """
+        from .exceptions import PeakFileFormatError
+
+        peak_path = Path(peak_file)
+        if not peak_path.exists():
+            raise FileNotFoundError(f"Peak file not found: {peak_file}")
+        if peak_path.stat().st_size == 0:
+            raise PeakFileFormatError(f"Peak file is empty: {peak_file}")
+
+        try:
+            # Detect format by extension and column count
+            with open(peak_file) as f:
+                first_line = f.readline().strip()
+                if not first_line:
+                    raise PeakFileFormatError(f"Peak file has no data: {peak_file}")
+                n_cols = len(first_line.split('\t'))
+
+            if n_cols < 3:
+                raise PeakFileFormatError(
+                    f"Peak file must have at least 3 columns (chrom, start, end), "
+                    f"found {n_cols}: {peak_file}"
+                )
+
+            if n_cols >= 10:  # narrowPeak format
+                cols = ['chrom', 'start', 'end', 'name', 'score', 'strand',
+                       'signalValue', 'pValue', 'qValue', 'summit']
+                df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols],
+                                 comment='#')
+            else:  # BED format
+                cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
+                df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols],
+                                 comment='#')
+        except PeakFileFormatError:
+            raise
+        except Exception as e:
+            raise PeakFileFormatError(f"Failed to parse peak file {peak_file}: {e}") from e
+
+        if df.empty:
+            raise PeakFileFormatError(f"No peaks found in file: {peak_file}")
 
         # Ensure required columns
         df['chrom'] = df['chrom'].astype(str)
+        df['start'] = pd.to_numeric(df['start'], errors='coerce')
+        df['end'] = pd.to_numeric(df['end'], errors='coerce')
+
+        # Drop rows with invalid coordinates
+        invalid_mask = df['start'].isna() | df['end'].isna()
+        if invalid_mask.any():
+            n_invalid = invalid_mask.sum()
+            logger.warning(f"Dropped {n_invalid} peaks with non-numeric coordinates from {peak_file}")
+            df = df[~invalid_mask].copy()
+
         df['start'] = df['start'].astype(int)
         df['end'] = df['end'].astype(int)
 
@@ -211,7 +277,15 @@ class DifferentialAnalyzer:
             all_peaks.append(peaks)
 
         if not all_peaks:
-            raise ValueError("No valid peak files found")
+            from .exceptions import EmptyDataError
+            raise EmptyDataError("peak files (no valid peak files found for any sample)")
+
+        if len(all_peaks) < min_overlap:
+            from .exceptions import InsufficientSamplesError
+            raise InsufficientSamplesError(
+                required=min_overlap, actual=len(all_peaks),
+                context=f"consensus peak generation (min_overlap={min_overlap})"
+            )
 
         combined = pd.concat(all_peaks, ignore_index=True)
 

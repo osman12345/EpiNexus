@@ -13,6 +13,8 @@ from plotly.subplots import make_subplots
 from pathlib import Path
 import sys
 
+from frontend.components.theme import COLORS
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 st.set_page_config(
@@ -322,7 +324,7 @@ def render_differential(peaks):
                     tool="EpiNexus ATAC-seq Module",
                     parameters={
                         'fdr_threshold': fdr_thresh,
-                        'min_fold_change': min_fc,
+                        'min_fold_change': fc_thresh,
                         'method': method
                     },
                     inputs=['atac_peaks'],
@@ -402,11 +404,7 @@ def render_differential(peaks):
         diff_results.loc[diff_results['Significant'] & (diff_results['log2FoldChange'] > 0), 'Direction'] = 'More Accessible'
         diff_results.loc[diff_results['Significant'] & (diff_results['log2FoldChange'] < 0), 'Direction'] = 'Less Accessible'
 
-        color_map = {
-            'More Accessible': '#27ae60',
-            'Less Accessible': '#e74c3c',
-            'Not Significant': '#95a5a6'
-        }
+        color_map = COLORS.ACCESS_MAP
 
         fig = px.scatter(
             diff_results,

@@ -118,6 +118,10 @@ def main():
         motif_pval = st.slider("Motif P-value", 1e-6, 0.01, 1e-4, format="%.1e")
         enrichment_fdr = st.slider("Enrichment FDR", 0.01, 0.2, 0.05)
 
+    # Store thresholds in session state so child functions can access them
+    st.session_state['tf_motif_pval'] = motif_pval
+    st.session_state['tf_enrichment_fdr'] = enrichment_fdr
+
     # Main content based on analysis type
     if analysis_type == "Motif Enrichment":
         render_motif_enrichment()
@@ -222,7 +226,7 @@ def render_motif_enrichment():
                         tool="EpiNexus TF Analysis",
                         parameters={
                             'background': bg_option,
-                            'enrichment_fdr': enrichment_fdr,
+                            'enrichment_fdr': st.session_state.get('tf_enrichment_fdr', 0.05),
                             'n_target_peaks': len(target_df)
                         },
                         inputs=['peaks'],

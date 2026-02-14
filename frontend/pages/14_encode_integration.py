@@ -8,6 +8,11 @@ Browse, download, and integrate public ENCODE datasets:
 - Peak files
 """
 
+import time
+import hashlib
+import logging
+from typing import Any, Dict, List, Optional
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,6 +20,8 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="ENCODE Integration - EpiNexus",
@@ -24,6 +31,59 @@ st.set_page_config(
 
 # ENCODE API base URL
 ENCODE_API = "https://www.encodeproject.org"
+
+# ---------------------------------------------------------------------------
+# ENCODE API caching & rate-limiting helpers
+# ---------------------------------------------------------------------------
+if "_encode_cache" not in st.session_state:
+    st.session_state._encode_cache: Dict[str, Any] = {}
+if "_encode_last_request_ts" not in st.session_state:
+    st.session_state._encode_last_request_ts: float = 0.0
+
+_ENCODE_MIN_INTERVAL: float = 0.5   # min seconds between API calls
+_ENCODE_CACHE_TTL: int = 1800       # cache TTL in seconds (30 min)
+
+
+def _cache_key(url: str, params: Optional[dict] = None) -> str:
+    """Create a deterministic cache key from URL + query params."""
+    raw = url + (str(sorted(params.items())) if params else "")
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _rate_limited_get(url: str, params: Optional[dict] = None, timeout: int = 30):
+    """HTTP GET with in-session caching and rate limiting.
+
+    Returns:
+        ``requests.Response`` object (from cache or live request).
+    """
+    import requests
+
+    key = _cache_key(url, params)
+
+    # Check cache
+    cached = st.session_state._encode_cache.get(key)
+    if cached is not None:
+        ts, data = cached
+        if time.time() - ts < _ENCODE_CACHE_TTL:
+            logger.debug("ENCODE cache hit for %s", key[:8])
+            return data
+
+    # Rate limit
+    elapsed = time.time() - st.session_state._encode_last_request_ts
+    if elapsed < _ENCODE_MIN_INTERVAL:
+        time.sleep(_ENCODE_MIN_INTERVAL - elapsed)
+
+    response = requests.get(
+        url, params=params,
+        headers={"Accept": "application/json"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    st.session_state._encode_last_request_ts = time.time()
+
+    # Cache
+    st.session_state._encode_cache[key] = (time.time(), response)
+    return response
 
 
 def main():
@@ -197,9 +257,15 @@ def render_download_manager():
 
     with col1:
         if st.button("📥 Start Download", type="primary"):
-            # Get absolute path for download directory
+            # Get absolute path for download directory (with path traversal protection)
             project_root = Path(__file__).parent.parent.parent
-            abs_download_dir = project_root / "data" / download_dir.strip("/")
+            data_root = (project_root / "data").resolve()
+            abs_download_dir = (data_root / download_dir.strip("/")).resolve()
+
+            # Prevent path traversal attacks (e.g., ../../etc/passwd)
+            if not str(abs_download_dir).startswith(str(data_root)):
+                st.error("Invalid download directory: path must be within the project data folder.")
+                st.stop()
 
             st.info(f"Downloading to: `{abs_download_dir}`")
 
@@ -433,11 +499,12 @@ def render_public_datasets():
 
 
 # Real ENCODE API functions
-import requests
-import os
+import requests  # noqa: E402
+import os  # noqa: E402
+
 
 def search_encode_real(assay, target, organism, biosample, genome):
-    """Search ENCODE database via API."""
+    """Search ENCODE database via API (cached, rate-limited)."""
     try:
         # Build search URL
         base_url = "https://www.encodeproject.org/search/"
@@ -469,8 +536,7 @@ def search_encode_real(assay, target, organism, biosample, genome):
         if genome in assembly_map:
             params["assembly"] = assembly_map[genome]
 
-        response = requests.get(base_url, params=params, headers={"Accept": "application/json"}, timeout=30)
-        response.raise_for_status()
+        response = _rate_limited_get(base_url, params=params, timeout=30)
         data = response.json()
 
         # Parse results
@@ -509,11 +575,10 @@ def search_encode_mock(assay, target, organism, biosample, genome):
 
 
 def get_experiment_files_real(accession, file_types):
-    """Get real file list from ENCODE API."""
+    """Get real file list from ENCODE API (cached, rate-limited)."""
     try:
-        url = f"https://www.encodeproject.org/experiments/{accession}/?format=json"
-        response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
-        response.raise_for_status()
+        url = f"https://www.encodeproject.org/experiments/{accession}/"
+        response = _rate_limited_get(url, params={"format": "json"}, timeout=30)
         data = response.json()
 
         files = []
@@ -652,24 +717,34 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
             overlap_count = len(overlap_gr)
 
         except ImportError:
-            # Fallback: simple pandas-based overlap detection
-            overlap_count = 0
+            # Fallback: use shared genomic_utils interval-tree overlap (O(n log n))
+            try:
+                import sys
+                from pathlib import Path
+                sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+                from app.core.genomic_utils import find_overlaps
 
-            for chrom in user_peaks_df['chrom'].unique():
-                user_chr = user_peaks_df[user_peaks_df['chrom'] == chrom]
-                ref_chr = ref_peaks_df[ref_peaks_df['chrom'] == chrom]
-
-                if len(ref_chr) == 0:
-                    continue
-
-                for _, user_peak in user_chr.iterrows():
-                    # Check for any overlap
-                    overlaps = ref_chr[
-                        (ref_chr['start'] < user_peak['end']) &
-                        (ref_chr['end'] > user_peak['start'])
-                    ]
-                    if len(overlaps) > 0:
-                        overlap_count += 1
+                hits = find_overlaps(
+                    user_peaks_df, ref_peaks_df,
+                    chrom_col='chrom', start_col='start', end_col='end',
+                    report='first',
+                )
+                overlap_count = len(hits)
+            except ImportError:
+                # Last resort: simple pandas-based detection
+                overlap_count = 0
+                for chrom in user_peaks_df['chrom'].unique():
+                    user_chr = user_peaks_df[user_peaks_df['chrom'] == chrom]
+                    ref_chr = ref_peaks_df[ref_peaks_df['chrom'] == chrom]
+                    if len(ref_chr) == 0:
+                        continue
+                    for _, user_peak in user_chr.iterrows():
+                        overlaps = ref_chr[
+                            (ref_chr['start'] < user_peak['end']) &
+                            (ref_chr['end'] > user_peak['start'])
+                        ]
+                        if len(overlaps) > 0:
+                            overlap_count += 1
 
         # Calculate Jaccard index
         union_count = user_count + ref_count - overlap_count
@@ -740,8 +815,8 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
         file_accession = reference_map[key]
         try:
             # Search for narrowPeak file for this experiment
-            url = f"https://www.encodeproject.org/files/{file_accession}/?format=json"
-            response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
+            url = f"https://www.encodeproject.org/files/{file_accession}/"
+            response = _rate_limited_get(url, params={"format": "json"}, timeout=30)
 
             if response.status_code == 200:
                 data = response.json()
@@ -752,10 +827,10 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
                     # Try to find experiment and get peaks
                     exp_url = data.get('dataset', '')
                     if exp_url:
-                        exp_response = requests.get(
-                            f"https://www.encodeproject.org{exp_url}?format=json",
-                            headers={"Accept": "application/json"},
-                            timeout=30
+                        exp_response = _rate_limited_get(
+                            f"https://www.encodeproject.org{exp_url}",
+                            params={"format": "json"},
+                            timeout=30,
                         )
                         if exp_response.status_code == 200:
                             exp_data = exp_response.json()

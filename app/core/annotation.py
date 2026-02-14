@@ -492,11 +492,21 @@ class AnnotationDatabase:
         Returns:
             GeneAnnotation object
         """
-        cache_file = self.CACHE_DIR / f"{genome}_genes.pkl"
+        cache_dir = self.CACHE_DIR / f"{genome}_annotation"
 
-        if cache_file.exists():
-            logger.info(f"Loading cached annotation for {genome}")
-            return self._load_cached(cache_file)
+        # Support new parquet cache; fall back to legacy .pkl if present
+        if cache_dir.is_dir() and (cache_dir / "genes.parquet").exists():
+            logger.info(f"Loading cached annotation for {genome} (parquet)")
+            return self._load_cached(cache_dir)
+
+        # Legacy pickle cache – load then migrate to parquet
+        legacy_pkl = self.CACHE_DIR / f"{genome}_genes.pkl"
+        if legacy_pkl.exists():
+            logger.info(f"Migrating legacy pickle cache for {genome} to parquet")
+            annotation = self._load_cached_pickle(legacy_pkl)
+            self._save_cached(annotation, cache_dir)
+            legacy_pkl.unlink()
+            return annotation
 
         # Download and parse GTF
         if genome in GeneAnnotation.GTF_URLS:
@@ -507,7 +517,7 @@ class AnnotationDatabase:
             annotation = GeneAnnotation(gtf_file, genome)
 
             # Cache for future use
-            self._save_cached(annotation, cache_file)
+            self._save_cached(annotation, cache_dir)
 
             return annotation
         else:
@@ -525,20 +535,41 @@ class AnnotationDatabase:
 
         return str(local_file)
 
-    def _save_cached(self, annotation: GeneAnnotation, cache_file: Path):
-        """Save annotation to cache."""
-        import pickle
-        with open(cache_file, 'wb') as f:
-            pickle.dump({
-                'genes': annotation.genes,
-                'transcripts': annotation.transcripts,
-                'exons': annotation.exons,
-                'gene_info': annotation.gene_info,
-                'genome': annotation.genome
-            }, f)
+    def _save_cached(self, annotation: GeneAnnotation, cache_dir: Path):
+        """Save annotation DataFrames to parquet files.
 
-    def _load_cached(self, cache_file: Path) -> GeneAnnotation:
-        """Load annotation from cache."""
+        Parquet is safer than pickle (no arbitrary code execution on load),
+        faster to read, and produces smaller files with columnar compression.
+        """
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        for name in ("genes", "transcripts", "exons", "gene_info"):
+            df = getattr(annotation, name, None)
+            if df is not None:
+                df.to_parquet(cache_dir / f"{name}.parquet", index=True)
+
+        # Store genome name as a small metadata file
+        (cache_dir / "genome.txt").write_text(annotation.genome)
+
+    def _load_cached(self, cache_dir: Path) -> GeneAnnotation:
+        """Load annotation from parquet cache directory."""
+        annotation = GeneAnnotation.__new__(GeneAnnotation)
+
+        for name in ("genes", "transcripts", "exons", "gene_info"):
+            parquet_path = cache_dir / f"{name}.parquet"
+            if parquet_path.exists():
+                setattr(annotation, name, pd.read_parquet(parquet_path))
+            else:
+                setattr(annotation, name, None)
+
+        genome_file = cache_dir / "genome.txt"
+        annotation.genome = genome_file.read_text().strip() if genome_file.exists() else "unknown"
+
+        return annotation
+
+    @staticmethod
+    def _load_cached_pickle(cache_file: Path) -> "GeneAnnotation":
+        """Load legacy pickle cache (for one-time migration to parquet)."""
         import pickle
         with open(cache_file, 'rb') as f:
             data = pickle.load(f)

@@ -138,25 +138,21 @@ class SuperEnhancerDetector:
         return peaks
 
     def _exclude_tss(self, peaks: pd.DataFrame, tss: pd.DataFrame) -> pd.DataFrame:
-        """Exclude peaks near TSS (promoter regions)."""
+        """Exclude peaks near TSS (promoter regions).
+
+        Uses interval-tree overlap detection (O(n log n)) for performance.
+        """
+        from .genomic_utils import exclude_overlapping
 
         # Expand TSS regions
         tss = tss.copy()
         tss['start'] = tss['start'] - self.tss_exclusion
         tss['end'] = tss['end'] + self.tss_exclusion
 
-        # Simple overlap exclusion (could use pyranges for efficiency)
-        keep_mask = np.ones(len(peaks), dtype=bool)
-
-        for _, tss_row in tss.iterrows():
-            overlap = (
-                (peaks['chr'] == tss_row['chr']) &
-                (peaks['start'] < tss_row['end']) &
-                (peaks['end'] > tss_row['start'])
-            )
-            keep_mask &= ~overlap
-
-        return peaks[keep_mask].reset_index(drop=True)
+        return exclude_overlapping(
+            peaks, tss,
+            chrom_col="chr", start_col="start", end_col="end",
+        )
 
     def _stitch_enhancers(self, peaks: pd.DataFrame, signal_col: str) -> pd.DataFrame:
         """Stitch nearby enhancers within stitch_distance."""

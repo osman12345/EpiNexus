@@ -21,6 +21,8 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from frontend.components.theme import COLORS
+
 # Import workflow manager for step recording
 try:
     from frontend.components.workflow_manager import WorkflowManager
@@ -70,7 +72,7 @@ def parse_bedgraph(file_path: str) -> pd.DataFrame:
                      names=['chr', 'start', 'end', 'meth_pct'])
     return df
 
-def calculate_methylation_stats(df: pd.DataFrame) -> dict:
+def calculate_methylation_stats(df: pd.DataFrame) -> dict[str, float]:
     """Calculate summary statistics for methylation data."""
     stats = {
         'total_cpgs': len(df),
@@ -132,7 +134,7 @@ def generate_demo_methylation_data(n_cpgs: int = 50000) -> pd.DataFrame:
 # VISUALIZATION FUNCTIONS
 # =============================================================================
 
-def plot_methylation_distribution(df: pd.DataFrame, title: str = "Methylation Distribution"):
+def plot_methylation_distribution(df: pd.DataFrame, title: str = "Methylation Distribution") -> go.Figure:
     """Plot histogram of methylation levels."""
     fig = px.histogram(
         df, x='meth_pct',
@@ -148,7 +150,7 @@ def plot_methylation_distribution(df: pd.DataFrame, title: str = "Methylation Di
     )
     return fig
 
-def plot_coverage_distribution(df: pd.DataFrame, title: str = "Coverage Distribution"):
+def plot_coverage_distribution(df: pd.DataFrame, title: str = "Coverage Distribution") -> go.Figure | None:
     """Plot histogram of coverage depth."""
     if 'coverage' not in df.columns:
         return None
@@ -167,7 +169,7 @@ def plot_coverage_distribution(df: pd.DataFrame, title: str = "Coverage Distribu
     )
     return fig
 
-def plot_chromosome_methylation(df: pd.DataFrame, title: str = "Methylation by Chromosome"):
+def plot_chromosome_methylation(df: pd.DataFrame, title: str = "Methylation by Chromosome") -> go.Figure:
     """Plot average methylation per chromosome."""
     chr_order = [f'chr{i}' for i in range(1, 23)] + ['chrX', 'chrY']
     chr_meth = df.groupby('chr')['meth_pct'].mean().reindex(chr_order).dropna()
@@ -183,11 +185,11 @@ def plot_chromosome_methylation(df: pd.DataFrame, title: str = "Methylation by C
     fig.update_layout(showlegend=False, coloraxis_showscale=False)
     return fig
 
-def plot_methylation_by_level(stats: dict, title: str = "CpG Methylation Categories"):
+def plot_methylation_by_level(stats: dict, title: str = "CpG Methylation Categories") -> go.Figure:
     """Plot pie chart of methylation categories."""
     labels = ['Hypomethylated (<20%)', 'Intermediate (20-80%)', 'Hypermethylated (>80%)']
     values = [stats['hypomethylated'], stats['intermediate'], stats['hypermethylated']]
-    colors = ['#3498db', '#f39c12', '#e74c3c']
+    colors = [COLORS.HYPO, '#f39c12', COLORS.HYPER]
 
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -257,7 +259,7 @@ def find_dmrs_simple(df1: pd.DataFrame, df2: pd.DataFrame,
 # MAIN PAGE
 # =============================================================================
 
-def main():
+def main() -> None:
     st.title("🧬 DNA Methylation Analysis")
     st.markdown("Analyze bisulfite sequencing and methylation array data")
 
@@ -548,7 +550,7 @@ def main():
                 # DMR direction plot
                 fig = px.histogram(dmrs, x='mean_diff', nbins=30,
                                    color='direction',
-                                   color_discrete_map={'hyper': '#e74c3c', 'hypo': '#3498db'},
+                                   color_discrete_map=COLORS.METH_MAP,
                                    title="DMR Methylation Differences")
                 fig.update_layout(xaxis_title="Methylation Difference (%)",
                                  yaxis_title="Number of DMRs")

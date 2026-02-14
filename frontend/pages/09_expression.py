@@ -8,6 +8,8 @@ Provides:
 - Multi-omics summary views
 """
 
+from typing import Dict, Optional
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -44,13 +46,15 @@ except ImportError:
         HAS_WORKFLOW_MANAGER = False
 
 # Session state
+from frontend.components.theme import COLORS
+
 if 'expression_data' not in st.session_state:
     st.session_state.expression_data = None
 if 'integration_results' not in st.session_state:
     st.session_state.integration_results = None
 
 
-def has_data():
+def has_data() -> bool:
     """Check if user has loaded epigenetic data."""
     if HAS_DATA_MANAGER:
         peaks = DataManager.get_data('peaks')
@@ -58,7 +62,7 @@ def has_data():
     return len(st.session_state.get('samples', [])) > 0
 
 
-def render_empty_state():
+def render_empty_state() -> None:
     """Show empty state when no data is loaded."""
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -83,7 +87,7 @@ def render_empty_state():
         st.markdown("- Gene annotation (GTF/GFF)")
 
 
-def main():
+def main() -> None:
     st.title("📊 Gene Expression Integration")
     st.markdown("""
     Integrate RNA-seq differential expression data with histone modifications
@@ -116,7 +120,7 @@ def main():
         render_summary_report()
 
 
-def render_data_upload():
+def render_data_upload() -> None:
     """Render data upload section."""
     st.header("Upload Expression Data")
 
@@ -176,7 +180,7 @@ def render_data_upload():
         peak_fdr = st.number_input("Peak FDR threshold", value=0.1, step=0.01)
 
 
-def render_expression_analysis():
+def render_expression_analysis() -> None:
     """Render expression analysis visualizations."""
     st.header("Expression Analysis")
 
@@ -229,7 +233,7 @@ def render_expression_analysis():
         render_expression_distribution(df, lfc_col)
 
 
-def render_integration_analysis():
+def render_integration_analysis() -> None:
     """Render epigenetic integration analysis."""
     st.header("Epigenetic Integration")
 
@@ -264,7 +268,7 @@ def render_integration_analysis():
         display_integration_results(results)
 
 
-def render_summary_report():
+def render_summary_report() -> None:
     """Render summary report."""
     st.header("Multi-Omics Summary Report")
 
@@ -340,7 +344,7 @@ def load_expression_file(uploaded_file) -> pd.DataFrame:
     return df
 
 
-def detect_column_types(df: pd.DataFrame) -> dict:
+def detect_column_types(df: pd.DataFrame) -> Dict[str, str]:
     """Detect column types from expression data."""
     cols = {}
     col_lower = {c.lower(): c for c in df.columns}
@@ -402,7 +406,7 @@ def generate_demo_expression() -> pd.DataFrame:
     })
 
 
-def run_integration_analysis() -> dict:
+def run_integration_analysis() -> Dict[str, object]:
     """Run integration analysis (simulated for demo)."""
     np.random.seed(42)
 
@@ -433,7 +437,7 @@ def run_integration_analysis() -> dict:
 # Visualization Functions
 # =============================================================================
 
-def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str):
+def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str) -> None:
     """Render interactive volcano plot."""
     df = df.copy()
     df['neg_log10_fdr'] = -np.log10(df[fdr_col].clip(lower=1e-300))
@@ -449,9 +453,9 @@ def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str):
         y='neg_log10_fdr',
         color='category',
         color_discrete_map={
-            'Upregulated': '#E41A1C',
-            'Downregulated': '#377EB8',
-            'Not Significant': '#999999'
+            'Upregulated': COLORS.UP,
+            'Downregulated': COLORS.DOWN,
+            'Not Significant': COLORS.NOT_SIG,
         },
         title="Volcano Plot",
         labels={lfc_col: 'Log2 Fold Change', 'neg_log10_fdr': '-Log10(FDR)'},
@@ -467,7 +471,7 @@ def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_ma_plot(df: pd.DataFrame, lfc_col: str):
+def render_ma_plot(df: pd.DataFrame, lfc_col: str) -> None:
     """Render MA plot."""
     cols = detect_column_types(df)
     basemean_col = cols.get('basemean')
@@ -494,7 +498,7 @@ def render_ma_plot(df: pd.DataFrame, lfc_col: str):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_expression_heatmap(df: pd.DataFrame, lfc_col: str, fdr_col: str):
+def render_expression_heatmap(df: pd.DataFrame, lfc_col: str, fdr_col: str) -> None:
     """Render heatmap of top DE genes."""
     # Get top genes
     top_up = df.nlargest(25, lfc_col)
@@ -522,7 +526,7 @@ def render_expression_heatmap(df: pd.DataFrame, lfc_col: str, fdr_col: str):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_expression_distribution(df: pd.DataFrame, lfc_col: str):
+def render_expression_distribution(df: pd.DataFrame, lfc_col: str) -> None:
     """Render expression distribution."""
     fig = px.histogram(
         df,
@@ -538,7 +542,7 @@ def render_expression_distribution(df: pd.DataFrame, lfc_col: str):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def display_integration_results(results: dict):
+def display_integration_results(results: Dict[str, object]) -> None:
     """Display integration analysis results."""
     # Summary metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -561,12 +565,7 @@ def display_integration_results(results: dict):
         names='Category',
         title="Gene Categories by Expression-Chromatin Concordance",
         color='Category',
-        color_discrete_map={
-            'Concordant Activation': '#4DAF4A',
-            'Concordant Repression': '#E41A1C',
-            'Discordant': '#984EA3',
-            'No Change': '#999999'
-        },
+        color_discrete_map=COLORS.EXPRESSION_MAP,
         template="plotly_white"
     )
     st.plotly_chart(fig, use_container_width=True)

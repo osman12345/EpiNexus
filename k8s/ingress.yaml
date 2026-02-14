@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: epinexus-ingress
+  namespace: epinexus
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"    # Allow large file uploads
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"  # Long-running analyses
+spec:
+  ingressClassName: nginx
+  rules:
+    # Frontend UI
+    - host: epinexus.example.com             # Replace with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8501
+    # API (optional: expose separately or at /api path)
+    - host: api.epinexus.example.com         # Replace with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8000
+  # Uncomment to enable TLS with cert-manager:
+  # tls:
+  #   - hosts:
+  #       - epinexus.example.com
+  #       - api.epinexus.example.com
+  #     secretName: epinexus-tls

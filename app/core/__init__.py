@@ -36,6 +36,20 @@ from .transcription_factors import (
     run_tf_motif_analysis
 )
 
+# Shared genomic utilities (interval-tree overlap, peak parsing, etc.)
+from .genomic_utils import (
+    find_overlaps,
+    count_overlaps,
+    count_overlaps_with_fraction,
+    find_first_overlaps,
+    exclude_overlapping,
+    load_peak_file,
+    standardize_peak_columns,
+    detect_column,
+    sort_chromosomes,
+    filter_standard_chroms,
+)
+
 # Legacy R wrapper (kept for compatibility)
 from .diffbind import DiffBindRunner
 

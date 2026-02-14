@@ -9,6 +9,7 @@ Provides:
 """
 
 import json
+import logging
 import time
 import hashlib
 import threading
@@ -18,6 +19,8 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from collections import deque
 import copy
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -95,7 +98,7 @@ class AutoSaveManager:
                     self._cleanup_old_saves()
 
         except Exception as e:
-            print(f"Auto-save error: {e}")
+            logger.warning(f"Auto-save error: {e}")
 
         # Schedule next save
         self._schedule_save()

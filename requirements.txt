@@ -2,40 +2,48 @@
 # Install: pip install -r requirements.txt
 
 # Web Framework
-streamlit>=1.28.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
+streamlit>=1.28.0,<2.0.0
+fastapi>=0.104.0,<1.0.0
+uvicorn>=0.24.0,<1.0.0
 
 # Database & Config
-sqlalchemy>=2.0.0
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
+sqlalchemy>=2.0.0,<3.0.0
+psycopg2-binary>=2.9.0,<3.0.0  # PostgreSQL driver for Docker deployment
+pydantic>=2.5.0,<3.0.0
+pydantic-settings>=2.1.0,<3.0.0
 
 # Data Processing
-pandas>=2.0.0
-numpy>=1.24.0
-scipy>=1.11.0
+pandas>=2.0.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+scipy>=1.11.0,<2.0.0
 
 # Differential Analysis (replaces R DiffBind/DESeq2)
-pydeseq2>=0.4.0
-anndata>=0.10.0
+pydeseq2>=0.4.0,<1.0.0
+anndata>=0.10.0,<1.0.0
 
 # Bioinformatics
-pysam>=0.22.0
-pybedtools>=0.9.0
-pybigwig>=0.3.22
-pyranges>=0.0.129
-biopython>=1.81
+pysam>=0.22.0,<1.0.0
+pybedtools>=0.9.0,<1.0.0
+pybigwig>=0.3.22,<1.0.0
+pyranges>=0.0.129,<1.0.0
+biopython>=1.81,<2.0.0
+ncls>=0.0.68,<1.0.0  # Fast interval overlap detection (Nested Containment Lists)
 
 # Visualization
-plotly>=5.18.0
-matplotlib>=3.8.0
-seaborn>=0.13.0
-logomaker>=0.8
+plotly>=5.18.0,<6.0.0
+matplotlib>=3.8.0,<4.0.0
+seaborn>=0.13.0,<1.0.0
+logomaker>=0.8,<1.0.0
+
+# Job Queue
+rq>=1.16.0,<2.0.0  # Redis Queue for background job processing
+redis>=5.0.0,<6.0.0
 
 # Utilities
-tqdm>=4.66.0
-httpx>=0.25.0
+tqdm>=4.66.0,<5.0.0
+httpx>=0.25.0,<1.0.0
+python-multipart>=0.0.6,<1.0.0  # Required by FastAPI for file uploads
 
 # Testing
-pytest>=7.4.0
+pytest>=7.4.0,<9.0.0
+pytest-cov>=4.1.0,<6.0.0

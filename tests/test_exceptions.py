@@ -10,7 +10,6 @@ from app.core.exceptions import (
     FileFormatError,
     PeakFileFormatError,
     GTFParseError,
-    ExpressionFileFormatError,
     ValidationError,
     MissingColumnError,
     InsufficientSamplesError,

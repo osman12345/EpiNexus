@@ -19,6 +19,7 @@ st.set_page_config(page_title="Quality Control - EpiNexus", page_icon="✅", lay
 try:
     from frontend.components.data_manager import DataManager
     from frontend.components.empty_states import render_empty_state
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
@@ -26,13 +27,16 @@ except ImportError:
     def render_empty_state(title, icon, message, requirements):
         st.warning(f"{icon} {title}: {message}")
 
+
 # Try to import workflow manager
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
         from components.workflow_manager import WorkflowManager
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -41,10 +45,10 @@ except ImportError:
 def check_data_loaded():
     """Check if we have data to analyze."""
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         if peaks is not None and len(peaks) > 0:
             return True
-    return len(st.session_state.get('samples', [])) > 0
+    return len(st.session_state.get("samples", [])) > 0
 
 
 def main():
@@ -60,8 +64,8 @@ def main():
             requirements=[
                 "Peak files (BED/narrowPeak format)",
                 "At least one sample defined",
-                "Optional: BAM files for detailed QC"
-            ]
+                "Optional: BAM files for detailed QC",
+            ],
         )
 
         if st.button("Go to Data & Project →"):
@@ -71,24 +75,19 @@ def main():
     # Get actual data
     peaks_df = None
     if HAS_DATA_MANAGER:
-        peaks_df = DataManager.get_data('peaks')
+        peaks_df = DataManager.get_data("peaks")
 
-    samples = st.session_state.get('samples', [])
+    samples = st.session_state.get("samples", [])
 
     # Show data source
-    is_demo = st.session_state.get('using_demo_data', True)
+    is_demo = st.session_state.get("using_demo_data", True)
     if is_demo:
         st.info("📌 **Demo Mode** - Showing metrics for demonstration data")
     else:
         st.success("✅ **Your Data** - Metrics computed from your uploaded peaks")
 
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📊 Sample Summary",
-        "📈 Peak Metrics",
-        "🔗 Correlation",
-        "📋 QC Report"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Sample Summary", "📈 Peak Metrics", "🔗 Correlation", "📋 QC Report"])
 
     with tab1:
         render_sample_summary(peaks_df, samples)
@@ -108,11 +107,11 @@ def compute_sample_qc(peaks_df: pd.DataFrame, samples: list) -> pd.DataFrame:
     qc_data = []
 
     # Group peaks by source file if available
-    if 'source_file' in peaks_df.columns:
-        grouped = peaks_df.groupby('source_file')
+    if "source_file" in peaks_df.columns:
+        grouped = peaks_df.groupby("source_file")
     else:
         # Create a single group for all peaks
-        grouped = [('All Peaks', peaks_df)]
+        grouped = [("All Peaks", peaks_df)]
 
     for source, group in grouped:
         # Extract sample name from filename
@@ -125,8 +124,8 @@ def compute_sample_qc(peaks_df: pd.DataFrame, samples: list) -> pd.DataFrame:
         n_peaks = len(group)
 
         # Peak width statistics
-        if 'start' in group.columns and 'end' in group.columns:
-            widths = group['end'] - group['start']
+        if "start" in group.columns and "end" in group.columns:
+            widths = group["end"] - group["start"]
             median_width = widths.median()
             mean_width = widths.mean()
         else:
@@ -134,21 +133,21 @@ def compute_sample_qc(peaks_df: pd.DataFrame, samples: list) -> pd.DataFrame:
             mean_width = 0
 
         # Signal strength (if available)
-        if 'signalValue' in group.columns:
-            mean_signal = group['signalValue'].mean()
-            max_signal = group['signalValue'].max()
-        elif 'score' in group.columns:
-            mean_signal = group['score'].mean()
-            max_signal = group['score'].max()
+        if "signalValue" in group.columns:
+            mean_signal = group["signalValue"].mean()
+            max_signal = group["signalValue"].max()
+        elif "score" in group.columns:
+            mean_signal = group["score"].mean()
+            max_signal = group["score"].max()
         else:
             mean_signal = 0
             max_signal = 0
 
         # Chromosomal distribution
-        if 'chr' in group.columns:
-            n_chroms = group['chr'].nunique()
+        if "chr" in group.columns:
+            n_chroms = group["chr"].nunique()
             # Check for unusual chromosome distribution
-            chr_counts = group['chr'].value_counts()
+            chr_counts = group["chr"].value_counts()
             chr_balance = chr_counts.std() / chr_counts.mean() if chr_counts.mean() > 0 else 0
         else:
             n_chroms = 0
@@ -156,31 +155,36 @@ def compute_sample_qc(peaks_df: pd.DataFrame, samples: list) -> pd.DataFrame:
 
         # Quality score estimation based on metrics
         # Higher peaks, better signal, good distribution = better quality
-        quality_score = min(100, int(
-            (min(n_peaks / 1000, 30)) +  # Peak count contribution (max 30)
-            (min(mean_signal / 10, 30) if mean_signal > 0 else 15) +  # Signal contribution (max 30)
-            (40 - min(chr_balance * 20, 20))  # Balance contribution (max 40)
-        ))
+        quality_score = min(
+            100,
+            int(
+                (min(n_peaks / 1000, 30))  # Peak count contribution (max 30)
+                + (min(mean_signal / 10, 30) if mean_signal > 0 else 15)  # Signal contribution (max 30)
+                + (40 - min(chr_balance * 20, 20))  # Balance contribution (max 40)
+            ),
+        )
 
         # Determine status
         if quality_score >= 70:
-            status = '✅ Pass'
+            status = "✅ Pass"
         elif quality_score >= 50:
-            status = '⚠️ Warning'
+            status = "⚠️ Warning"
         else:
-            status = '❌ Fail'
+            status = "❌ Fail"
 
-        qc_data.append({
-            'Sample': sample_name,
-            'Peaks': n_peaks,
-            'Median Width': int(median_width),
-            'Mean Width': int(mean_width),
-            'Mean Signal': round(mean_signal, 1),
-            'Max Signal': round(max_signal, 1),
-            'Chromosomes': n_chroms,
-            'Quality Score': quality_score,
-            'Status': status
-        })
+        qc_data.append(
+            {
+                "Sample": sample_name,
+                "Peaks": n_peaks,
+                "Median Width": int(median_width),
+                "Mean Width": int(mean_width),
+                "Mean Signal": round(mean_signal, 1),
+                "Max Signal": round(max_signal, 1),
+                "Chromosomes": n_chroms,
+                "Quality Score": quality_score,
+                "Status": status,
+            }
+        )
 
     return pd.DataFrame(qc_data)
 
@@ -204,7 +208,7 @@ def render_sample_summary(peaks_df, samples):
     # Summary metrics
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Samples", len(qc_df))
-    col2.metric("Passing QC", (qc_df['Status'] == '✅ Pass').sum())
+    col2.metric("Passing QC", (qc_df["Status"] == "✅ Pass").sum())
     col3.metric("Total Peaks", f"{qc_df['Peaks'].sum():,}")
     col4.metric("Avg Quality Score", f"{qc_df['Quality Score'].mean():.0f}")
 
@@ -220,14 +224,9 @@ def render_sample_summary(peaks_df, samples):
             "Peaks": st.column_config.NumberColumn("Peaks", format="%d"),
             "Median Width": st.column_config.NumberColumn("Median Width (bp)"),
             "Mean Signal": st.column_config.NumberColumn("Mean Signal"),
-            "Quality Score": st.column_config.ProgressColumn(
-                "Quality Score",
-                min_value=0,
-                max_value=100,
-                format="%d"
-            ),
-            "Status": st.column_config.TextColumn("Status")
-        }
+            "Quality Score": st.column_config.ProgressColumn("Quality Score", min_value=0, max_value=100, format="%d"),
+            "Status": st.column_config.TextColumn("Status"),
+        },
     )
 
     # QC thresholds explanation
@@ -261,28 +260,21 @@ def render_peak_metrics(peaks_df, samples):
     with col1:
         st.subheader("Peak Width Distribution")
 
-        if 'start' in peaks_df.columns and 'end' in peaks_df.columns:
-            widths = peaks_df['end'] - peaks_df['start']
+        if "start" in peaks_df.columns and "end" in peaks_df.columns:
+            widths = peaks_df["end"] - peaks_df["start"]
 
             # Filter reasonable widths for visualization
             widths_filtered = widths[(widths > 0) & (widths < 10000)]
 
-            fig = go.Figure(data=go.Histogram(
-                x=widths_filtered,
-                nbinsx=50,
-                marker_color='#3498db'
-            ))
+            fig = go.Figure(data=go.Histogram(x=widths_filtered, nbinsx=50, marker_color="#3498db"))
 
-            fig.update_layout(
-                xaxis_title='Peak Width (bp)',
-                yaxis_title='Count',
-                height=400
-            )
+            fig.update_layout(xaxis_title="Peak Width (bp)", yaxis_title="Count", height=400)
 
             # Add median line
             median_width = widths_filtered.median()
-            fig.add_vline(x=median_width, line_dash="dash", line_color="red",
-                         annotation_text=f"Median: {median_width:.0f} bp")
+            fig.add_vline(
+                x=median_width, line_dash="dash", line_color="red", annotation_text=f"Median: {median_width:.0f} bp"
+            )
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -300,12 +292,12 @@ def render_peak_metrics(peaks_df, samples):
     with col2:
         st.subheader("Chromosomal Distribution")
 
-        if 'chr' in peaks_df.columns:
-            chr_counts = peaks_df['chr'].value_counts()
+        if "chr" in peaks_df.columns:
+            chr_counts = peaks_df["chr"].value_counts()
 
             # Sort chromosomes naturally
             def chr_sort_key(x):
-                x = str(x).replace('chr', '')
+                x = str(x).replace("chr", "")
                 if x.isdigit():
                     return (0, int(x))
                 return (1, x)
@@ -316,13 +308,13 @@ def render_peak_metrics(peaks_df, samples):
             fig = px.bar(
                 x=chr_counts.index[:24],  # Limit to main chromosomes
                 y=chr_counts.values[:24],
-                labels={'x': 'Chromosome', 'y': 'Peak Count'}
+                labels={"x": "Chromosome", "y": "Peak Count"},
             )
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
 
             # Check for chromosome balance
-            main_chrs = [c for c in chr_counts.index if str(c).replace('chr', '').isdigit()]
+            main_chrs = [c for c in chr_counts.index if str(c).replace("chr", "").isdigit()]
             if main_chrs:
                 main_counts = chr_counts[main_chrs]
                 cv = main_counts.std() / main_counts.mean() if main_counts.mean() > 0 else 0
@@ -340,10 +332,10 @@ def render_peak_metrics(peaks_df, samples):
     st.subheader("Signal Distribution")
 
     signal_col = None
-    if 'signalValue' in peaks_df.columns:
-        signal_col = 'signalValue'
-    elif 'score' in peaks_df.columns:
-        signal_col = 'score'
+    if "signalValue" in peaks_df.columns:
+        signal_col = "signalValue"
+    elif "score" in peaks_df.columns:
+        signal_col = "score"
 
     if signal_col:
         col1, col2 = st.columns(2)
@@ -353,16 +345,8 @@ def render_peak_metrics(peaks_df, samples):
             signal_values = peaks_df[signal_col].dropna()
             signal_values = signal_values[signal_values > 0]
 
-            fig = go.Figure(data=go.Histogram(
-                x=np.log10(signal_values + 1),
-                nbinsx=50,
-                marker_color='#2ecc71'
-            ))
-            fig.update_layout(
-                xaxis_title=f'Log10({signal_col} + 1)',
-                yaxis_title='Count',
-                height=350
-            )
+            fig = go.Figure(data=go.Histogram(x=np.log10(signal_values + 1), nbinsx=50, marker_color="#2ecc71"))
+            fig.update_layout(xaxis_title=f"Log10({signal_col} + 1)", yaxis_title="Count", height=350)
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -392,7 +376,7 @@ def render_correlation_analysis(peaks_df, samples):
     """Sample correlation based on peak overlap."""
     st.header("Sample Correlation")
 
-    if peaks_df is None or 'source_file' not in peaks_df.columns:
+    if peaks_df is None or "source_file" not in peaks_df.columns:
         st.info("Correlation analysis requires multiple samples with peak data.")
         st.markdown("""
         **To enable correlation analysis:**
@@ -402,7 +386,7 @@ def render_correlation_analysis(peaks_df, samples):
         return
 
     # Get unique sources
-    sources = peaks_df['source_file'].unique()
+    sources = peaks_df["source_file"].unique()
 
     if len(sources) < 2:
         st.info("Need at least 2 samples for correlation analysis.")
@@ -421,10 +405,11 @@ def render_correlation_analysis(peaks_df, samples):
             overlap_matrix,
             x=sample_names,
             y=sample_names,
-            color_continuous_scale='RdBu_r',
-            zmin=0, zmax=1,
-            aspect='auto',
-            labels={'color': 'Jaccard Index'}
+            color_continuous_scale="RdBu_r",
+            zmin=0,
+            zmax=1,
+            aspect="auto",
+            labels={"color": "Jaccard Index"},
         )
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
@@ -448,18 +433,18 @@ def compute_peak_overlap_matrix(peaks_df, sources):
     matrix = np.eye(n)
 
     for i, src_i in enumerate(sources):
-        peaks_i = peaks_df[peaks_df['source_file'] == src_i]
-        if 'chr' not in peaks_i.columns or 'start' not in peaks_i.columns:
+        peaks_i = peaks_df[peaks_df["source_file"] == src_i]
+        if "chr" not in peaks_i.columns or "start" not in peaks_i.columns:
             continue
 
-        set_i = set(zip(peaks_i['chr'], peaks_i['start'] // 500))  # Bin by 500bp windows
+        set_i = set(zip(peaks_i["chr"], peaks_i["start"] // 500))  # Bin by 500bp windows
 
         for j, src_j in enumerate(sources):
             if j <= i:
                 continue
 
-            peaks_j = peaks_df[peaks_df['source_file'] == src_j]
-            set_j = set(zip(peaks_j['chr'], peaks_j['start'] // 500))
+            peaks_j = peaks_df[peaks_df["source_file"] == src_j]
+            set_j = set(zip(peaks_j["chr"], peaks_j["start"] // 500))
 
             # Jaccard index
             intersection = len(set_i & set_j)
@@ -486,9 +471,9 @@ def render_qc_report(peaks_df, samples):
     st.subheader("Summary")
 
     total_samples = len(qc_df)
-    passing = (qc_df['Status'] == '✅ Pass').sum()
-    warning = (qc_df['Status'] == '⚠️ Warning').sum()
-    failing = (qc_df['Status'] == '❌ Fail').sum()
+    passing = (qc_df["Status"] == "✅ Pass").sum()
+    warning = (qc_df["Status"] == "⚠️ Warning").sum()
+    failing = (qc_df["Status"] == "❌ Fail").sum()
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Samples", total_samples)
@@ -528,14 +513,14 @@ def render_qc_report(peaks_df, samples):
             step_name="Quality Control",
             tool="EpiNexus QC Module",
             parameters={
-                'total_samples': total_samples,
-                'passing': passing,
-                'warnings': warning,
-                'failing': failing,
-                'avg_quality_score': float(qc_df['Quality Score'].mean())
+                "total_samples": total_samples,
+                "passing": passing,
+                "warnings": warning,
+                "failing": failing,
+                "avg_quality_score": float(qc_df["Quality Score"].mean()),
             },
-            inputs=['peaks'],
-            outputs=['qc_report']
+            inputs=["peaks"],
+            outputs=["qc_report"],
         )
 
     # Download report
@@ -545,8 +530,8 @@ def render_qc_report(peaks_df, samples):
     # Generate report content
     report_content = f"""# EpiNexus QC Report
 
-## Project: {st.session_state.get('project_name', 'Unknown')}
-## Date: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}
+## Project: {st.session_state.get("project_name", "Unknown")}
+## Date: {pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
 
 ## Summary
 - Total Samples: {total_samples}
@@ -566,19 +551,15 @@ def render_qc_report(peaks_df, samples):
 - **Quality Score**: Composite score (0-100) based on multiple metrics
 - **Status**: Pass (≥70), Warning (50-69), Fail (<50)
 
-## Assay: {st.session_state.get('assay_type', 'Unknown')}
-## Genome: {st.session_state.get('selected_genome', 'Unknown')}
+## Assay: {st.session_state.get("assay_type", "Unknown")}
+## Genome: {st.session_state.get("selected_genome", "Unknown")}
 """
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.download_button(
-            "📄 Download Report (Markdown)",
-            report_content,
-            "qc_report.md",
-            "text/markdown",
-            use_container_width=True
+            "📄 Download Report (Markdown)", report_content, "qc_report.md", "text/markdown", use_container_width=True
         )
 
     with col2:
@@ -587,7 +568,7 @@ def render_qc_report(peaks_df, samples):
             qc_df.to_csv(index=False),
             "qc_metrics.csv",
             "text/csv",
-            use_container_width=True
+            use_container_width=True,
         )
 
 

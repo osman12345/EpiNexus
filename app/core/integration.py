@@ -11,7 +11,7 @@ Supports two-mark and three-mark integration with optional RNA-seq data.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Any
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IntegrationConfig:
     """Configuration for multi-mark integration."""
+
     integration_type: str = "two_mark"  # two_mark or three_mark
 
     # Input files (paths to DiffBind results)
@@ -44,6 +45,7 @@ class IntegrationConfig:
 @dataclass
 class IntegrationResults:
     """Results from integration analysis."""
+
     integration_type: str
     total_genes: int
 
@@ -72,18 +74,14 @@ class MarkIntegration:
         "Active_promoter": {"ac": True, "me1": False, "me3": False},
         "Bivalent": {"ac": False, "me1": True, "me3": True},
         "Repressed": {"ac": False, "me1": False, "me3": True},
-        "Complex": {"ac": True, "me1": True, "me3": True}
+        "Complex": {"ac": True, "me1": True, "me3": True},
     }
 
     def __init__(self):
         """Initialize integration analyzer."""
         pass
 
-    def load_diffbind_results(
-        self,
-        file_path: str,
-        mark_name: str
-    ) -> pd.DataFrame:
+    def load_diffbind_results(self, file_path: str, mark_name: str) -> pd.DataFrame:
         """
         Load and preprocess DiffBind results.
 
@@ -97,12 +95,7 @@ class MarkIntegration:
         df = pd.read_csv(file_path)
 
         # Standardize column names
-        col_mapping = {
-            "gene_name": "gene_symbol",
-            "geneId": "ensembl_id",
-            "Fold": "fold_change",
-            "FDR": "fdr"
-        }
+        col_mapping = {"gene_name": "gene_symbol", "geneId": "ensembl_id", "Fold": "fold_change", "FDR": "fdr"}
 
         df = df.rename(columns={k: v for k, v in col_mapping.items() if k in df.columns})
 
@@ -137,7 +130,7 @@ class MarkIntegration:
             "gene": "gene_symbol",
             "gene_name": "gene_symbol",
             "ENSEMBL": "ensembl_id",
-            "ensembl_gene_id": "ensembl_id"
+            "ensembl_gene_id": "ensembl_id",
         }
 
         df = df.rename(columns={k: v for k, v in col_mapping.items() if k in df.columns})
@@ -145,10 +138,7 @@ class MarkIntegration:
         logger.info(f"Loaded {len(df)} genes from RNA-seq")
         return df
 
-    def run_two_mark_integration(
-        self,
-        config: IntegrationConfig
-    ) -> IntegrationResults:
+    def run_two_mark_integration(self, config: IntegrationConfig) -> IntegrationResults:
         """
         Run two-mark integration (H3K27ac vs H3K27me3).
 
@@ -176,9 +166,7 @@ class MarkIntegration:
         if config.rnaseq_file:
             rnaseq_df = self.load_rnaseq_results(config.rnaseq_file)
             integrated = integrated.merge(
-                rnaseq_df[["ensembl_id", "log2FC", "expression_FDR"]],
-                on="ensembl_id",
-                how="left"
+                rnaseq_df[["ensembl_id", "log2FC", "expression_FDR"]], on="ensembl_id", how="left"
             )
 
         # Classify changes
@@ -210,13 +198,10 @@ class MarkIntegration:
             integrated_file=str(integrated_file),
             high_confidence_file=str(high_conf_file) if high_conf_file else None,
             plots_file=None,  # TODO: Generate plots
-            summary=summary
+            summary=summary,
         )
 
-    def run_three_mark_integration(
-        self,
-        config: IntegrationConfig
-    ) -> IntegrationResults:
+    def run_three_mark_integration(self, config: IntegrationConfig) -> IntegrationResults:
         """
         Run three-mark integration (H3K27ac + H3K27me3 + H3K4me1).
 
@@ -248,9 +233,7 @@ class MarkIntegration:
         if config.rnaseq_file:
             rnaseq_df = self.load_rnaseq_results(config.rnaseq_file)
             integrated = integrated.merge(
-                rnaseq_df[["ensembl_id", "log2FC", "expression_FDR"]],
-                on="ensembl_id",
-                how="left"
+                rnaseq_df[["ensembl_id", "log2FC", "expression_FDR"]], on="ensembl_id", how="left"
             )
 
         # Classify chromatin states
@@ -261,11 +244,12 @@ class MarkIntegration:
 
         # High-confidence targets
         high_conf = integrated[
-            (integrated["n_marks"] >= 2) &
-            (integrated["chromatin_transition"].isin([
-                "Strong_activation", "Strong_repression",
-                "Activation", "Repression"
-            ]))
+            (integrated["n_marks"] >= 2)
+            & (
+                integrated["chromatin_transition"].isin(
+                    ["Strong_activation", "Strong_repression", "Activation", "Repression"]
+                )
+            )
         ].copy()
 
         # Save results
@@ -286,7 +270,7 @@ class MarkIntegration:
             "total_genes": len(integrated),
             "chromatin_states": state_counts,
             "high_confidence_targets": len(high_conf),
-            "genes_with_all_three": int((integrated["n_marks"] == 3).sum())
+            "genes_with_all_three": int((integrated["n_marks"] == 3).sum()),
         }
 
         return IntegrationResults(
@@ -297,16 +281,10 @@ class MarkIntegration:
             integrated_file=str(integrated_file),
             high_confidence_file=str(high_conf_file) if high_conf_file else None,
             plots_file=None,
-            summary=summary
+            summary=summary,
         )
 
-    def _merge_marks(
-        self,
-        df1: pd.DataFrame,
-        df2: pd.DataFrame,
-        mark1: str,
-        mark2: str
-    ) -> pd.DataFrame:
+    def _merge_marks(self, df1: pd.DataFrame, df2: pd.DataFrame, mark1: str, mark2: str) -> pd.DataFrame:
         """Merge two mark DataFrames on gene."""
         # Get gene columns
         gene_cols = ["ensembl_id", "gene_symbol"]
@@ -327,12 +305,7 @@ class MarkIntegration:
 
         return merged
 
-    def _merge_three_marks(
-        self,
-        ac_df: pd.DataFrame,
-        me3_df: pd.DataFrame,
-        me1_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _merge_three_marks(self, ac_df: pd.DataFrame, me3_df: pd.DataFrame, me1_df: pd.DataFrame) -> pd.DataFrame:
         """Merge three mark DataFrames."""
         # First merge ac and me3
         merged = self._merge_marks(ac_df, me3_df, "ac", "me3")
@@ -351,11 +324,7 @@ class MarkIntegration:
 
         return merged
 
-    def _classify_two_mark_changes(
-        self,
-        df: pd.DataFrame,
-        config: IntegrationConfig
-    ) -> pd.DataFrame:
+    def _classify_two_mark_changes(self, df: pd.DataFrame, config: IntegrationConfig) -> pd.DataFrame:
         """Classify two-mark antagonistic changes."""
         df = df.copy()
 
@@ -394,11 +363,7 @@ class MarkIntegration:
 
         return df
 
-    def _classify_chromatin_states(
-        self,
-        df: pd.DataFrame,
-        config: IntegrationConfig
-    ) -> pd.DataFrame:
+    def _classify_chromatin_states(self, df: pd.DataFrame, config: IntegrationConfig) -> pd.DataFrame:
         """Classify chromatin states based on mark presence."""
         df = df.copy()
 
@@ -452,11 +417,11 @@ class MarkIntegration:
             elif row.get("me3_gained", False) and row.get("ac_lost", False) and row.get("me1_lost", False):
                 return "Strong_repression"
             # Activation
-            elif (row.get("me3_lost", False) or (row.get("ac_gained", False) and row.get("me1_gained", False))):
+            elif row.get("me3_lost", False) or (row.get("ac_gained", False) and row.get("me1_gained", False)):
                 if not (row.get("me3_gained", False) or (row.get("ac_lost", False) and row.get("me1_lost", False))):
                     return "Activation"
             # Repression
-            elif (row.get("me3_gained", False) or (row.get("ac_lost", False) and row.get("me1_lost", False))):
+            elif row.get("me3_gained", False) or (row.get("ac_lost", False) and row.get("me1_lost", False)):
                 if not (row.get("me3_lost", False) or (row.get("ac_gained", False) and row.get("me1_gained", False))):
                     return "Repression"
 
@@ -466,46 +431,30 @@ class MarkIntegration:
 
         return df
 
-    def _identify_high_confidence(
-        self,
-        df: pd.DataFrame,
-        config: IntegrationConfig
-    ) -> pd.DataFrame:
+    def _identify_high_confidence(self, df: pd.DataFrame, config: IntegrationConfig) -> pd.DataFrame:
         """Identify high-confidence coordinated targets."""
         # Filter for strong changes
-        high_conf = df[
-            df["integration_category"].isin([
-                "Strong_activation", "Strong_repression"
-            ])
-        ].copy()
+        high_conf = df[df["integration_category"].isin(["Strong_activation", "Strong_repression"])].copy()
 
         # If RNA-seq available, also require expression change
         if "expression_FDR" in df.columns:
             high_conf = high_conf[
-                (high_conf["expression_FDR"] < config.de_fdr) &
-                (abs(high_conf["log2FC"]) > config.de_lfc)
+                (high_conf["expression_FDR"] < config.de_fdr) & (abs(high_conf["log2FC"]) > config.de_lfc)
             ]
 
-        return high_conf.sort_values(
-            by=["ac_fdr", "me3_fdr"],
-            ascending=True
-        )
+        return high_conf.sort_values(by=["ac_fdr", "me3_fdr"], ascending=True)
 
-    def _generate_two_mark_summary(
-        self,
-        integrated: pd.DataFrame,
-        high_conf: pd.DataFrame
-    ) -> Dict[str, Any]:
+    def _generate_two_mark_summary(self, integrated: pd.DataFrame, high_conf: pd.DataFrame) -> Dict[str, Any]:
         """Generate summary statistics for two-mark integration."""
         categories = integrated["integration_category"].value_counts().to_dict()
 
         return {
             "total_genes": len(integrated),
-            "genes_with_both_marks": int(
-                integrated["ac_sig"].fillna(False) | integrated["me3_sig"].fillna(False)
-            ).sum() if "ac_sig" in integrated.columns else 0,
+            "genes_with_both_marks": int(integrated["ac_sig"].fillna(False) | integrated["me3_sig"].fillna(False)).sum()
+            if "ac_sig" in integrated.columns
+            else 0,
             "categories": categories,
             "high_confidence_targets": len(high_conf),
             "strong_activation": categories.get("Strong_activation", 0),
-            "strong_repression": categories.get("Strong_repression", 0)
+            "strong_repression": categories.get("Strong_repression", 0),
         }

@@ -19,7 +19,7 @@ This file is part of EpiNexus.
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ATACQCMetrics:
     """ATAC-seq quality control metrics."""
+
     total_reads: int
     mapped_reads: int
     mapping_rate: float
@@ -43,6 +44,7 @@ class ATACQCMetrics:
 @dataclass
 class FragmentSizeDistribution:
     """Fragment size distribution data."""
+
     sizes: np.ndarray
     counts: np.ndarray
     nfr_fraction: float  # <100bp
@@ -65,18 +67,15 @@ class ATACSeqAnalyzer:
         self.di_range = (315, 473)  # Dinucleosome
 
     def calculate_qc_metrics(
-        self,
-        bam_stats: Dict[str, Any],
-        peaks: pd.DataFrame,
-        tss_scores: np.ndarray = None
+        self, bam_stats: Dict[str, Any], peaks: pd.DataFrame, tss_scores: np.ndarray = None
     ) -> ATACQCMetrics:
         """Calculate comprehensive QC metrics."""
         logger.info("Calculating ATAC-seq QC metrics for %d peaks", len(peaks))
 
-        total = bam_stats.get('total_reads', 0)
-        mapped = bam_stats.get('mapped_reads', 0)
-        mito = bam_stats.get('mitochondrial_reads', 0)
-        dups = bam_stats.get('duplicates', 0)
+        total = bam_stats.get("total_reads", 0)
+        mapped = bam_stats.get("mapped_reads", 0)
+        mito = bam_stats.get("mitochondrial_reads", 0)
+        dups = bam_stats.get("duplicates", 0)
 
         return ATACQCMetrics(
             total_reads=total,
@@ -85,16 +84,13 @@ class ATACSeqAnalyzer:
             mitochondrial_rate=mito / mapped if mapped > 0 else 0,
             duplicate_rate=dups / mapped if mapped > 0 else 0,
             tss_enrichment=tss_scores.mean() if tss_scores is not None else 0,
-            frip=bam_stats.get('frip', 0),
-            nfr_ratio=bam_stats.get('nfr_ratio', 0),
+            frip=bam_stats.get("frip", 0),
+            nfr_ratio=bam_stats.get("nfr_ratio", 0),
             peak_count=len(peaks),
-            median_fragment_size=bam_stats.get('median_fragment', 0)
+            median_fragment_size=bam_stats.get("median_fragment", 0),
         )
 
-    def analyze_fragment_sizes(
-        self,
-        fragment_sizes: np.ndarray
-    ) -> FragmentSizeDistribution:
+    def analyze_fragment_sizes(self, fragment_sizes: np.ndarray) -> FragmentSizeDistribution:
         """Analyze fragment size distribution."""
 
         # Calculate histogram
@@ -116,13 +112,11 @@ class ATACSeqAnalyzer:
             nfr_fraction=nfr_mask.sum() / total,
             mono_fraction=mono_mask.sum() / total,
             di_fraction=di_mask.sum() / total,
-            tri_fraction=tri_mask.sum() / total
+            tri_fraction=tri_mask.sum() / total,
         )
 
     def calculate_tss_enrichment(
-        self,
-        coverage_at_tss: np.ndarray,
-        window_size: int = 2000
+        self, coverage_at_tss: np.ndarray, window_size: int = 2000
     ) -> Tuple[np.ndarray, float]:
         """
         Calculate TSS enrichment score.
@@ -135,14 +129,11 @@ class ATACSeqAnalyzer:
         avg_signal = coverage_at_tss.mean(axis=0)
 
         # Normalize to flanking regions
-        flank_mean = np.concatenate([
-            avg_signal[:window_size//4],
-            avg_signal[-window_size//4:]
-        ]).mean()
+        flank_mean = np.concatenate([avg_signal[: window_size // 4], avg_signal[-window_size // 4 :]]).mean()
 
         if flank_mean > 0:
             normalized = avg_signal / flank_mean
-            enrichment_score = normalized[window_size//2]  # Score at TSS
+            enrichment_score = normalized[window_size // 2]  # Score at TSS
         else:
             normalized = avg_signal
             enrichment_score = 0
@@ -150,11 +141,7 @@ class ATACSeqAnalyzer:
         return normalized, enrichment_score
 
     def differential_accessibility(
-        self,
-        count_matrix: pd.DataFrame,
-        condition1: List[str],
-        condition2: List[str],
-        method: str = "deseq2"
+        self, count_matrix: pd.DataFrame, condition1: List[str], condition2: List[str], method: str = "deseq2"
     ) -> pd.DataFrame:
         """
         Identify differentially accessible regions.
@@ -171,7 +158,10 @@ class ATACSeqAnalyzer:
 
         logger.info(
             "Running differential accessibility: %d regions, %d vs %d samples (%s)",
-            len(count_matrix), len(condition1), len(condition2), method,
+            len(count_matrix),
+            len(condition1),
+            len(condition2),
+            method,
         )
 
         # Get counts for each condition
@@ -189,7 +179,7 @@ class ATACSeqAnalyzer:
         pvalues = []
         for i in range(len(count_matrix)):
             if counts1[i].std() > 0 or counts2[i].std() > 0:
-                _, pval = stats.mannwhitneyu(counts1[i], counts2[i], alternative='two-sided')
+                _, pval = stats.mannwhitneyu(counts1[i], counts2[i], alternative="two-sided")
             else:
                 pval = 1.0
             pvalues.append(pval)
@@ -198,15 +188,17 @@ class ATACSeqAnalyzer:
         pvalues = np.array(pvalues)
         fdr = self._benjamini_hochberg(pvalues)
 
-        results = pd.DataFrame({
-            'peak_id': count_matrix.index,
-            'log2FoldChange': log2fc,
-            'pvalue': pvalues,
-            'padj': fdr,
-            'baseMean': (mean1 + mean2) / 2
-        })
+        results = pd.DataFrame(
+            {
+                "peak_id": count_matrix.index,
+                "log2FoldChange": log2fc,
+                "pvalue": pvalues,
+                "padj": fdr,
+                "baseMean": (mean1 + mean2) / 2,
+            }
+        )
 
-        return results.sort_values('padj')
+        return results.sort_values("padj")
 
     def _benjamini_hochberg(self, pvalues: np.ndarray) -> np.ndarray:
         """Apply Benjamini-Hochberg FDR correction."""
@@ -224,10 +216,7 @@ class ATACSeqAnalyzer:
         return fdr
 
     def footprint_analysis(
-        self,
-        coverage: np.ndarray,
-        motif_positions: np.ndarray,
-        window: int = 100
+        self, coverage: np.ndarray, motif_positions: np.ndarray, window: int = 100
     ) -> Dict[str, np.ndarray]:
         """
         Perform TF footprinting analysis.
@@ -254,21 +243,18 @@ class ATACSeqAnalyzer:
 
         # Calculate footprint depth (dip at center)
         flank_signal = np.concatenate([mean_footprint[:20], mean_footprint[-20:]]).mean()
-        center_signal = mean_footprint[window-10:window+10].mean()
+        center_signal = mean_footprint[window - 10 : window + 10].mean()
         footprint_depth = (flank_signal - center_signal) / flank_signal if flank_signal > 0 else 0
 
         return {
-            'positions': np.arange(-window, window),
-            'mean_footprint': mean_footprint,
-            'individual_footprints': aggregated,
-            'footprint_depth': footprint_depth
+            "positions": np.arange(-window, window),
+            "mean_footprint": mean_footprint,
+            "individual_footprints": aggregated,
+            "footprint_depth": footprint_depth,
         }
 
     def integrate_with_histones(
-        self,
-        atac_peaks: pd.DataFrame,
-        histone_peaks: Dict[str, pd.DataFrame],
-        overlap_threshold: int = 1
+        self, atac_peaks: pd.DataFrame, histone_peaks: Dict[str, pd.DataFrame], overlap_threshold: int = 1
     ) -> pd.DataFrame:
         """
         Integrate ATAC-seq with histone modification data.
@@ -278,54 +264,54 @@ class ATACSeqAnalyzer:
 
         logger.info(
             "Integrating ATAC-seq peaks (%d) with %d histone marks",
-            len(atac_peaks), len(histone_peaks),
+            len(atac_peaks),
+            len(histone_peaks),
         )
         results = atac_peaks.copy()
 
         # Check overlap with each histone mark
         for mark, peaks in histone_peaks.items():
             overlaps = self._count_overlaps(atac_peaks, peaks, overlap_threshold)
-            results[f'{mark}_overlap'] = overlaps > 0
-            results[f'{mark}_count'] = overlaps
+            results[f"{mark}_overlap"] = overlaps > 0
+            results[f"{mark}_count"] = overlaps
 
         # Classify regions
         def classify_region(row):
-            has_k4me3 = row.get('H3K4me3_overlap', False)
-            has_k27ac = row.get('H3K27ac_overlap', False)
-            has_k4me1 = row.get('H3K4me1_overlap', False)
-            has_k27me3 = row.get('H3K27me3_overlap', False)
+            has_k4me3 = row.get("H3K4me3_overlap", False)
+            has_k27ac = row.get("H3K27ac_overlap", False)
+            has_k4me1 = row.get("H3K4me1_overlap", False)
+            has_k27me3 = row.get("H3K27me3_overlap", False)
 
             if has_k4me3 and has_k27ac:
-                return 'Active Promoter'
+                return "Active Promoter"
             elif has_k4me1 and has_k27ac:
-                return 'Active Enhancer'
+                return "Active Enhancer"
             elif has_k4me1 and not has_k27ac:
-                return 'Poised Enhancer'
+                return "Poised Enhancer"
             elif has_k4me3 and has_k27me3:
-                return 'Bivalent'
+                return "Bivalent"
             elif has_k27me3:
-                return 'Repressed'
+                return "Repressed"
             else:
-                return 'Other Accessible'
+                return "Other Accessible"
 
-        results['chromatin_state'] = results.apply(classify_region, axis=1)
+        results["chromatin_state"] = results.apply(classify_region, axis=1)
 
         return results
 
-    def _count_overlaps(
-        self,
-        peaks_a: pd.DataFrame,
-        peaks_b: pd.DataFrame,
-        min_overlap: int = 1
-    ) -> np.ndarray:
+    def _count_overlaps(self, peaks_a: pd.DataFrame, peaks_b: pd.DataFrame, min_overlap: int = 1) -> np.ndarray:
         """Count overlapping peaks using interval-tree algorithm.
 
         Uses genomic_utils.count_overlaps for O(n log n) performance.
         """
         from .genomic_utils import count_overlaps
+
         return count_overlaps(
-            peaks_a, peaks_b,
-            chrom_col="chr", start_col="start", end_col="end",
+            peaks_a,
+            peaks_b,
+            chrom_col="chr",
+            start_col="start",
+            end_col="end",
             min_overlap_bp=min_overlap,
         )
 
@@ -340,23 +326,25 @@ def generate_demo_atac_data() -> Tuple[pd.DataFrame, Dict[str, Any]]:
     starts = np.random.randint(1000000, 200000000, n_peaks)
     widths = np.random.randint(200, 1000, n_peaks)
 
-    peaks = pd.DataFrame({
-        'chr': np.random.choice([f'chr{i}' for i in range(1, 23)], n_peaks),
-        'start': starts,
-        'end': starts + widths,
-        'score': np.random.lognormal(3, 1, n_peaks),
-        'summit': starts + widths // 2
-    })
+    peaks = pd.DataFrame(
+        {
+            "chr": np.random.choice([f"chr{i}" for i in range(1, 23)], n_peaks),
+            "start": starts,
+            "end": starts + widths,
+            "score": np.random.lognormal(3, 1, n_peaks),
+            "summit": starts + widths // 2,
+        }
+    )
 
     # Generate QC stats
     bam_stats = {
-        'total_reads': 80000000,
-        'mapped_reads': 76000000,
-        'mitochondrial_reads': 3800000,
-        'duplicates': 7600000,
-        'frip': 0.35,
-        'nfr_ratio': 0.45,
-        'median_fragment': 150
+        "total_reads": 80000000,
+        "mapped_reads": 76000000,
+        "mitochondrial_reads": 3800000,
+        "duplicates": 7600000,
+        "frip": 0.35,
+        "nfr_ratio": 0.45,
+        "median_fragment": 150,
     }
 
     return peaks, bam_stats

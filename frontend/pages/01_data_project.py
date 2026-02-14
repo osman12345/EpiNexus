@@ -9,7 +9,6 @@ Simplified workflow:
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from datetime import datetime
 import json
@@ -19,9 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Import data manager
 try:
-    from frontend.components.data_manager import (
-        DataManager, DataSource, generate_demo_peaks, generate_demo_samples
-    )
+    from frontend.components.data_manager import DataManager, DataSource, generate_demo_peaks, generate_demo_samples
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
@@ -33,11 +31,11 @@ def main():
     st.title("📁 Data & Project")
 
     # Initialize session state
-    if 'workflow_step' not in st.session_state:
+    if "workflow_step" not in st.session_state:
         st.session_state.workflow_step = 1
-    if 'samples' not in st.session_state:
+    if "samples" not in st.session_state:
         st.session_state.samples = []
-    if 'using_demo_data' not in st.session_state:
+    if "using_demo_data" not in st.session_state:
         st.session_state.using_demo_data = True
 
     # Workflow progress indicator
@@ -66,13 +64,13 @@ def render_workflow_progress():
         ("1. Project", "Create or load"),
         ("2. Data", "Upload files"),
         ("3. Configure", "Set up samples"),
-        ("4. Ready", "Start analysis")
+        ("4. Ready", "Start analysis"),
     ]
 
     cols = st.columns(len(steps))
 
     for i, (title, subtitle) in enumerate(steps, 1):
-        with cols[i-1]:
+        with cols[i - 1]:
             if i < step:
                 # Completed
                 st.markdown(f"### ✅ {title}")
@@ -91,6 +89,7 @@ def render_workflow_progress():
 # STEP 1: Project Setup
 # =============================================================================
 
+
 def render_step1_project():
     """Step 1: Create or load a project."""
     st.header("Step 1: Project Setup")
@@ -101,21 +100,17 @@ def render_step1_project():
         st.subheader("🆕 Create New Project")
 
         project_name = st.text_input(
-            "Project Name",
-            value=st.session_state.get('project_name', 'My_Project'),
-            key="new_project_name"
+            "Project Name", value=st.session_state.get("project_name", "My_Project"), key="new_project_name"
         )
 
         assay_type = st.selectbox(
-            "Assay Type",
-            ["CUT&Tag", "CUT&RUN", "ChIP-seq", "ATAC-seq"],
-            help="Select your experimental method"
+            "Assay Type", ["CUT&Tag", "CUT&RUN", "ChIP-seq", "ATAC-seq"], help="Select your experimental method"
         )
 
         target_type = st.selectbox(
             "Target",
             ["Histone Modifications", "Transcription Factors", "Chromatin Accessibility"],
-            index=0 if assay_type != "ATAC-seq" else 2
+            index=0 if assay_type != "ATAC-seq" else 2,
         )
 
         genome = st.selectbox("Reference Genome", ["hg38", "hg19", "mm10", "mm39", "dm6"])
@@ -138,20 +133,16 @@ def render_step1_project():
     with col2:
         st.subheader("📂 Load Existing Project")
 
-        uploaded = st.file_uploader(
-            "Upload .epinexus file",
-            type=['json', 'epinexus'],
-            key="load_project"
-        )
+        uploaded = st.file_uploader("Upload .epinexus file", type=["json", "epinexus"], key="load_project")
 
         if uploaded:
             try:
                 data = json.load(uploaded)
-                st.session_state.project_name = data.get('name', 'Loaded Project')
-                st.session_state.assay_type = data.get('assay_type', 'CUT&Tag')
-                st.session_state.target_type = data.get('target_type', 'Histone Modifications')
-                st.session_state.selected_genome = data.get('genome', 'hg38')
-                st.session_state.samples = data.get('samples', [])
+                st.session_state.project_name = data.get("name", "Loaded Project")
+                st.session_state.assay_type = data.get("assay_type", "CUT&Tag")
+                st.session_state.target_type = data.get("target_type", "Histone Modifications")
+                st.session_state.selected_genome = data.get("genome", "hg38")
+                st.session_state.samples = data.get("samples", [])
                 st.session_state.using_demo_data = False
                 st.session_state.workflow_step = 2
 
@@ -173,7 +164,7 @@ def render_step1_project():
 
             if HAS_DATA_MANAGER:
                 demo_peaks = generate_demo_peaks()
-                DataManager.load_data('peaks', demo_peaks, DataSource.DEMO, "Demo Peaks")
+                DataManager.load_data("peaks", demo_peaks, DataSource.DEMO, "Demo Peaks")
                 st.session_state.samples = generate_demo_samples()
 
             st.session_state.workflow_step = 4
@@ -183,6 +174,7 @@ def render_step1_project():
 # =============================================================================
 # STEP 2: Upload Data
 # =============================================================================
+
 
 def render_step2_upload():
     """Step 2: Upload peak files or raw data."""
@@ -198,9 +190,7 @@ def render_step2_upload():
 
     # Two options: Peaks or FASTQ
     upload_type = st.radio(
-        "What data do you have?",
-        ["📊 Peak files (BED/narrowPeak)", "🧬 Raw FASTQ files"],
-        horizontal=True
+        "What data do you have?", ["📊 Peak files (BED/narrowPeak)", "🧬 Raw FASTQ files"], horizontal=True
     )
 
     if "Peak files" in upload_type:
@@ -221,10 +211,10 @@ def render_step2_upload():
         # Check if data was uploaded
         has_data = False
         if HAS_DATA_MANAGER:
-            peaks = DataManager.get_data('peaks')
+            peaks = DataManager.get_data("peaks")
             has_data = peaks is not None and len(peaks) > 0
 
-        if has_data or st.session_state.get('fastq_samples'):
+        if has_data or st.session_state.get("fastq_samples"):
             if st.button("Next →", type="primary"):
                 st.session_state.workflow_step = 3
                 st.rerun()
@@ -241,9 +231,9 @@ def render_peak_upload():
     with col1:
         uploaded_files = st.file_uploader(
             "Select peak files",
-            type=['bed', 'narrowPeak', 'broadPeak', 'csv', 'tsv'],
+            type=["bed", "narrowPeak", "broadPeak", "csv", "tsv"],
             accept_multiple_files=True,
-            help="BED, narrowPeak, broadPeak, or CSV with chr/start/end columns"
+            help="BED, narrowPeak, broadPeak, or CSV with chr/start/end columns",
         )
 
         if uploaded_files:
@@ -251,18 +241,28 @@ def render_peak_upload():
             for f in uploaded_files:
                 try:
                     # Parse file
-                    if f.name.endswith('.csv'):
+                    if f.name.endswith(".csv"):
                         df = pd.read_csv(f)
-                    elif f.name.endswith('.tsv'):
-                        df = pd.read_csv(f, sep='\t')
+                    elif f.name.endswith(".tsv"):
+                        df = pd.read_csv(f, sep="\t")
                     else:
                         # BED/narrowPeak format
-                        df = pd.read_csv(f, sep='\t', header=None)
-                        cols = ['chr', 'start', 'end', 'name', 'score', 'strand',
-                               'signalValue', 'pValue', 'qValue', 'summit']
-                        df.columns = cols[:len(df.columns)]
+                        df = pd.read_csv(f, sep="\t", header=None)
+                        cols = [
+                            "chr",
+                            "start",
+                            "end",
+                            "name",
+                            "score",
+                            "strand",
+                            "signalValue",
+                            "pValue",
+                            "qValue",
+                            "summit",
+                        ]
+                        df.columns = cols[: len(df.columns)]
 
-                    df['source_file'] = f.name
+                    df["source_file"] = f.name
                     all_peaks.append(df)
                     st.success(f"✅ **{f.name}**: {len(df):,} peaks")
 
@@ -271,19 +271,23 @@ def render_peak_upload():
 
             if all_peaks and HAS_DATA_MANAGER:
                 combined = pd.concat(all_peaks, ignore_index=True)
-                DataManager.load_data('peaks', combined, DataSource.USER_UPLOAD, "User Peaks")
+                DataManager.load_data("peaks", combined, DataSource.USER_UPLOAD, "User Peaks")
                 st.session_state.using_demo_data = False
 
                 # Auto-detect samples from filenames
                 detected_samples = []
                 for f in uploaded_files:
                     sample_id = Path(f.name).stem
-                    detected_samples.append({
-                        'SampleID': sample_id,
-                        'Condition': 'Control' if 'ctrl' in sample_id.lower() or 'wt' in sample_id.lower() else 'Treatment',
-                        'Factor': 'H3K27ac',
-                        'PeakFile': f.name
-                    })
+                    detected_samples.append(
+                        {
+                            "SampleID": sample_id,
+                            "Condition": "Control"
+                            if "ctrl" in sample_id.lower() or "wt" in sample_id.lower()
+                            else "Treatment",
+                            "Factor": "H3K27ac",
+                            "PeakFile": f.name,
+                        }
+                    )
                 st.session_state.samples = detected_samples
 
     with col2:
@@ -299,11 +303,11 @@ def render_peak_upload():
 
         st.markdown("**Peak stats:**")
         if HAS_DATA_MANAGER:
-            peaks = DataManager.get_data('peaks')
+            peaks = DataManager.get_data("peaks")
             if peaks is not None and len(peaks) > 0:
                 st.metric("Total Peaks", f"{len(peaks):,}")
-                if 'chr' in peaks.columns:
-                    st.metric("Chromosomes", peaks['chr'].nunique())
+                if "chr" in peaks.columns:
+                    st.metric("Chromosomes", peaks["chr"].nunique())
 
 
 def render_fastq_upload():
@@ -315,14 +319,14 @@ def render_fastq_upload():
     # Sample sheet upload
     sample_sheet = st.file_uploader(
         "Upload sample sheet (CSV)",
-        type=['csv', 'tsv'],
-        help="Columns: SampleID, Condition, R1_path, R2_path (optional)"
+        type=["csv", "tsv"],
+        help="Columns: SampleID, Condition, R1_path, R2_path (optional)",
     )
 
     if sample_sheet:
         try:
             df = pd.read_csv(sample_sheet)
-            st.session_state.fastq_samples = df.to_dict('records')
+            st.session_state.fastq_samples = df.to_dict("records")
             st.dataframe(df, use_container_width=True)
             st.success(f"✅ {len(df)} samples loaded")
         except Exception as e:
@@ -335,7 +339,7 @@ def render_fastq_upload():
             st.selectbox("Aligner", ["Bowtie2", "BWA-MEM"])
             st.checkbox("Paired-end", value=True)
 
-            if st.session_state.get('assay_type') in ['CUT&Tag', 'CUT&RUN']:
+            if st.session_state.get("assay_type") in ["CUT&Tag", "CUT&RUN"]:
                 st.checkbox("Spike-in normalization", value=True)
 
         with col2:
@@ -347,11 +351,12 @@ def render_fastq_upload():
 # STEP 3: Configure Samples
 # =============================================================================
 
+
 def render_step3_configure():
     """Step 3: Configure sample metadata."""
     st.header("Step 3: Configure Samples")
 
-    samples = st.session_state.get('samples', [])
+    samples = st.session_state.get("samples", [])
 
     if not samples:
         st.warning("No samples detected. Add samples manually below.")
@@ -363,7 +368,7 @@ def render_step3_configure():
     if samples:
         df = pd.DataFrame(samples)
     else:
-        df = pd.DataFrame(columns=['SampleID', 'Condition', 'Factor', 'Replicate'])
+        df = pd.DataFrame(columns=["SampleID", "Condition", "Factor", "Replicate"])
 
     # Add sample form
     with st.expander("➕ Add New Sample", expanded=not samples):
@@ -377,19 +382,14 @@ def render_step3_configure():
             new_factor = st.selectbox(
                 "Factor/Mark",
                 ["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3", "H3K36me3", "H3K9me3", "Other"],
-                key="add_factor"
+                key="add_factor",
             )
         with col4:
             new_rep = st.number_input("Replicate", 1, 10, 1, key="add_rep")
 
         if st.button("Add Sample"):
             if new_id:
-                new_sample = {
-                    'SampleID': new_id,
-                    'Condition': new_cond,
-                    'Factor': new_factor,
-                    'Replicate': new_rep
-                }
+                new_sample = {"SampleID": new_id, "Condition": new_cond, "Factor": new_factor, "Replicate": new_rep}
                 st.session_state.samples.append(new_sample)
                 st.rerun()
 
@@ -402,27 +402,25 @@ def render_step3_configure():
             column_config={
                 "SampleID": st.column_config.TextColumn("Sample ID", required=True),
                 "Condition": st.column_config.SelectboxColumn(
-                    "Condition",
-                    options=["Control", "Treatment", "KO", "WT"],
-                    required=True
+                    "Condition", options=["Control", "Treatment", "KO", "WT"], required=True
                 ),
                 "Factor": st.column_config.SelectboxColumn(
                     "Factor/Mark",
                     options=["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3", "H3K36me3", "H3K9me3"],
-                    required=True
+                    required=True,
                 ),
-                "Replicate": st.column_config.NumberColumn("Replicate", min_value=1, max_value=10)
-            }
+                "Replicate": st.column_config.NumberColumn("Replicate", min_value=1, max_value=10),
+            },
         )
 
         # Update session state with edited data
-        st.session_state.samples = edited_df.to_dict('records')
+        st.session_state.samples = edited_df.to_dict("records")
 
         # Group summary
         st.markdown("---")
         st.subheader("Group Summary")
 
-        conditions = edited_df.groupby('Condition').size()
+        conditions = edited_df.groupby("Condition").size()
         col1, col2 = st.columns(2)
         for i, (cond, count) in enumerate(conditions.items()):
             col = col1 if i % 2 == 0 else col2
@@ -451,6 +449,7 @@ def render_step3_configure():
 # STEP 4: Summary / Ready
 # =============================================================================
 
+
 def render_summary():
     """Summary view - ready for analysis."""
     st.header("✅ Project Ready")
@@ -458,17 +457,17 @@ def render_summary():
     # Project summary
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Project", st.session_state.get('project_name', 'Untitled'))
-    col2.metric("Assay", st.session_state.get('assay_type', 'CUT&Tag'))
-    col3.metric("Samples", len(st.session_state.get('samples', [])))
+    col1.metric("Project", st.session_state.get("project_name", "Untitled"))
+    col2.metric("Assay", st.session_state.get("assay_type", "CUT&Tag"))
+    col3.metric("Samples", len(st.session_state.get("samples", [])))
 
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         n_peaks = len(peaks) if peaks is not None else 0
         col4.metric("Peaks", f"{n_peaks:,}")
 
     # Data status
-    is_demo = st.session_state.get('using_demo_data', True)
+    is_demo = st.session_state.get("using_demo_data", True)
     if is_demo:
         st.info("📌 **Demo Mode** - Using sample data for demonstration")
     else:
@@ -478,7 +477,7 @@ def render_summary():
 
     # Sample table
     st.subheader("Samples")
-    samples = st.session_state.get('samples', [])
+    samples = st.session_state.get("samples", [])
     if samples:
         st.dataframe(pd.DataFrame(samples), use_container_width=True, hide_index=True)
 
@@ -506,12 +505,12 @@ def render_summary():
         st.caption("Download project file")
 
         project_data = {
-            'name': st.session_state.get('project_name', 'Untitled'),
-            'assay_type': st.session_state.get('assay_type', 'CUT&Tag'),
-            'target_type': st.session_state.get('target_type', 'Histone Modifications'),
-            'genome': st.session_state.get('selected_genome', 'hg38'),
-            'samples': st.session_state.get('samples', []),
-            'saved': datetime.now().isoformat()
+            "name": st.session_state.get("project_name", "Untitled"),
+            "assay_type": st.session_state.get("assay_type", "CUT&Tag"),
+            "target_type": st.session_state.get("target_type", "Histone Modifications"),
+            "genome": st.session_state.get("selected_genome", "hg38"),
+            "samples": st.session_state.get("samples", []),
+            "saved": datetime.now().isoformat(),
         }
 
         st.download_button(
@@ -519,7 +518,7 @@ def render_summary():
             json.dumps(project_data, indent=2),
             f"{project_data['name']}.epinexus",
             "application/json",
-            use_container_width=True
+            use_container_width=True,
         )
 
     # Edit options

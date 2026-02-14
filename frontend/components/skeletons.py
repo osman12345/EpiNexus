@@ -66,6 +66,7 @@ def _inject_css() -> None:
 # Individual skeleton primitives
 # ---------------------------------------------------------------------------
 
+
 def skeleton_metrics_row(n_metrics: int = 4, height: int = 80) -> None:
     """Render a row of metric-card placeholders.
 
@@ -77,8 +78,7 @@ def skeleton_metrics_row(n_metrics: int = 4, height: int = 80) -> None:
     cols = st.columns(n_metrics)
     for col in cols:
         col.markdown(
-            f'<div class="epinexus-skeleton" '
-            f'style="height:{height}px;margin-bottom:8px;"></div>',
+            f'<div class="epinexus-skeleton" style="height:{height}px;margin-bottom:8px;"></div>',
             unsafe_allow_html=True,
         )
 
@@ -94,8 +94,7 @@ def skeleton_chart(height: int = 350, label: Optional[str] = None) -> None:
     if label:
         st.caption(label)
     st.markdown(
-        f'<div class="epinexus-skeleton" '
-        f'style="height:{height}px;width:100%;margin-bottom:12px;"></div>',
+        f'<div class="epinexus-skeleton" style="height:{height}px;width:100%;margin-bottom:12px;"></div>',
         unsafe_allow_html=True,
     )
 
@@ -110,23 +109,17 @@ def skeleton_table(n_rows: int = 5, n_cols: int = 4) -> None:
     _inject_css()
     # Header row
     header = "".join(
-        f'<div class="epinexus-skeleton" '
-        f'style="flex:1;height:18px;margin:0 4px;"></div>'
-        for _ in range(n_cols)
+        '<div class="epinexus-skeleton" style="flex:1;height:18px;margin:0 4px;"></div>' for _ in range(n_cols)
     )
     rows = ""
     for _ in range(n_rows):
         cells = "".join(
-            f'<div class="epinexus-skeleton" '
-            f'style="flex:1;height:14px;margin:0 4px;"></div>'
-            for _ in range(n_cols)
+            '<div class="epinexus-skeleton" style="flex:1;height:14px;margin:0 4px;"></div>' for _ in range(n_cols)
         )
         rows += f'<div style="display:flex;gap:4px;margin-top:6px;">{cells}</div>'
 
     st.markdown(
-        f'<div style="padding:8px 0;">'
-        f'<div style="display:flex;gap:4px;margin-bottom:10px;">{header}</div>'
-        f'{rows}</div>',
+        f'<div style="padding:8px 0;"><div style="display:flex;gap:4px;margin-bottom:10px;">{header}</div>{rows}</div>',
         unsafe_allow_html=True,
     )
 
@@ -152,6 +145,7 @@ def skeleton_card(height: int = 120, label: Optional[str] = None) -> None:
 # ---------------------------------------------------------------------------
 # Context-manager wrappers (show skeleton → run code → replace with result)
 # ---------------------------------------------------------------------------
+
 
 @contextmanager
 def loading_metrics(n_metrics: int = 4, message: str = "Loading..."):

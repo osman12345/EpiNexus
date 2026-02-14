@@ -12,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -107,14 +106,16 @@ def _run_diffbind(job, db) -> Dict[str, Any]:
     # Build sample list from comparison
     samples = []
     for s in comparison.samples:
-        samples.append(Sample(
-            sample_id=s.name,
-            condition=s.condition,
-            histone_mark=s.histone_mark,
-            replicate=s.replicate,
-            bam_file=s.bam_file,
-            peak_file=s.peak_file,
-        ))
+        samples.append(
+            Sample(
+                sample_id=s.name,
+                condition=s.condition,
+                histone_mark=s.histone_mark,
+                replicate=s.replicate,
+                bam_file=s.bam_file,
+                peak_file=s.peak_file,
+            )
+        )
 
     if len(samples) < 2:
         raise ValueError("Need at least 2 samples for differential analysis")
@@ -138,9 +139,7 @@ def _run_diffbind(job, db) -> Dict[str, Any]:
     _update_progress(job, db, 40, "Counting reads in peaks")
 
     # Create consensus peaks
-    consensus = analyzer.create_consensus_peaks(
-        samples, min_overlap=diff_config.min_overlap
-    )
+    consensus = analyzer.create_consensus_peaks(samples, min_overlap=diff_config.min_overlap)
 
     _update_progress(job, db, 70, "Running differential analysis")
 

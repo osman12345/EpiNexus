@@ -17,15 +17,12 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-st.set_page_config(
-    page_title="Multi-omics Integration - EpiNexus",
-    page_icon="🔬",
-    layout="wide"
-)
+st.set_page_config(page_title="Multi-omics Integration - EpiNexus", page_icon="🔬", layout="wide")
 
 # Try to import data manager
 try:
     from frontend.components.data_manager import DataManager
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
@@ -33,10 +30,12 @@ except ImportError:
 # Try to import workflow manager
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
-        from components.workflow_manager import WorkflowManager
+        from components.workflow_manager import WorkflowManager  # noqa: F401
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -54,9 +53,9 @@ from frontend.components.multiomics import (
 def has_data() -> bool:
     """Check if user has loaded data."""
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         return peaks is not None and len(peaks) > 0
-    return len(st.session_state.get('samples', [])) > 0
+    return len(st.session_state.get("samples", [])) > 0
 
 
 def render_empty_state() -> None:
@@ -64,7 +63,8 @@ def render_empty_state() -> None:
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="text-align: center; padding: 3rem; background: #f8f9fa;
                     border-radius: 12px; border: 2px dashed #dee2e6;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">🔬</div>
@@ -73,7 +73,9 @@ def render_empty_state() -> None:
                 Upload your multi-omics data to run integrative analysis.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
         st.markdown("")
         if st.button("📁 Go to Data & Project", type="primary", use_container_width=True):
             st.switch_page("pages/01_data_project.py")
@@ -97,13 +99,15 @@ def main() -> None:
         render_empty_state()
         return
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 Data Overview",
-        "🔗 Integration Analysis",
-        "🎯 Regulatory Networks",
-        "🧬 Gene-Level View",
-        "📋 Summary Report"
-    ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        [
+            "📊 Data Overview",
+            "🔗 Integration Analysis",
+            "🎯 Regulatory Networks",
+            "🧬 Gene-Level View",
+            "📋 Summary Report",
+        ]
+    )
 
     with tab1:
         render_data_overview()

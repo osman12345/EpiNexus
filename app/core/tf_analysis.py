@@ -11,13 +11,14 @@ Specialized analysis for TF ChIP-seq data:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 
 
 class TFCategory(Enum):
     """Categories of transcription factors."""
+
     PIONEER = "pioneer"  # FOXA1, PU.1
     CHROMATIN_MODIFIER = "chromatin_modifier"  # BRD4, CBP
     SEQUENCE_SPECIFIC = "sequence_specific"  # MYC, P53
@@ -29,6 +30,7 @@ class TFCategory(Enum):
 @dataclass
 class TFBindingSite:
     """A transcription factor binding site."""
+
     chr: str
     start: int
     end: int
@@ -50,21 +52,12 @@ class TFAnalysisEngine:
     motif analysis, target identification, and co-binding.
     """
 
-    def __init__(
-        self,
-        tf_name: str,
-        genome: str = "hg38",
-        promoter_distance: int = 2000
-    ):
+    def __init__(self, tf_name: str, genome: str = "hg38", promoter_distance: int = 2000):
         self.tf_name = tf_name
         self.genome = genome
         self.promoter_distance = promoter_distance
 
-    def analyze_peaks(
-        self,
-        peaks: pd.DataFrame,
-        genes: pd.DataFrame = None
-    ) -> Dict:
+    def analyze_peaks(self, peaks: pd.DataFrame, genes: pd.DataFrame = None) -> Dict:
         """
         Comprehensive TF peak analysis.
 
@@ -76,30 +69,30 @@ class TFAnalysisEngine:
             Dictionary with analysis results
         """
         results = {
-            'peak_summary': self._summarize_peaks(peaks),
-            'genomic_distribution': self._analyze_genomic_distribution(peaks),
-            'signal_analysis': self._analyze_signal(peaks),
+            "peak_summary": self._summarize_peaks(peaks),
+            "genomic_distribution": self._analyze_genomic_distribution(peaks),
+            "signal_analysis": self._analyze_signal(peaks),
         }
 
         if genes is not None:
-            results['target_genes'] = self._identify_target_genes(peaks, genes)
-            results['promoter_binding'] = self._analyze_promoter_binding(peaks, genes)
+            results["target_genes"] = self._identify_target_genes(peaks, genes)
+            results["promoter_binding"] = self._analyze_promoter_binding(peaks, genes)
 
         return results
 
     def _summarize_peaks(self, peaks: pd.DataFrame) -> Dict:
         """Summarize peak characteristics."""
-        peak_widths = peaks['end'] - peaks['start']
+        peak_widths = peaks["end"] - peaks["start"]
 
         return {
-            'total_peaks': len(peaks),
-            'mean_width': float(peak_widths.mean()),
-            'median_width': float(peak_widths.median()),
-            'min_width': int(peak_widths.min()),
-            'max_width': int(peak_widths.max()),
-            'total_coverage_bp': int(peak_widths.sum()),
-            'chromosomes': peaks['chr'].nunique(),
-            'peaks_per_chr': peaks.groupby('chr').size().to_dict()
+            "total_peaks": len(peaks),
+            "mean_width": float(peak_widths.mean()),
+            "median_width": float(peak_widths.median()),
+            "min_width": int(peak_widths.min()),
+            "max_width": int(peak_widths.max()),
+            "total_coverage_bp": int(peak_widths.sum()),
+            "chromosomes": peaks["chr"].nunique(),
+            "peaks_per_chr": peaks.groupby("chr").size().to_dict(),
         }
 
     def _analyze_genomic_distribution(self, peaks: pd.DataFrame) -> Dict:
@@ -111,11 +104,12 @@ class TFAnalysisEngine:
         """
         n = len(peaks)
         if n == 0:
-            return {'counts': {}, 'percentages': {}}
+            return {"counts": {}, "percentages": {}}
 
         # Try to use pyranges for efficient overlap computation
         try:
-            import pyranges as pr
+            import pyranges as pr  # noqa: F401
+
             return self._analyze_distribution_pyranges(peaks)
         except ImportError:
             pass
@@ -140,14 +134,15 @@ class TFAnalysisEngine:
         annotation_paths = [
             f"data/references/{self.genome}/genes.bed",
             f"data/annotations/{self.genome}_genes.bed",
-            f"/sessions/wonderful-happy-thompson/mnt/Epigenitics/histone_analyzer/data/references/{self.genome}/genes.bed"
+            f"/sessions/wonderful-happy-thompson/mnt/Epigenitics/histone_analyzer/data/references/{self.genome}/genes.bed",
         ]
 
         for path in annotation_paths:
             if os.path.exists(path):
                 try:
-                    df = pd.read_csv(path, sep='\t', header=None,
-                                    names=['chr', 'start', 'end', 'gene', 'score', 'strand'])
+                    df = pd.read_csv(
+                        path, sep="\t", header=None, names=["chr", "start", "end", "gene", "score", "strand"]
+                    )
                     return df
                 except Exception:
                     continue
@@ -159,19 +154,17 @@ class TFAnalysisEngine:
         import pyranges as pr
 
         # Create pyranges object from peaks
-        peaks_pr = pr.PyRanges(peaks.rename(columns={
-            'chr': 'Chromosome', 'start': 'Start', 'end': 'End'
-        }))
+        peaks_pr = pr.PyRanges(peaks.rename(columns={"chr": "Chromosome", "start": "Start", "end": "End"}))
 
         n = len(peaks)
         distribution = {
-            'Promoter (<=1kb)': 0,
-            'Promoter (1-2kb)': 0,
-            '5\' UTR': 0,
-            '3\' UTR': 0,
-            'Exon': 0,
-            'Intron': 0,
-            'Intergenic': 0,
+            "Promoter (<=1kb)": 0,
+            "Promoter (1-2kb)": 0,
+            "5' UTR": 0,
+            "3' UTR": 0,
+            "Exon": 0,
+            "Intron": 0,
+            "Intergenic": 0,
         }
 
         # Try to load gene features
@@ -182,126 +175,110 @@ class TFAnalysisEngine:
 
         # Create TSS regions for promoter annotation
         tss_df = genes_df.copy()
-        tss_df['tss'] = np.where(tss_df['strand'] == '+', tss_df['start'], tss_df['end'])
+        tss_df["tss"] = np.where(tss_df["strand"] == "+", tss_df["start"], tss_df["end"])
 
         # Promoter <= 1kb
         promoter_1k = tss_df.copy()
-        promoter_1k['start'] = promoter_1k['tss'] - 1000
-        promoter_1k['end'] = promoter_1k['tss'] + 200
-        promoter_1k = promoter_1k[promoter_1k['start'] >= 0]
+        promoter_1k["start"] = promoter_1k["tss"] - 1000
+        promoter_1k["end"] = promoter_1k["tss"] + 200
+        promoter_1k = promoter_1k[promoter_1k["start"] >= 0]
 
         if len(promoter_1k) > 0:
-            prom_pr = pr.PyRanges(promoter_1k.rename(columns={
-                'chr': 'Chromosome', 'start': 'Start', 'end': 'End'
-            }))
+            prom_pr = pr.PyRanges(promoter_1k.rename(columns={"chr": "Chromosome", "start": "Start", "end": "End"}))
             overlaps = peaks_pr.overlap(prom_pr)
-            distribution['Promoter (<=1kb)'] = len(overlaps)
+            distribution["Promoter (<=1kb)"] = len(overlaps)
 
         # Promoter 1-2kb
         promoter_2k = tss_df.copy()
-        promoter_2k['start'] = promoter_2k['tss'] - 2000
-        promoter_2k['end'] = promoter_2k['tss'] - 1000
-        promoter_2k = promoter_2k[promoter_2k['start'] >= 0]
+        promoter_2k["start"] = promoter_2k["tss"] - 2000
+        promoter_2k["end"] = promoter_2k["tss"] - 1000
+        promoter_2k = promoter_2k[promoter_2k["start"] >= 0]
 
         if len(promoter_2k) > 0:
-            prom2_pr = pr.PyRanges(promoter_2k.rename(columns={
-                'chr': 'Chromosome', 'start': 'Start', 'end': 'End'
-            }))
+            prom2_pr = pr.PyRanges(promoter_2k.rename(columns={"chr": "Chromosome", "start": "Start", "end": "End"}))
             overlaps = peaks_pr.overlap(prom2_pr)
-            distribution['Promoter (1-2kb)'] = len(overlaps)
+            distribution["Promoter (1-2kb)"] = len(overlaps)
 
         # Gene body (estimate exon/intron split)
-        gene_body_pr = pr.PyRanges(genes_df.rename(columns={
-            'chr': 'Chromosome', 'start': 'Start', 'end': 'End'
-        }))
+        gene_body_pr = pr.PyRanges(genes_df.rename(columns={"chr": "Chromosome", "start": "Start", "end": "End"}))
         gene_overlaps = peaks_pr.overlap(gene_body_pr)
-        gene_body_count = len(gene_overlaps) - distribution['Promoter (<=1kb)'] - distribution['Promoter (1-2kb)']
+        gene_body_count = len(gene_overlaps) - distribution["Promoter (<=1kb)"] - distribution["Promoter (1-2kb)"]
         gene_body_count = max(0, gene_body_count)
 
         # Estimate exon vs intron (typical genome: ~2% exons, ~25% introns)
-        distribution['Exon'] = int(gene_body_count * 0.08)  # ~8% of gene body
-        distribution['Intron'] = int(gene_body_count * 0.82)  # ~82% of gene body
-        distribution['5\' UTR'] = int(gene_body_count * 0.05)
-        distribution['3\' UTR'] = int(gene_body_count * 0.05)
+        distribution["Exon"] = int(gene_body_count * 0.08)  # ~8% of gene body
+        distribution["Intron"] = int(gene_body_count * 0.82)  # ~82% of gene body
+        distribution["5' UTR"] = int(gene_body_count * 0.05)
+        distribution["3' UTR"] = int(gene_body_count * 0.05)
 
         # Intergenic
         intergenic = n - sum(distribution.values())
-        distribution['Intergenic'] = max(0, intergenic)
+        distribution["Intergenic"] = max(0, intergenic)
 
         # Calculate percentages
-        distribution_pct = {
-            k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()
-        }
+        distribution_pct = {k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()}
 
-        return {
-            'counts': distribution,
-            'percentages': distribution_pct
-        }
+        return {"counts": distribution, "percentages": distribution_pct}
 
     def _analyze_distribution_with_genes(self, peaks: pd.DataFrame, genes: pd.DataFrame) -> Dict:
         """Analyze distribution using pandas-based overlap calculation."""
         n = len(peaks)
 
         distribution = {
-            'Promoter (<=1kb)': 0,
-            'Promoter (1-2kb)': 0,
-            '5\' UTR': 0,
-            '3\' UTR': 0,
-            'Exon': 0,
-            'Intron': 0,
-            'Intergenic': 0,
+            "Promoter (<=1kb)": 0,
+            "Promoter (1-2kb)": 0,
+            "5' UTR": 0,
+            "3' UTR": 0,
+            "Exon": 0,
+            "Intron": 0,
+            "Intergenic": 0,
         }
 
         # Calculate TSS positions
-        if 'strand' in genes.columns:
-            genes['tss'] = np.where(genes['strand'] == '+', genes['start'], genes['end'])
+        if "strand" in genes.columns:
+            genes["tss"] = np.where(genes["strand"] == "+", genes["start"], genes["end"])
         else:
-            genes['tss'] = genes['start']
+            genes["tss"] = genes["start"]
 
         # Iterate through peaks and classify
         for _, peak in peaks.iterrows():
-            peak_chr = peak['chr']
-            peak_center = (peak['start'] + peak['end']) // 2
+            peak_chr = peak["chr"]
+            peak_center = (peak["start"] + peak["end"]) // 2
 
             # Find genes on same chromosome
-            chr_genes = genes[genes['chr'] == peak_chr]
+            chr_genes = genes[genes["chr"] == peak_chr]
 
             if len(chr_genes) == 0:
-                distribution['Intergenic'] += 1
+                distribution["Intergenic"] += 1
                 continue
 
             # Check distance to nearest TSS
-            distances = np.abs(chr_genes['tss'] - peak_center)
+            distances = np.abs(chr_genes["tss"] - peak_center)
             min_dist = distances.min()
 
             # Classify based on distance
             if min_dist <= 1000:
-                distribution['Promoter (<=1kb)'] += 1
+                distribution["Promoter (<=1kb)"] += 1
             elif min_dist <= 2000:
-                distribution['Promoter (1-2kb)'] += 1
+                distribution["Promoter (1-2kb)"] += 1
             else:
                 # Check if within gene body
-                in_gene = ((chr_genes['start'] <= peak_center) & (chr_genes['end'] >= peak_center)).any()
+                in_gene = ((chr_genes["start"] <= peak_center) & (chr_genes["end"] >= peak_center)).any()
                 if in_gene:
                     # Estimate: most gene body is intronic
                     if np.random.random() < 0.9:  # 90% intronic
-                        distribution['Intron'] += 1
+                        distribution["Intron"] += 1
                     else:
                         # Split among exon, UTRs
-                        region = np.random.choice(['Exon', '5\' UTR', '3\' UTR'], p=[0.6, 0.2, 0.2])
+                        region = np.random.choice(["Exon", "5' UTR", "3' UTR"], p=[0.6, 0.2, 0.2])
                         distribution[region] += 1
                 else:
-                    distribution['Intergenic'] += 1
+                    distribution["Intergenic"] += 1
 
         # Calculate percentages
-        distribution_pct = {
-            k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()
-        }
+        distribution_pct = {k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()}
 
-        return {
-            'counts': distribution,
-            'percentages': distribution_pct
-        }
+        return {"counts": distribution, "percentages": distribution_pct}
 
     def _analyze_distribution_estimated(self, peaks: pd.DataFrame) -> Dict:
         """
@@ -315,13 +292,13 @@ class TFAnalysisEngine:
         # Genome-wide feature proportions (human genome)
         # Based on ENCODE/ChIPseeker typical distributions for TFs
         proportions = {
-            'Promoter (<=1kb)': 0.20,  # TFs enriched at promoters
-            'Promoter (1-2kb)': 0.08,
-            '5\' UTR': 0.03,
-            '3\' UTR': 0.05,
-            'Exon': 0.05,
-            'Intron': 0.35,
-            'Intergenic': 0.24,
+            "Promoter (<=1kb)": 0.20,  # TFs enriched at promoters
+            "Promoter (1-2kb)": 0.08,
+            "5' UTR": 0.03,
+            "3' UTR": 0.05,
+            "Exon": 0.05,
+            "Intron": 0.35,
+            "Intergenic": 0.24,
         }
 
         distribution = {k: int(n * v) for k, v in proportions.items()}
@@ -329,95 +306,78 @@ class TFAnalysisEngine:
         # Adjust to sum to n
         total = sum(distribution.values())
         if total != n:
-            distribution['Intergenic'] += (n - total)
+            distribution["Intergenic"] += n - total
 
         # Calculate percentages
-        distribution_pct = {
-            k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()
-        }
+        distribution_pct = {k: round(v / n * 100, 1) if n > 0 else 0 for k, v in distribution.items()}
 
-        return {
-            'counts': distribution,
-            'percentages': distribution_pct
-        }
+        return {"counts": distribution, "percentages": distribution_pct}
 
     def _analyze_signal(self, peaks: pd.DataFrame) -> Dict:
         """Analyze peak signal characteristics."""
-        if 'signal' not in peaks.columns:
-            peaks['signal'] = np.random.lognormal(3, 1, len(peaks))
+        if "signal" not in peaks.columns:
+            peaks["signal"] = np.random.lognormal(3, 1, len(peaks))
 
-        signals = peaks['signal']
+        signals = peaks["signal"]
 
         return {
-            'mean_signal': float(signals.mean()),
-            'median_signal': float(signals.median()),
-            'std_signal': float(signals.std()),
-            'signal_range': [float(signals.min()), float(signals.max())],
-            'high_confidence_peaks': int((signals > signals.quantile(0.75)).sum()),
-            'low_confidence_peaks': int((signals < signals.quantile(0.25)).sum())
+            "mean_signal": float(signals.mean()),
+            "median_signal": float(signals.median()),
+            "std_signal": float(signals.std()),
+            "signal_range": [float(signals.min()), float(signals.max())],
+            "high_confidence_peaks": int((signals > signals.quantile(0.75)).sum()),
+            "low_confidence_peaks": int((signals < signals.quantile(0.25)).sum()),
         }
 
     def _identify_target_genes(
-        self,
-        peaks: pd.DataFrame,
-        genes: pd.DataFrame,
-        max_distance: int = 100000
+        self, peaks: pd.DataFrame, genes: pd.DataFrame, max_distance: int = 100000
     ) -> pd.DataFrame:
         """Identify potential target genes for TF binding sites."""
         targets = []
 
         for _, peak in peaks.iterrows():
-            peak_chr = peak['chr']
-            peak_center = (peak['start'] + peak['end']) // 2
+            peak_chr = peak["chr"]
+            peak_center = (peak["start"] + peak["end"]) // 2
 
             # Find nearby genes
-            nearby = genes[
-                (genes['chr'] == peak_chr) &
-                (np.abs(genes['tss'] - peak_center) <= max_distance)
-            ]
+            nearby = genes[(genes["chr"] == peak_chr) & (np.abs(genes["tss"] - peak_center) <= max_distance)]
 
             for _, gene in nearby.iterrows():
-                distance = peak_center - gene['tss']
+                distance = peak_center - gene["tss"]
 
-                targets.append({
-                    'peak_id': peak.get('peak_id', f"peak_{peak.name}"),
-                    'gene_id': gene.get('gene_id', ''),
-                    'gene_symbol': gene.get('gene_symbol', ''),
-                    'distance_to_tss': distance,
-                    'abs_distance': abs(distance),
-                    'peak_signal': peak.get('signal', 1.0),
-                    'is_promoter': abs(distance) <= self.promoter_distance,
-                    'binding_location': 'upstream' if distance < 0 else 'downstream'
-                })
+                targets.append(
+                    {
+                        "peak_id": peak.get("peak_id", f"peak_{peak.name}"),
+                        "gene_id": gene.get("gene_id", ""),
+                        "gene_symbol": gene.get("gene_symbol", ""),
+                        "distance_to_tss": distance,
+                        "abs_distance": abs(distance),
+                        "peak_signal": peak.get("signal", 1.0),
+                        "is_promoter": abs(distance) <= self.promoter_distance,
+                        "binding_location": "upstream" if distance < 0 else "downstream",
+                    }
+                )
 
         if not targets:
             return pd.DataFrame()
 
         df = pd.DataFrame(targets)
-        return df.sort_values('abs_distance')
+        return df.sort_values("abs_distance")
 
-    def _analyze_promoter_binding(
-        self,
-        peaks: pd.DataFrame,
-        genes: pd.DataFrame
-    ) -> Dict:
+    def _analyze_promoter_binding(self, peaks: pd.DataFrame, genes: pd.DataFrame) -> Dict:
         """Analyze TF binding at promoters."""
         targets = self._identify_target_genes(peaks, genes, max_distance=self.promoter_distance)
 
         if len(targets) == 0:
-            return {
-                'promoter_bound_genes': 0,
-                'fraction_genes_bound': 0.0,
-                'fraction_peaks_at_promoters': 0.0
-            }
+            return {"promoter_bound_genes": 0, "fraction_genes_bound": 0.0, "fraction_peaks_at_promoters": 0.0}
 
-        promoter_targets = targets[targets['is_promoter']]
+        promoter_targets = targets[targets["is_promoter"]]
 
         return {
-            'promoter_bound_genes': promoter_targets['gene_symbol'].nunique(),
-            'fraction_genes_bound': promoter_targets['gene_symbol'].nunique() / len(genes),
-            'fraction_peaks_at_promoters': len(promoter_targets) / len(peaks),
-            'top_promoter_targets': promoter_targets.groupby('gene_symbol')['peak_signal'].max().nlargest(20).to_dict()
+            "promoter_bound_genes": promoter_targets["gene_symbol"].nunique(),
+            "fraction_genes_bound": promoter_targets["gene_symbol"].nunique() / len(genes),
+            "fraction_peaks_at_promoters": len(promoter_targets) / len(peaks),
+            "top_promoter_targets": promoter_targets.groupby("gene_symbol")["peak_signal"].max().nlargest(20).to_dict(),
         }
 
 
@@ -428,11 +388,7 @@ class TFCoBindingAnalyzer:
         self.overlap_threshold = overlap_threshold
 
     def analyze_cobinding(
-        self,
-        tf1_peaks: pd.DataFrame,
-        tf2_peaks: pd.DataFrame,
-        tf1_name: str = "TF1",
-        tf2_name: str = "TF2"
+        self, tf1_peaks: pd.DataFrame, tf2_peaks: pd.DataFrame, tf1_name: str = "TF1", tf2_name: str = "TF2"
     ) -> Dict:
         """
         Analyze co-localization between two TFs.
@@ -455,56 +411,50 @@ class TFCoBindingAnalyzer:
 
         # Calculate enrichment
         genome_size = 3e9
-        tf1_coverage = (tf1_peaks['end'] - tf1_peaks['start']).sum()
-        tf2_coverage = (tf2_peaks['end'] - tf2_peaks['start']).sum()
+        tf1_coverage = (tf1_peaks["end"] - tf1_peaks["start"]).sum()
+        tf2_coverage = (tf2_peaks["end"] - tf2_peaks["start"]).sum()
 
         expected_overlap = (tf1_coverage * tf2_coverage) / genome_size
         fold_enrichment = n_overlap / expected_overlap if expected_overlap > 0 else 0
 
         return {
-            f'{tf1_name}_peaks': n1,
-            f'{tf2_name}_peaks': n2,
-            'overlapping_peaks': n_overlap,
-            f'{tf1_name}_only': n1 - n_overlap,
-            f'{tf2_name}_only': n2 - n_overlap,
-            f'{tf1_name}_overlap_fraction': n_overlap / n1 if n1 > 0 else 0,
-            f'{tf2_name}_overlap_fraction': n_overlap / n2 if n2 > 0 else 0,
-            'fold_enrichment': fold_enrichment,
-            'jaccard_index': n_overlap / (n1 + n2 - n_overlap) if (n1 + n2 - n_overlap) > 0 else 0,
-            'overlap_peaks': overlaps
+            f"{tf1_name}_peaks": n1,
+            f"{tf2_name}_peaks": n2,
+            "overlapping_peaks": n_overlap,
+            f"{tf1_name}_only": n1 - n_overlap,
+            f"{tf2_name}_only": n2 - n_overlap,
+            f"{tf1_name}_overlap_fraction": n_overlap / n1 if n1 > 0 else 0,
+            f"{tf2_name}_overlap_fraction": n_overlap / n2 if n2 > 0 else 0,
+            "fold_enrichment": fold_enrichment,
+            "jaccard_index": n_overlap / (n1 + n2 - n_overlap) if (n1 + n2 - n_overlap) > 0 else 0,
+            "overlap_peaks": overlaps,
         }
 
-    def _find_overlaps(
-        self,
-        peaks1: pd.DataFrame,
-        peaks2: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _find_overlaps(self, peaks1: pd.DataFrame, peaks2: pd.DataFrame) -> pd.DataFrame:
         """Find overlapping peaks between two sets."""
         overlaps = []
 
         for _, p1 in peaks1.iterrows():
-            chr1 = p1['chr']
-            start1 = p1['start'] - self.overlap_threshold
-            end1 = p1['end'] + self.overlap_threshold
+            chr1 = p1["chr"]
+            start1 = p1["start"] - self.overlap_threshold
+            end1 = p1["end"] + self.overlap_threshold
 
             # Find overlapping peaks in set 2
-            matching = peaks2[
-                (peaks2['chr'] == chr1) &
-                (peaks2['start'] < end1) &
-                (peaks2['end'] > start1)
-            ]
+            matching = peaks2[(peaks2["chr"] == chr1) & (peaks2["start"] < end1) & (peaks2["end"] > start1)]
 
             if len(matching) > 0:
                 for _, p2 in matching.iterrows():
-                    overlaps.append({
-                        'chr': chr1,
-                        'start': max(p1['start'], p2['start']),
-                        'end': min(p1['end'], p2['end']),
-                        'peak1_id': p1.get('peak_id', ''),
-                        'peak2_id': p2.get('peak_id', ''),
-                        'peak1_signal': p1.get('signal', 1.0),
-                        'peak2_signal': p2.get('signal', 1.0)
-                    })
+                    overlaps.append(
+                        {
+                            "chr": chr1,
+                            "start": max(p1["start"], p2["start"]),
+                            "end": min(p1["end"], p2["end"]),
+                            "peak1_id": p1.get("peak_id", ""),
+                            "peak2_id": p2.get("peak_id", ""),
+                            "peak1_signal": p1.get("signal", 1.0),
+                            "peak2_signal": p2.get("signal", 1.0),
+                        }
+                    )
 
         return pd.DataFrame(overlaps) if overlaps else pd.DataFrame()
 
@@ -514,86 +464,150 @@ class MotifEnrichmentAnalyzer:
 
     # JASPAR 2024 core vertebrate motifs with PWM information
     KNOWN_TF_MOTIFS = {
-        'MYC': {
-            'consensus': 'CACGTG',
-            'name': 'E-box',
-            'jaspar_id': 'MA0147.3',
-            'pwm': [[0.1, 0.7, 0.1, 0.1], [0.8, 0.1, 0.05, 0.05], [0.1, 0.8, 0.05, 0.05],
-                    [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.1, 0.7], [0.1, 0.1, 0.7, 0.1]]
+        "MYC": {
+            "consensus": "CACGTG",
+            "name": "E-box",
+            "jaspar_id": "MA0147.3",
+            "pwm": [
+                [0.1, 0.7, 0.1, 0.1],
+                [0.8, 0.1, 0.05, 0.05],
+                [0.1, 0.8, 0.05, 0.05],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.1, 0.7, 0.1],
+            ],
         },
-        'P53': {
-            'consensus': 'RRRCWWGYYY',
-            'name': 'p53 RE',
-            'jaspar_id': 'MA0106.3',
-            'pwm': [[0.35, 0.15, 0.35, 0.15], [0.35, 0.15, 0.35, 0.15], [0.35, 0.15, 0.35, 0.15],
-                    [0.1, 0.8, 0.05, 0.05], [0.4, 0.1, 0.1, 0.4], [0.4, 0.1, 0.1, 0.4],
-                    [0.1, 0.1, 0.7, 0.1], [0.1, 0.3, 0.1, 0.5], [0.1, 0.3, 0.1, 0.5],
-                    [0.1, 0.3, 0.1, 0.5]]
+        "P53": {
+            "consensus": "RRRCWWGYYY",
+            "name": "p53 RE",
+            "jaspar_id": "MA0106.3",
+            "pwm": [
+                [0.35, 0.15, 0.35, 0.15],
+                [0.35, 0.15, 0.35, 0.15],
+                [0.35, 0.15, 0.35, 0.15],
+                [0.1, 0.8, 0.05, 0.05],
+                [0.4, 0.1, 0.1, 0.4],
+                [0.4, 0.1, 0.1, 0.4],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.3, 0.1, 0.5],
+                [0.1, 0.3, 0.1, 0.5],
+                [0.1, 0.3, 0.1, 0.5],
+            ],
         },
-        'CTCF': {
-            'consensus': 'CCGCGNGGNGGCAG',
-            'name': 'CTCF motif',
-            'jaspar_id': 'MA0139.1',
-            'pwm': [[0.1, 0.7, 0.1, 0.1], [0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1],
-                    [0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1], [0.25, 0.25, 0.25, 0.25],
-                    [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.25, 0.25, 0.25, 0.25],
-                    [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.7, 0.1, 0.1],
-                    [0.7, 0.1, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1]]
+        "CTCF": {
+            "consensus": "CCGCGNGGNGGCAG",
+            "name": "CTCF motif",
+            "jaspar_id": "MA0139.1",
+            "pwm": [
+                [0.1, 0.7, 0.1, 0.1],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+            ],
         },
-        'STAT3': {
-            'consensus': 'TTCNNNGAA',
-            'name': 'STAT binding',
-            'jaspar_id': 'MA0144.2',
-            'pwm': [[0.1, 0.1, 0.1, 0.7], [0.1, 0.1, 0.1, 0.7], [0.1, 0.7, 0.1, 0.1],
-                    [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25],
-                    [0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1], [0.7, 0.1, 0.1, 0.1]]
+        "STAT3": {
+            "consensus": "TTCNNNGAA",
+            "name": "STAT binding",
+            "jaspar_id": "MA0144.2",
+            "pwm": [
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+            ],
         },
-        'NFkB': {
-            'consensus': 'GGGRNWYYCC',
-            'name': 'NFkB motif',
-            'jaspar_id': 'MA0105.4',
-            'pwm': [[0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1],
-                    [0.35, 0.15, 0.35, 0.15], [0.25, 0.25, 0.25, 0.25], [0.4, 0.1, 0.1, 0.4],
-                    [0.1, 0.3, 0.1, 0.5], [0.1, 0.3, 0.1, 0.5], [0.1, 0.7, 0.1, 0.1],
-                    [0.1, 0.7, 0.1, 0.1]]
+        "NFkB": {
+            "consensus": "GGGRNWYYCC",
+            "name": "NFkB motif",
+            "jaspar_id": "MA0105.4",
+            "pwm": [
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.35, 0.15, 0.35, 0.15],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.4, 0.1, 0.1, 0.4],
+                [0.1, 0.3, 0.1, 0.5],
+                [0.1, 0.3, 0.1, 0.5],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.1, 0.7, 0.1, 0.1],
+            ],
         },
-        'AP1': {
-            'consensus': 'TGASTCA',
-            'name': 'AP-1 site',
-            'jaspar_id': 'MA0099.3',
-            'pwm': [[0.1, 0.1, 0.1, 0.7], [0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1],
-                    [0.2, 0.3, 0.3, 0.2], [0.1, 0.1, 0.1, 0.7], [0.1, 0.7, 0.1, 0.1],
-                    [0.7, 0.1, 0.1, 0.1]]
+        "AP1": {
+            "consensus": "TGASTCA",
+            "name": "AP-1 site",
+            "jaspar_id": "MA0099.3",
+            "pwm": [
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+                [0.2, 0.3, 0.3, 0.2],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+            ],
         },
-        'SP1': {
-            'consensus': 'GGGCGG',
-            'name': 'GC box',
-            'jaspar_id': 'MA0079.4',
-            'pwm': [[0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1],
-                    [0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1]]
+        "SP1": {
+            "consensus": "GGGCGG",
+            "name": "GC box",
+            "jaspar_id": "MA0079.4",
+            "pwm": [
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.7, 0.1, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.1, 0.1, 0.7, 0.1],
+            ],
         },
-        'GATA': {
-            'consensus': 'WGATAR',
-            'name': 'GATA motif',
-            'jaspar_id': 'MA0035.4',
-            'pwm': [[0.4, 0.1, 0.1, 0.4], [0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1],
-                    [0.1, 0.1, 0.1, 0.7], [0.7, 0.1, 0.1, 0.1], [0.35, 0.15, 0.35, 0.15]]
+        "GATA": {
+            "consensus": "WGATAR",
+            "name": "GATA motif",
+            "jaspar_id": "MA0035.4",
+            "pwm": [
+                [0.4, 0.1, 0.1, 0.4],
+                [0.1, 0.1, 0.7, 0.1],
+                [0.7, 0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.7, 0.1, 0.1, 0.1],
+                [0.35, 0.15, 0.35, 0.15],
+            ],
         },
-        'ETS': {
-            'consensus': 'GGAA',
-            'name': 'ETS motif',
-            'jaspar_id': 'MA0098.3',
-            'pwm': [[0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1],
-                    [0.7, 0.1, 0.1, 0.1]]
+        "ETS": {
+            "consensus": "GGAA",
+            "name": "ETS motif",
+            "jaspar_id": "MA0098.3",
+            "pwm": [[0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1], [0.7, 0.1, 0.1, 0.1]],
         },
-        'FOX': {
-            'consensus': 'TRTTKRY',
-            'name': 'Forkhead box',
-            'jaspar_id': 'MA0148.4',
-            'pwm': [[0.1, 0.1, 0.1, 0.7], [0.35, 0.15, 0.35, 0.15], [0.1, 0.1, 0.1, 0.7],
-                    [0.1, 0.1, 0.1, 0.7], [0.1, 0.1, 0.4, 0.4], [0.35, 0.15, 0.35, 0.15],
-                    [0.1, 0.3, 0.1, 0.5]]
-        }
+        "FOX": {
+            "consensus": "TRTTKRY",
+            "name": "Forkhead box",
+            "jaspar_id": "MA0148.4",
+            "pwm": [
+                [0.1, 0.1, 0.1, 0.7],
+                [0.35, 0.15, 0.35, 0.15],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.1, 0.1, 0.7],
+                [0.1, 0.1, 0.4, 0.4],
+                [0.35, 0.15, 0.35, 0.15],
+                [0.1, 0.3, 0.1, 0.5],
+            ],
+        },
     }
 
     def __init__(self, genome_fasta: str = None):
@@ -601,11 +615,7 @@ class MotifEnrichmentAnalyzer:
         self._sequences_cache = {}
 
     def analyze_motif_enrichment(
-        self,
-        peaks: pd.DataFrame,
-        tf_name: str,
-        background: pd.DataFrame = None,
-        sequences: Dict[str, str] = None
+        self, peaks: pd.DataFrame, tf_name: str, background: pd.DataFrame = None, sequences: Dict[str, str] = None
     ) -> Dict:
         """
         Analyze motif enrichment at binding sites.
@@ -626,12 +636,11 @@ class MotifEnrichmentAnalyzer:
 
         # Get expected motif for this TF
         expected_motif = self.KNOWN_TF_MOTIFS.get(
-            tf_name.upper(),
-            {'consensus': 'NNNNNNN', 'name': 'Unknown', 'jaspar_id': None, 'pwm': None}
+            tf_name.upper(), {"consensus": "NNNNNNN", "name": "Unknown", "jaspar_id": None, "pwm": None}
         )
 
         # Try real motif scanning if sequences provided
-        if sequences is not None and expected_motif['pwm'] is not None:
+        if sequences is not None and expected_motif["pwm"] is not None:
             return self._scan_motifs_real(peaks, sequences, tf_name, expected_motif, background)
 
         # Try to fetch sequences and scan
@@ -652,12 +661,12 @@ class MotifEnrichmentAnalyzer:
         sequences: Dict[str, str],
         tf_name: str,
         primary_motif: Dict,
-        background: pd.DataFrame = None
+        background: pd.DataFrame = None,
     ) -> Dict:
         """Scan sequences for motifs using real PWM matching."""
         n_peaks = len(peaks)
-        pwm = np.array(primary_motif['pwm'])
-        consensus = primary_motif['consensus']
+        pwm = np.array(primary_motif["pwm"])
+        consensus = primary_motif["consensus"]
 
         # Score each sequence
         motif_scores = []
@@ -665,7 +674,7 @@ class MotifEnrichmentAnalyzer:
         centrality_scores = []
 
         for idx, row in peaks.iterrows():
-            peak_id = row.get('peak_id', f"peak_{idx}")
+            peak_id = row.get("peak_id", f"peak_{idx}")
             if peak_id not in sequences:
                 continue
 
@@ -700,39 +709,40 @@ class MotifEnrichmentAnalyzer:
 
         # Binomial test for enrichment
         from scipy import stats
+
         if n_peaks > 0 and target_rate > bg_rate:
-            pvalue = stats.binom_test(peaks_with_motif, n_peaks, bg_rate, alternative='greater')
+            pvalue = stats.binom_test(peaks_with_motif, n_peaks, bg_rate, alternative="greater")
         else:
             pvalue = 1.0
 
         # Build results
         results = {
-            'primary_motif': {
-                'consensus': consensus,
-                'name': primary_motif['name'],
-                'jaspar_id': primary_motif.get('jaspar_id', ''),
-                'peaks_with_motif': peaks_with_motif,
-                'fraction_with_motif': target_rate,
-                'enrichment_pvalue': pvalue,
-                'centrality_score': np.mean(centrality_scores) if centrality_scores else 0.0,
-                'mean_score': np.mean(motif_scores) if motif_scores else 0.0
+            "primary_motif": {
+                "consensus": consensus,
+                "name": primary_motif["name"],
+                "jaspar_id": primary_motif.get("jaspar_id", ""),
+                "peaks_with_motif": peaks_with_motif,
+                "fraction_with_motif": target_rate,
+                "enrichment_pvalue": pvalue,
+                "centrality_score": np.mean(centrality_scores) if centrality_scores else 0.0,
+                "mean_score": np.mean(motif_scores) if motif_scores else 0.0,
             },
-            'secondary_motifs': [],
-            'de_novo_motifs': []
+            "secondary_motifs": [],
+            "de_novo_motifs": [],
         }
 
         # Scan for secondary motifs
         other_tfs = [tf for tf in self.KNOWN_TF_MOTIFS.keys() if tf != tf_name.upper()]
         for other_tf in other_tfs[:5]:
             other_motif = self.KNOWN_TF_MOTIFS[other_tf]
-            if other_motif.get('pwm') is None:
+            if other_motif.get("pwm") is None:
                 continue
 
-            other_pwm = np.array(other_motif['pwm'])
+            other_pwm = np.array(other_motif["pwm"])
             other_peaks_with_motif = 0
 
             for idx, row in peaks.iterrows():
-                peak_id = row.get('peak_id', f"peak_{idx}")
+                peak_id = row.get("peak_id", f"peak_{idx}")
                 if peak_id not in sequences:
                     continue
 
@@ -746,39 +756,44 @@ class MotifEnrichmentAnalyzer:
                     other_peaks_with_motif += 1
 
             other_rate = other_peaks_with_motif / n_peaks if n_peaks > 0 else 0
-            other_pvalue = stats.binom_test(other_peaks_with_motif, n_peaks, 0.05, alternative='greater') if other_peaks_with_motif > 0 else 1.0
+            other_pvalue = (
+                stats.binom_test(other_peaks_with_motif, n_peaks, 0.05, alternative="greater")
+                if other_peaks_with_motif > 0
+                else 1.0
+            )
 
-            results['secondary_motifs'].append({
-                'tf_name': other_tf,
-                'consensus': other_motif['consensus'],
-                'name': other_motif['name'],
-                'jaspar_id': other_motif.get('jaspar_id', ''),
-                'peaks_with_motif': other_peaks_with_motif,
-                'fraction_with_motif': other_rate,
-                'enrichment_pvalue': other_pvalue,
-                'possible_cobinder': other_pvalue < 0.01 and other_rate > 0.1
-            })
+            results["secondary_motifs"].append(
+                {
+                    "tf_name": other_tf,
+                    "consensus": other_motif["consensus"],
+                    "name": other_motif["name"],
+                    "jaspar_id": other_motif.get("jaspar_id", ""),
+                    "peaks_with_motif": other_peaks_with_motif,
+                    "fraction_with_motif": other_rate,
+                    "enrichment_pvalue": other_pvalue,
+                    "possible_cobinder": other_pvalue < 0.01 and other_rate > 0.1,
+                }
+            )
 
         # Sort secondary by enrichment
-        results['secondary_motifs'].sort(key=lambda x: x['enrichment_pvalue'])
+        results["secondary_motifs"].sort(key=lambda x: x["enrichment_pvalue"])
 
         return results
 
     def _scan_sequence_pwm(self, sequence: str, pwm: np.ndarray) -> Tuple[float, int]:
         """Scan a sequence with a PWM and return best score and position."""
-        base_to_idx = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+        base_to_idx = {"A": 0, "C": 1, "G": 2, "T": 3}
         motif_len = len(pwm)
 
-        best_score = float('-inf')
+        best_score = float("-inf")
         best_pos = 0
 
         for i in range(len(sequence) - motif_len + 1):
-            subseq = sequence[i:i + motif_len]
+            subseq = sequence[i : i + motif_len]
             if any(b not in base_to_idx for b in subseq):
                 continue
 
-            score = sum(np.log2(pwm[j][base_to_idx[b]] * 4)
-                       for j, b in enumerate(subseq))
+            score = sum(np.log2(pwm[j][base_to_idx[b]] * 4) for j, b in enumerate(subseq))
 
             if score > best_score:
                 best_score = score
@@ -792,12 +807,13 @@ class MotifEnrichmentAnalyzer:
 
         try:
             import pysam
+
             fasta = pysam.FastaFile(self.genome_fasta)
 
             for idx, row in peaks.iterrows():
-                peak_id = row.get('peak_id', f"peak_{idx}")
-                chrom = row['chr']
-                center = (row['start'] + row['end']) // 2
+                peak_id = row.get("peak_id", f"peak_{idx}")
+                chrom = row["chr"]
+                center = (row["start"] + row["end"]) // 2
                 start = max(0, center - flank)
                 end = center + flank
 
@@ -816,11 +832,7 @@ class MotifEnrichmentAnalyzer:
         return sequences
 
     def _estimate_enrichment(
-        self,
-        peaks: pd.DataFrame,
-        tf_name: str,
-        expected_motif: Dict,
-        background: pd.DataFrame = None
+        self, peaks: pd.DataFrame, tf_name: str, expected_motif: Dict, background: pd.DataFrame = None
     ) -> Dict:
         """
         Estimate motif enrichment without actual sequence scanning.
@@ -832,16 +844,16 @@ class MotifEnrichmentAnalyzer:
 
         # Known enrichment patterns for different TFs
         tf_enrichment_rates = {
-            'MYC': 0.65,  # E-box highly enriched at MYC sites
-            'P53': 0.55,
-            'CTCF': 0.75,  # Very specific binding
-            'STAT3': 0.50,
-            'NFkB': 0.45,
-            'AP1': 0.60,
-            'SP1': 0.55,
-            'GATA': 0.60,
-            'ETS': 0.50,
-            'FOX': 0.55
+            "MYC": 0.65,  # E-box highly enriched at MYC sites
+            "P53": 0.55,
+            "CTCF": 0.75,  # Very specific binding
+            "STAT3": 0.50,
+            "NFkB": 0.45,
+            "AP1": 0.60,
+            "SP1": 0.55,
+            "GATA": 0.60,
+            "ETS": 0.50,
+            "FOX": 0.55,
         }
 
         primary_rate = tf_enrichment_rates.get(tf_name.upper(), 0.50)
@@ -849,22 +861,23 @@ class MotifEnrichmentAnalyzer:
 
         # Calculate p-value (very significant for expected motif)
         from scipy import stats
+
         bg_rate = 0.1
-        pvalue = stats.binom_test(peaks_with_motif, n_peaks, bg_rate, alternative='greater')
+        pvalue = stats.binom_test(peaks_with_motif, n_peaks, bg_rate, alternative="greater")
 
         results = {
-            'primary_motif': {
-                'consensus': expected_motif['consensus'],
-                'name': expected_motif['name'],
-                'jaspar_id': expected_motif.get('jaspar_id', ''),
-                'peaks_with_motif': peaks_with_motif,
-                'fraction_with_motif': primary_rate,
-                'enrichment_pvalue': pvalue,
-                'centrality_score': 0.85,  # Typical value for cognate TF
-                'estimated': True  # Flag that this is estimated
+            "primary_motif": {
+                "consensus": expected_motif["consensus"],
+                "name": expected_motif["name"],
+                "jaspar_id": expected_motif.get("jaspar_id", ""),
+                "peaks_with_motif": peaks_with_motif,
+                "fraction_with_motif": primary_rate,
+                "enrichment_pvalue": pvalue,
+                "centrality_score": 0.85,  # Typical value for cognate TF
+                "estimated": True,  # Flag that this is estimated
             },
-            'secondary_motifs': [],
-            'de_novo_motifs': []
+            "secondary_motifs": [],
+            "de_novo_motifs": [],
         }
 
         # Add secondary motifs with lower enrichment
@@ -873,27 +886,30 @@ class MotifEnrichmentAnalyzer:
             motif = self.KNOWN_TF_MOTIFS[other_tf]
             other_rate = np.random.uniform(0.08, 0.25)
             other_count = int(n_peaks * other_rate)
-            other_pvalue = stats.binom_test(other_count, n_peaks, 0.05, alternative='greater')
+            other_pvalue = stats.binom_test(other_count, n_peaks, 0.05, alternative="greater")
 
-            results['secondary_motifs'].append({
-                'tf_name': other_tf,
-                'consensus': motif['consensus'],
-                'name': motif['name'],
-                'jaspar_id': motif.get('jaspar_id', ''),
-                'peaks_with_motif': other_count,
-                'fraction_with_motif': other_rate,
-                'enrichment_pvalue': other_pvalue,
-                'possible_cobinder': other_rate > 0.15,
-                'estimated': True
-            })
+            results["secondary_motifs"].append(
+                {
+                    "tf_name": other_tf,
+                    "consensus": motif["consensus"],
+                    "name": motif["name"],
+                    "jaspar_id": motif.get("jaspar_id", ""),
+                    "peaks_with_motif": other_count,
+                    "fraction_with_motif": other_rate,
+                    "enrichment_pvalue": other_pvalue,
+                    "possible_cobinder": other_rate > 0.15,
+                    "estimated": True,
+                }
+            )
 
         # De novo motifs (would need real analysis)
-        results['de_novo_motifs'] = [{
-            'motif_id': 'denovo_analysis_required',
-            'note': 'De novo motif discovery requires genome sequences. '
-                   'Use HOMER or MEME-ChIP for full analysis.',
-            'estimated': True
-        }]
+        results["de_novo_motifs"] = [
+            {
+                "motif_id": "denovo_analysis_required",
+                "note": "De novo motif discovery requires genome sequences. Use HOMER or MEME-ChIP for full analysis.",
+                "estimated": True,
+            }
+        ]
 
         return results
 
@@ -904,32 +920,34 @@ def generate_demo_tf_peaks(tf_name: str = "MYC", n_peaks: int = 5000) -> pd.Data
 
     # TF-specific peak characteristics
     tf_params = {
-        'MYC': {'width_mean': 200, 'width_std': 50, 'signal_mean': 4},
-        'P53': {'width_mean': 300, 'width_std': 100, 'signal_mean': 3},
-        'CTCF': {'width_mean': 150, 'width_std': 30, 'signal_mean': 5},
-        'STAT3': {'width_mean': 250, 'width_std': 80, 'signal_mean': 3.5},
-        'NFkB': {'width_mean': 350, 'width_std': 120, 'signal_mean': 3}
+        "MYC": {"width_mean": 200, "width_std": 50, "signal_mean": 4},
+        "P53": {"width_mean": 300, "width_std": 100, "signal_mean": 3},
+        "CTCF": {"width_mean": 150, "width_std": 30, "signal_mean": 5},
+        "STAT3": {"width_mean": 250, "width_std": 80, "signal_mean": 3.5},
+        "NFkB": {"width_mean": 350, "width_std": 120, "signal_mean": 3},
     }
 
-    params = tf_params.get(tf_name.upper(), {'width_mean': 250, 'width_std': 75, 'signal_mean': 3.5})
+    params = tf_params.get(tf_name.upper(), {"width_mean": 250, "width_std": 75, "signal_mean": 3.5})
 
-    chromosomes = [f'chr{i}' for i in range(1, 23)] + ['chrX']
+    chromosomes = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
     chr_weights = np.array([8, 7, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 3])
     chr_weights = chr_weights / chr_weights.sum()
 
-    peaks = pd.DataFrame({
-        'chr': np.random.choice(chromosomes, n_peaks, p=chr_weights),
-        'start': np.random.randint(1000000, 200000000, n_peaks),
-        'peak_id': [f'{tf_name}_peak_{i}' for i in range(n_peaks)],
-        'signal': np.random.lognormal(params['signal_mean'], 1, n_peaks),
-        'qvalue': 10 ** -np.random.uniform(2, 20, n_peaks)
-    })
+    peaks = pd.DataFrame(
+        {
+            "chr": np.random.choice(chromosomes, n_peaks, p=chr_weights),
+            "start": np.random.randint(1000000, 200000000, n_peaks),
+            "peak_id": [f"{tf_name}_peak_{i}" for i in range(n_peaks)],
+            "signal": np.random.lognormal(params["signal_mean"], 1, n_peaks),
+            "qvalue": 10 ** -np.random.uniform(2, 20, n_peaks),
+        }
+    )
 
-    widths = np.maximum(50, np.random.normal(params['width_mean'], params['width_std'], n_peaks).astype(int))
-    peaks['end'] = peaks['start'] + widths
-    peaks['summit'] = peaks['start'] + widths // 2
+    widths = np.maximum(50, np.random.normal(params["width_mean"], params["width_std"], n_peaks).astype(int))
+    peaks["end"] = peaks["start"] + widths
+    peaks["summit"] = peaks["start"] + widths // 2
 
-    return peaks[['chr', 'start', 'end', 'peak_id', 'signal', 'summit', 'qvalue']]
+    return peaks[["chr", "start", "end", "peak_id", "signal", "summit", "qvalue"]]
 
 
 def generate_demo_genes() -> pd.DataFrame:
@@ -938,26 +956,28 @@ def generate_demo_genes() -> pd.DataFrame:
 
     # Known genes
     known_genes = [
-        {'gene_id': 'ENSG00000136997', 'gene_symbol': 'MYC', 'chr': 'chr8', 'tss': 127736231, 'strand': '+'},
-        {'gene_id': 'ENSG00000141510', 'gene_symbol': 'TP53', 'chr': 'chr17', 'tss': 7687538, 'strand': '-'},
-        {'gene_id': 'ENSG00000012048', 'gene_symbol': 'BRCA1', 'chr': 'chr17', 'tss': 43125364, 'strand': '-'},
-        {'gene_id': 'ENSG00000146648', 'gene_symbol': 'EGFR', 'chr': 'chr7', 'tss': 55191822, 'strand': '+'},
-        {'gene_id': 'ENSG00000133703', 'gene_symbol': 'KRAS', 'chr': 'chr12', 'tss': 25245384, 'strand': '-'},
-        {'gene_id': 'ENSG00000171862', 'gene_symbol': 'PTEN', 'chr': 'chr10', 'tss': 87863113, 'strand': '+'},
-        {'gene_id': 'ENSG00000157764', 'gene_symbol': 'BRAF', 'chr': 'chr7', 'tss': 140924764, 'strand': '-'},
-        {'gene_id': 'ENSG00000181019', 'gene_symbol': 'NQO1', 'chr': 'chr16', 'tss': 69710984, 'strand': '+'},
+        {"gene_id": "ENSG00000136997", "gene_symbol": "MYC", "chr": "chr8", "tss": 127736231, "strand": "+"},
+        {"gene_id": "ENSG00000141510", "gene_symbol": "TP53", "chr": "chr17", "tss": 7687538, "strand": "-"},
+        {"gene_id": "ENSG00000012048", "gene_symbol": "BRCA1", "chr": "chr17", "tss": 43125364, "strand": "-"},
+        {"gene_id": "ENSG00000146648", "gene_symbol": "EGFR", "chr": "chr7", "tss": 55191822, "strand": "+"},
+        {"gene_id": "ENSG00000133703", "gene_symbol": "KRAS", "chr": "chr12", "tss": 25245384, "strand": "-"},
+        {"gene_id": "ENSG00000171862", "gene_symbol": "PTEN", "chr": "chr10", "tss": 87863113, "strand": "+"},
+        {"gene_id": "ENSG00000157764", "gene_symbol": "BRAF", "chr": "chr7", "tss": 140924764, "strand": "-"},
+        {"gene_id": "ENSG00000181019", "gene_symbol": "NQO1", "chr": "chr16", "tss": 69710984, "strand": "+"},
     ]
 
     genes = known_genes.copy()
 
     # Add random genes
     for i in range(200):
-        genes.append({
-            'gene_id': f'ENSG{i:011d}',
-            'gene_symbol': f'GENE{i}',
-            'chr': f'chr{np.random.randint(1, 23)}',
-            'tss': np.random.randint(1000000, 200000000),
-            'strand': np.random.choice(['+', '-'])
-        })
+        genes.append(
+            {
+                "gene_id": f"ENSG{i:011d}",
+                "gene_symbol": f"GENE{i}",
+                "chr": f"chr{np.random.randint(1, 23)}",
+                "tss": np.random.randint(1000000, 200000000),
+                "strand": np.random.choice(["+", "-"]),
+            }
+        )
 
     return pd.DataFrame(genes)

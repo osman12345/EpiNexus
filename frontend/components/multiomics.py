@@ -7,7 +7,7 @@ Each function renders one tab of the multi-omics analysis page.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -84,11 +84,7 @@ def render_data_overview() -> None:
 
     st.subheader("Data Quality Summary")
 
-    meth_status = (
-        "✅ Loaded"
-        if st.session_state.get("methylation_samples")
-        else "⚠️ Not loaded"
-    )
+    meth_status = "✅ Loaded" if st.session_state.get("methylation_samples") else "⚠️ Not loaded"
     meth_samples = (
         str(len(st.session_state.get("methylation_samples", {})))
         if st.session_state.get("methylation_samples")
@@ -185,19 +181,32 @@ def _render_concordance_matrix() -> None:
     st.subheader("Concordance Analysis")
 
     categories = [
-        "H3K27ac↑", "H3K27ac↓", "H3K4me3↑", "H3K4me3↓",
-        "H3K27me3↑", "H3K27me3↓",
+        "H3K27ac↑",
+        "H3K27ac↓",
+        "H3K4me3↑",
+        "H3K4me3↓",
+        "H3K27me3↑",
+        "H3K27me3↓",
     ]
     expr_cats = ["Expr↑", "Expr↓", "No change"]
 
-    concordance = np.array([
-        [425, 52, 180], [38, 312, 145], [380, 45, 220],
-        [32, 285, 130], [25, 85, 102], [180, 42, 222],
-    ])
+    concordance = np.array(
+        [
+            [425, 52, 180],
+            [38, 312, 145],
+            [380, 45, 220],
+            [32, 285, 130],
+            [25, 85, 102],
+            [180, 42, 222],
+        ]
+    )
 
     fig = px.imshow(
-        concordance, x=expr_cats, y=categories,
-        color_continuous_scale=COLORS.SCALE_DIVERGING, text_auto=True,
+        concordance,
+        x=expr_cats,
+        y=categories,
+        color_continuous_scale=COLORS.SCALE_DIVERGING,
+        text_auto=True,
     )
     fig.update_layout(
         xaxis_title="Expression Change",
@@ -218,9 +227,15 @@ def _render_sankey_diagram() -> None:
     st.subheader("TF-Histone-Expression Integration")
 
     labels = [
-        "MYC targets", "E2F1 targets", "NRF1 targets",
-        "H3K27ac↑", "H3K4me3↑", "No histone Δ",
-        "Expr↑", "Expr↓", "Expr NC",
+        "MYC targets",
+        "E2F1 targets",
+        "NRF1 targets",
+        "H3K27ac↑",
+        "H3K4me3↑",
+        "No histone Δ",
+        "Expr↑",
+        "Expr↓",
+        "Expr NC",
     ]
 
     source = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5]
@@ -228,15 +243,17 @@ def _render_sankey_diagram() -> None:
     value = [320, 180, 45, 280, 210, 38, 150, 120, 85, 480, 40, 380, 130, 25, 180]
 
     palette = COLORS.QUALITATIVE
-    node_colors = palette[:len(labels)]
+    node_colors = palette[: len(labels)]
 
     fig = go.Figure(
         data=[
             go.Sankey(
                 node=dict(
-                    pad=15, thickness=20,
+                    pad=15,
+                    thickness=20,
                     line=dict(color="black", width=0.5),
-                    label=labels, color=node_colors,
+                    label=labels,
+                    color=node_colors,
                 ),
                 link=dict(source=source, target=target, value=value),
             )
@@ -285,7 +302,8 @@ def _render_network_graph() -> None:
             if np.random.random() > 0.6:
                 fig.add_trace(
                     go.Scatter(
-                        x=[tf_x[i], target_x[j]], y=[tf_y[i], target_y[j]],
+                        x=[tf_x[i], target_x[j]],
+                        y=[tf_y[i], target_y[j]],
                         mode="lines",
                         line=dict(color="rgba(150,150,150,0.3)", width=1),
                         showlegend=False,
@@ -294,21 +312,30 @@ def _render_network_graph() -> None:
 
     fig.add_trace(
         go.Scatter(
-            x=tf_x, y=tf_y, mode="markers+text",
+            x=tf_x,
+            y=tf_y,
+            mode="markers+text",
             marker=dict(size=30, color=COLORS.UP),
-            text=tfs, textposition="top center", name="TFs",
+            text=tfs,
+            textposition="top center",
+            name="TFs",
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=target_x, y=target_y, mode="markers+text",
+            x=target_x,
+            y=target_y,
+            mode="markers+text",
             marker=dict(size=20, color=COLORS.DOWN),
-            text=targets, textposition="bottom center", name="Target Genes",
+            text=targets,
+            textposition="bottom center",
+            name="Target Genes",
         )
     )
 
     fig.update_layout(
-        showlegend=True, height=500,
+        showlegend=True,
+        height=500,
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
     )
@@ -335,12 +362,14 @@ def _render_network_stats() -> None:
     """)
 
     st.subheader("Module Enrichment")
-    modules = pd.DataFrame({
-        "Module": ["Cell Cycle", "DNA Repair", "Metabolism", "Apoptosis"],
-        "Genes": [28, 18, 22, 15],
-        "TFs": [5, 4, 6, 3],
-        "FDR": [1e-15, 1e-10, 1e-8, 1e-5],
-    })
+    modules = pd.DataFrame(
+        {
+            "Module": ["Cell Cycle", "DNA Repair", "Metabolism", "Apoptosis"],
+            "Genes": [28, 18, 22, 15],
+            "TFs": [5, 4, 6, 3],
+            "FDR": [1e-15, 1e-10, 1e-8, 1e-5],
+        }
+    )
     st.dataframe(modules, use_container_width=True, hide_index=True)
 
 
@@ -386,7 +415,10 @@ def _render_multitrack_plot(gene: str) -> None:
     st.subheader(f"{gene} Locus Multi-omics Tracks")
 
     fig = make_subplots(
-        rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.02,
+        rows=5,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.02,
         row_heights=[0.15, 0.2, 0.2, 0.2, 0.25],
         subplot_titles=["Gene Model", "H3K4me3", "H3K27ac", "H3K4me1", "RNA-seq"],
     )
@@ -397,55 +429,106 @@ def _render_multitrack_plot(gene: str) -> None:
     gene_color = "#2c3e50"
 
     # Gene model (exons + intron)
-    fig.add_trace(go.Scatter(
-        x=[10, 10, 30, 30, 10], y=[0.3, 0.7, 0.7, 0.3, 0.3],
-        fill="toself", fillcolor=gene_color, line=dict(color=gene_color), name="Exon",
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=[30, 70], y=[0.5, 0.5],
-        mode="lines", line=dict(color=gene_color, width=2), name="Intron",
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=[70, 70, 90, 90, 70], y=[0.3, 0.7, 0.7, 0.3, 0.3],
-        fill="toself", fillcolor=gene_color, line=dict(color=gene_color), showlegend=False,
-    ), row=1, col=1)
+    fig.add_trace(
+        go.Scatter(
+            x=[10, 10, 30, 30, 10],
+            y=[0.3, 0.7, 0.7, 0.3, 0.3],
+            fill="toself",
+            fillcolor=gene_color,
+            line=dict(color=gene_color),
+            name="Exon",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[30, 70],
+            y=[0.5, 0.5],
+            mode="lines",
+            line=dict(color=gene_color, width=2),
+            name="Intron",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[70, 70, 90, 90, 70],
+            y=[0.3, 0.7, 0.7, 0.3, 0.3],
+            fill="toself",
+            fillcolor=gene_color,
+            line=dict(color=gene_color),
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
 
     # Histone tracks
     tracks = {
         "H3K4me3": (np.exp(-0.5 * ((x - 10) / 8) ** 2) * 3, COLORS.UP, 2),
         "H3K27ac": (
-            np.exp(-0.5 * ((x - 10) / 10) ** 2) * 2.5
-            + np.exp(-0.5 * ((x - 50) / 15) ** 2) * 2,
-            "#f39c12", 3,
+            np.exp(-0.5 * ((x - 10) / 10) ** 2) * 2.5 + np.exp(-0.5 * ((x - 50) / 15) ** 2) * 2,
+            "#f39c12",
+            3,
         ),
         "H3K4me1": (np.exp(-0.5 * ((x - 50) / 20) ** 2) * 1.8, "#27ae60", 4),
     }
 
     for name, (y_vals, color, row) in tracks.items():
         rgba = tuple(int(color[i : i + 2], 16) for i in (1, 3, 5))
-        fig.add_trace(go.Scatter(
-            x=x, y=y_vals * 0.6, fill="tozeroy",
-            fillcolor=f"rgba{(*rgba, 0.3)}", line=dict(color=color, width=1),
-            name=f"{name} Control",
-        ), row=row, col=1)
-        fig.add_trace(go.Scatter(
-            x=x, y=y_vals, fill="tozeroy",
-            fillcolor=f"rgba{(*rgba, 0.5)}", line=dict(color=color, width=1, dash="dash"),
-            name=f"{name} Treatment",
-        ), row=row, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=y_vals * 0.6,
+                fill="tozeroy",
+                fillcolor=f"rgba{(*rgba, 0.3)}",
+                line=dict(color=color, width=1),
+                name=f"{name} Control",
+            ),
+            row=row,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=y_vals,
+                fill="tozeroy",
+                fillcolor=f"rgba{(*rgba, 0.5)}",
+                line=dict(color=color, width=1, dash="dash"),
+                name=f"{name} Treatment",
+            ),
+            row=row,
+            col=1,
+        )
 
     # RNA-seq
     rna_y = np.where((x > 10) & (x < 90), np.random.uniform(0.5, 2, len(x)), 0.1)
-    fig.add_trace(go.Scatter(
-        x=x, y=rna_y * 0.6, fill="tozeroy",
-        fillcolor="rgba(52, 152, 219, 0.3)", line=dict(color=COLORS.DOWN, width=1),
-        name="RNA-seq Control",
-    ), row=5, col=1)
-    fig.add_trace(go.Scatter(
-        x=x, y=rna_y * 1.5, fill="tozeroy",
-        fillcolor="rgba(52, 152, 219, 0.5)", line=dict(color=COLORS.DOWN, width=1, dash="dash"),
-        name="RNA-seq Treatment",
-    ), row=5, col=1)
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=rna_y * 0.6,
+            fill="tozeroy",
+            fillcolor="rgba(52, 152, 219, 0.3)",
+            line=dict(color=COLORS.DOWN, width=1),
+            name="RNA-seq Control",
+        ),
+        row=5,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=rna_y * 1.5,
+            fill="tozeroy",
+            fillcolor="rgba(52, 152, 219, 0.5)",
+            line=dict(color=COLORS.DOWN, width=1, dash="dash"),
+            name="RNA-seq Treatment",
+        ),
+        row=5,
+        col=1,
+    )
 
     fig.update_layout(height=600, showlegend=False)
     fig.update_xaxes(title_text="Position (kb)", row=5, col=1)
@@ -508,15 +591,30 @@ def _render_export_options(has_workflow_manager: bool) -> None:
     col1, col2, col3 = st.columns(3)
 
     exports = [
-        (col1, "📊 Export Gene Table", "Multi-omics Gene Table Export",
-         "Gene-level integration table ready for download",
-         {"export_type": "gene_table"}, ["gene_integration_table"]),
-        (col2, "🔗 Export Network", "Regulatory Network Export",
-         "Regulatory network exported (Cytoscape format)",
-         {"export_type": "network", "format": "cytoscape"}, ["regulatory_network"]),
-        (col3, "📋 Generate Report", "Multi-omics Report",
-         "Full PDF report generated",
-         {"report_format": "pdf"}, ["multiomics_report"]),
+        (
+            col1,
+            "📊 Export Gene Table",
+            "Multi-omics Gene Table Export",
+            "Gene-level integration table ready for download",
+            {"export_type": "gene_table"},
+            ["gene_integration_table"],
+        ),
+        (
+            col2,
+            "🔗 Export Network",
+            "Regulatory Network Export",
+            "Regulatory network exported (Cytoscape format)",
+            {"export_type": "network", "format": "cytoscape"},
+            ["regulatory_network"],
+        ),
+        (
+            col3,
+            "📋 Generate Report",
+            "Multi-omics Report",
+            "Full PDF report generated",
+            {"report_format": "pdf"},
+            ["multiomics_report"],
+        ),
     ]
 
     for col, label, step_name, msg, params, outputs in exports:
@@ -526,6 +624,7 @@ def _render_export_options(has_workflow_manager: bool) -> None:
                 if has_workflow_manager:
                     try:
                         from frontend.components.workflow_manager import WorkflowManager
+
                         WorkflowManager.record_step(
                             step_name=step_name,
                             tool="EpiNexus Multi-omics Module",

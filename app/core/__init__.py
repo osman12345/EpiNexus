@@ -33,7 +33,7 @@ from .transcription_factors import (
     TFTargetPredictor,
     TFTargetPrediction,
     TFHistoneIntegrator,
-    run_tf_motif_analysis
+    run_tf_motif_analysis,
 )
 
 # Shared genomic utilities (interval-tree overlap, peak parsing, etc.)
@@ -58,21 +58,17 @@ __all__ = [
     "DifferentialAnalyzer",
     "DifferentialConfig",
     "DifferentialResults",
-
     # Annotation
     "PeakAnnotator",
     "GeneAnnotation",
     "AnnotationDatabase",
-
     # Integration
     "MarkIntegration",
     "IntegrationConfig",
     "IntegrationResults",
-
     # Quality control
     "QCAnalyzer",
     "QCMetrics",
-
     # TF Analysis
     "JASPARDatabase",
     "PositionWeightMatrix",
@@ -83,7 +79,6 @@ __all__ = [
     "TFTargetPrediction",
     "TFHistoneIntegrator",
     "run_tf_motif_analysis",
-
     # Legacy
     "DiffBindRunner",
 ]

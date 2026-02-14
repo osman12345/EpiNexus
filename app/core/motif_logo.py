@@ -9,15 +9,14 @@ Provides:
 """
 
 import numpy as np
-import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-import math
 
 
 @dataclass
 class MotifMatrix:
     """Position Weight Matrix for a TF motif."""
+
     name: str
     matrix: np.ndarray  # 4 x length (A, C, G, T)
     alphabet: str = "ACGT"
@@ -31,7 +30,7 @@ class MotifMatrix:
     def consensus(self) -> str:
         """Get consensus sequence."""
         indices = np.argmax(self.matrix, axis=0)
-        return ''.join([self.alphabet[i] for i in indices])
+        return "".join([self.alphabet[i] for i in indices])
 
 
 class MotifLogoGenerator:
@@ -39,29 +38,24 @@ class MotifLogoGenerator:
 
     # Standard nucleotide colors (WebLogo style)
     COLORS = {
-        'A': '#2ECC71',  # Green
-        'C': '#3498DB',  # Blue
-        'G': '#F39C12',  # Orange/Yellow
-        'T': '#E74C3c',  # Red
+        "A": "#2ECC71",  # Green
+        "C": "#3498DB",  # Blue
+        "G": "#F39C12",  # Orange/Yellow
+        "T": "#E74C3c",  # Red
     }
 
     # Alternative color schemes
     COLOR_SCHEMES = {
-        'weblogo': {'A': '#2ECC71', 'C': '#3498DB', 'G': '#F39C12', 'T': '#E74C3C'},
-        'classic': {'A': '#00CC00', 'C': '#0000CC', 'G': '#FFB300', 'T': '#CC0000'},
-        'colorblind': {'A': '#009E73', 'C': '#0072B2', 'G': '#D55E00', 'T': '#CC79A7'},
-        'grayscale': {'A': '#404040', 'C': '#808080', 'G': '#606060', 'T': '#A0A0A0'}
+        "weblogo": {"A": "#2ECC71", "C": "#3498DB", "G": "#F39C12", "T": "#E74C3C"},
+        "classic": {"A": "#00CC00", "C": "#0000CC", "G": "#FFB300", "T": "#CC0000"},
+        "colorblind": {"A": "#009E73", "C": "#0072B2", "G": "#D55E00", "T": "#CC79A7"},
+        "grayscale": {"A": "#404040", "C": "#808080", "G": "#606060", "T": "#A0A0A0"},
     }
 
-    def __init__(self, color_scheme: str = 'weblogo'):
-        self.colors = self.COLOR_SCHEMES.get(color_scheme, self.COLOR_SCHEMES['weblogo'])
+    def __init__(self, color_scheme: str = "weblogo"):
+        self.colors = self.COLOR_SCHEMES.get(color_scheme, self.COLOR_SCHEMES["weblogo"])
 
-    def pfm_to_pwm(
-        self,
-        pfm: np.ndarray,
-        pseudocount: float = 0.01,
-        background: np.ndarray = None
-    ) -> np.ndarray:
+    def pfm_to_pwm(self, pfm: np.ndarray, pseudocount: float = 0.01, background: np.ndarray = None) -> np.ndarray:
         """Convert Position Frequency Matrix to Position Weight Matrix."""
 
         if background is None:
@@ -76,11 +70,7 @@ class MotifLogoGenerator:
 
         return pwm
 
-    def calculate_information_content(
-        self,
-        ppm: np.ndarray,
-        background: np.ndarray = None
-    ) -> np.ndarray:
+    def calculate_information_content(self, ppm: np.ndarray, background: np.ndarray = None) -> np.ndarray:
         """
         Calculate information content (bits) at each position.
 
@@ -104,10 +94,7 @@ class MotifLogoGenerator:
 
         return ic
 
-    def calculate_height_matrix(
-        self,
-        ppm: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def calculate_height_matrix(self, ppm: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate letter heights for logo visualization.
 
@@ -123,10 +110,7 @@ class MotifLogoGenerator:
 
         return heights, ic
 
-    def generate_logo_data(
-        self,
-        motif: MotifMatrix
-    ) -> Dict:
+    def generate_logo_data(self, motif: MotifMatrix) -> Dict:
         """
         Generate data for logo visualization.
 
@@ -151,31 +135,28 @@ class MotifLogoGenerator:
                 height = pos_heights[idx]
 
                 if height > 0.01:  # Skip very small letters
-                    logo_data.append({
-                        'position': pos + 1,
-                        'letter': letter,
-                        'height': height,
-                        'y_start': y_offset,
-                        'y_end': y_offset + height,
-                        'color': self.colors[letter],
-                        'ic': ic[pos]
-                    })
+                    logo_data.append(
+                        {
+                            "position": pos + 1,
+                            "letter": letter,
+                            "height": height,
+                            "y_start": y_offset,
+                            "y_end": y_offset + height,
+                            "color": self.colors[letter],
+                            "ic": ic[pos],
+                        }
+                    )
                     y_offset += height
 
         return {
-            'elements': logo_data,
-            'length': motif.length,
-            'max_ic': ic.max(),
-            'total_ic': ic.sum(),
-            'consensus': motif.consensus
+            "elements": logo_data,
+            "length": motif.length,
+            "max_ic": ic.max(),
+            "total_ic": ic.sum(),
+            "consensus": motif.consensus,
         }
 
-    def generate_plotly_logo(
-        self,
-        motif: MotifMatrix,
-        width: int = 600,
-        height: int = 200
-    ):
+    def generate_plotly_logo(self, motif: MotifMatrix, width: int = 600, height: int = 200):
         """Generate a Plotly figure for the motif logo."""
         import plotly.graph_objects as go
 
@@ -184,34 +165,34 @@ class MotifLogoGenerator:
         fig = go.Figure()
 
         # Create letter shapes
-        for elem in logo_data['elements']:
-            fig.add_trace(go.Scatter(
-                x=[elem['position'] - 0.4, elem['position'] - 0.4,
-                   elem['position'] + 0.4, elem['position'] + 0.4],
-                y=[elem['y_start'], elem['y_end'],
-                   elem['y_end'], elem['y_start']],
-                fill='toself',
-                fillcolor=elem['color'],
-                line=dict(width=0),
-                mode='lines',
-                name=elem['letter'],
-                showlegend=False,
-                hoverinfo='text',
-                hovertext=f"Position: {elem['position']}<br>Letter: {elem['letter']}<br>Height: {elem['height']:.3f}"
-            ))
+        for elem in logo_data["elements"]:
+            fig.add_trace(
+                go.Scatter(
+                    x=[elem["position"] - 0.4, elem["position"] - 0.4, elem["position"] + 0.4, elem["position"] + 0.4],
+                    y=[elem["y_start"], elem["y_end"], elem["y_end"], elem["y_start"]],
+                    fill="toself",
+                    fillcolor=elem["color"],
+                    line=dict(width=0),
+                    mode="lines",
+                    name=elem["letter"],
+                    showlegend=False,
+                    hoverinfo="text",
+                    hovertext=f"Position: {elem['position']}<br>Letter: {elem['letter']}<br>Height: {elem['height']:.3f}",
+                )
+            )
 
             # Add letter text
-            if elem['height'] > 0.1:
+            if elem["height"] > 0.1:
                 fig.add_annotation(
-                    x=elem['position'],
-                    y=(elem['y_start'] + elem['y_end']) / 2,
+                    x=elem["position"],
+                    y=(elem["y_start"] + elem["y_end"]) / 2,
                     text=f"<b>{elem['letter']}</b>",
                     showarrow=False,
                     font=dict(
-                        size=min(24, int(elem['height'] * 30)),
-                        color='white' if elem['letter'] in ['G', 'T'] else 'white',
-                        family='Arial Black'
-                    )
+                        size=min(24, int(elem["height"] * 30)),
+                        color="white" if elem["letter"] in ["G", "T"] else "white",
+                        family="Arial Black",
+                    ),
                 )
 
         fig.update_layout(
@@ -220,24 +201,15 @@ class MotifLogoGenerator:
             yaxis_title="Information Content (bits)",
             width=width,
             height=height,
-            xaxis=dict(
-                tickmode='linear',
-                tick0=1,
-                dtick=1,
-                range=[0.5, motif.length + 0.5]
-            ),
+            xaxis=dict(tickmode="linear", tick0=1, dtick=1, range=[0.5, motif.length + 0.5]),
             yaxis=dict(range=[0, 2.2]),
             showlegend=False,
-            plot_bgcolor='white'
+            plot_bgcolor="white",
         )
 
         return fig
 
-    def compare_motifs(
-        self,
-        motif1: MotifMatrix,
-        motif2: MotifMatrix
-    ) -> Dict[str, float]:
+    def compare_motifs(self, motif1: MotifMatrix, motif2: MotifMatrix) -> Dict[str, float]:
         """
         Compare two motifs using various metrics.
 
@@ -269,55 +241,63 @@ class MotifLogoGenerator:
         euclidean = np.sqrt(np.sum((ppm1 - ppm2) ** 2))
 
         return {
-            'pearson_correlation': corr,
-            'kl_divergence': kl_div,
-            'euclidean_distance': euclidean,
-            'length_diff': abs(len1 - len2)
+            "pearson_correlation": corr,
+            "kl_divergence": kl_div,
+            "euclidean_distance": euclidean,
+            "length_diff": abs(len1 - len2),
         }
 
 
 # Pre-defined motifs for common TFs
 KNOWN_MOTIFS = {
-    'CTCF': MotifMatrix(
-        name='CTCF',
-        matrix=np.array([
-            [0.1, 0.1, 0.7, 0.1, 0.1, 0.1, 0.6, 0.1, 0.1, 0.7, 0.1, 0.1],  # A
-            [0.2, 0.7, 0.1, 0.1, 0.7, 0.6, 0.1, 0.1, 0.7, 0.1, 0.6, 0.2],  # C
-            [0.6, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.7, 0.1, 0.1, 0.2, 0.1],  # G
-            [0.1, 0.1, 0.1, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.6]   # T
-        ]),
-        source='JASPAR'
+    "CTCF": MotifMatrix(
+        name="CTCF",
+        matrix=np.array(
+            [
+                [0.1, 0.1, 0.7, 0.1, 0.1, 0.1, 0.6, 0.1, 0.1, 0.7, 0.1, 0.1],  # A
+                [0.2, 0.7, 0.1, 0.1, 0.7, 0.6, 0.1, 0.1, 0.7, 0.1, 0.6, 0.2],  # C
+                [0.6, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.7, 0.1, 0.1, 0.2, 0.1],  # G
+                [0.1, 0.1, 0.1, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.6],  # T
+            ]
+        ),
+        source="JASPAR",
     ),
-    'SP1': MotifMatrix(
-        name='SP1',
-        matrix=np.array([
-            [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # A
-            [0.1, 0.1, 0.8, 0.1, 0.8, 0.8, 0.1, 0.8, 0.8, 0.1],  # C
-            [0.7, 0.7, 0.1, 0.8, 0.1, 0.1, 0.8, 0.1, 0.1, 0.8],  # G
-            [0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1]   # T
-        ]),
-        source='JASPAR'
+    "SP1": MotifMatrix(
+        name="SP1",
+        matrix=np.array(
+            [
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # A
+                [0.1, 0.1, 0.8, 0.1, 0.8, 0.8, 0.1, 0.8, 0.8, 0.1],  # C
+                [0.7, 0.7, 0.1, 0.8, 0.1, 0.1, 0.8, 0.1, 0.1, 0.8],  # G
+                [0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1],  # T
+            ]
+        ),
+        source="JASPAR",
     ),
-    'MYC': MotifMatrix(
-        name='MYC (E-box)',
-        matrix=np.array([
-            [0.1, 0.7, 0.1, 0.1, 0.1, 0.7],  # A
-            [0.7, 0.1, 0.8, 0.8, 0.1, 0.1],  # C
-            [0.1, 0.1, 0.1, 0.1, 0.8, 0.1],  # G
-            [0.1, 0.1, 0.0, 0.0, 0.0, 0.1]   # T
-        ]),
-        source='JASPAR'
+    "MYC": MotifMatrix(
+        name="MYC (E-box)",
+        matrix=np.array(
+            [
+                [0.1, 0.7, 0.1, 0.1, 0.1, 0.7],  # A
+                [0.7, 0.1, 0.8, 0.8, 0.1, 0.1],  # C
+                [0.1, 0.1, 0.1, 0.1, 0.8, 0.1],  # G
+                [0.1, 0.1, 0.0, 0.0, 0.0, 0.1],  # T
+            ]
+        ),
+        source="JASPAR",
     ),
-    'GATA1': MotifMatrix(
-        name='GATA1',
-        matrix=np.array([
-            [0.1, 0.1, 0.8, 0.1, 0.9, 0.1, 0.1],  # A
-            [0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1],  # C
-            [0.7, 0.8, 0.1, 0.8, 0.1, 0.1, 0.7],  # G
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.7, 0.1]   # T
-        ]),
-        source='JASPAR'
-    )
+    "GATA1": MotifMatrix(
+        name="GATA1",
+        matrix=np.array(
+            [
+                [0.1, 0.1, 0.8, 0.1, 0.9, 0.1, 0.1],  # A
+                [0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1],  # C
+                [0.7, 0.8, 0.1, 0.8, 0.1, 0.1, 0.7],  # G
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.7, 0.1],  # T
+            ]
+        ),
+        source="JASPAR",
+    ),
 }
 
 

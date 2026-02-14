@@ -5,9 +5,8 @@ Supports multiple reference genomes, configurable tool paths,
 and flexible deployment options.
 """
 
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
@@ -21,43 +20,43 @@ class GenomeConfig:
             "species": "Mus musculus",
             "txdb": "TxDb.Mmusculus.UCSC.mm10.knownGene",
             "orgdb": "org.Mm.eg.db",
-            "chrom_sizes": "mm10.chrom.sizes"
+            "chrom_sizes": "mm10.chrom.sizes",
         },
         "mm39": {
             "name": "Mouse (mm39/GRCm39)",
             "species": "Mus musculus",
             "txdb": "TxDb.Mmusculus.UCSC.mm39.knownGene",
             "orgdb": "org.Mm.eg.db",
-            "chrom_sizes": "mm39.chrom.sizes"
+            "chrom_sizes": "mm39.chrom.sizes",
         },
         "hg38": {
             "name": "Human (hg38/GRCh38)",
             "species": "Homo sapiens",
             "txdb": "TxDb.Hsapiens.UCSC.hg38.knownGene",
             "orgdb": "org.Hs.eg.db",
-            "chrom_sizes": "hg38.chrom.sizes"
+            "chrom_sizes": "hg38.chrom.sizes",
         },
         "hg19": {
             "name": "Human (hg19/GRCh37)",
             "species": "Homo sapiens",
             "txdb": "TxDb.Hsapiens.UCSC.hg19.knownGene",
             "orgdb": "org.Hs.eg.db",
-            "chrom_sizes": "hg19.chrom.sizes"
+            "chrom_sizes": "hg19.chrom.sizes",
         },
         "rn6": {
             "name": "Rat (rn6)",
             "species": "Rattus norvegicus",
             "txdb": "TxDb.Rnorvegicus.UCSC.rn6.refGene",
             "orgdb": "org.Rn.eg.db",
-            "chrom_sizes": "rn6.chrom.sizes"
+            "chrom_sizes": "rn6.chrom.sizes",
         },
         "rn7": {
             "name": "Rat (rn7/mRatBN7.2)",
             "species": "Rattus norvegicus",
             "txdb": "TxDb.Rnorvegicus.UCSC.rn7.refGene",
             "orgdb": "org.Rn.eg.db",
-            "chrom_sizes": "rn7.chrom.sizes"
-        }
+            "chrom_sizes": "rn7.chrom.sizes",
+        },
     }
 
     HISTONE_MARKS = {
@@ -65,38 +64,28 @@ class GenomeConfig:
             "type": "active",
             "description": "Active enhancers and promoters",
             "peak_type": "sharp",
-            "color": "#4DAF4A"
+            "color": "#4DAF4A",
         },
         "H3K27me3": {
             "type": "repressive",
             "description": "Polycomb repression",
             "peak_type": "broad",
-            "color": "#E41A1C"
+            "color": "#E41A1C",
         },
         "H3K4me1": {
             "type": "priming",
             "description": "Enhancer priming/poised",
             "peak_type": "broad",
-            "color": "#FF7F00"
+            "color": "#FF7F00",
         },
-        "H3K4me3": {
-            "type": "active",
-            "description": "Active promoters",
-            "peak_type": "sharp",
-            "color": "#377EB8"
-        },
-        "H3K9me3": {
-            "type": "repressive",
-            "description": "Heterochromatin",
-            "peak_type": "broad",
-            "color": "#984EA3"
-        },
+        "H3K4me3": {"type": "active", "description": "Active promoters", "peak_type": "sharp", "color": "#377EB8"},
+        "H3K9me3": {"type": "repressive", "description": "Heterochromatin", "peak_type": "broad", "color": "#984EA3"},
         "H3K36me3": {
             "type": "active",
             "description": "Transcribed gene bodies",
             "peak_type": "broad",
-            "color": "#A65628"
-        }
+            "color": "#A65628",
+        },
     }
 
 

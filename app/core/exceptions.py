@@ -8,6 +8,7 @@ and debugging throughout the analysis pipeline.
 
 class EpiNexusError(Exception):
     """Base exception for all EpiNexus errors."""
+
     pass
 
 
@@ -15,23 +16,28 @@ class EpiNexusError(Exception):
 # Input / File errors
 # ============================================================================
 
+
 class FileFormatError(EpiNexusError):
     """Raised when an input file has an unexpected or invalid format."""
+
     pass
 
 
 class PeakFileFormatError(FileFormatError):
     """Raised when a BED/narrowPeak/broadPeak file is malformed."""
+
     pass
 
 
 class GTFParseError(FileFormatError):
     """Raised when a GTF/GFF annotation file cannot be parsed."""
+
     pass
 
 
 class ExpressionFileFormatError(FileFormatError):
     """Raised when an expression data file has an unrecognized format."""
+
     pass
 
 
@@ -39,8 +45,10 @@ class ExpressionFileFormatError(FileFormatError):
 # Data validation errors
 # ============================================================================
 
+
 class ValidationError(EpiNexusError):
     """Raised when input data fails validation checks."""
+
     pass
 
 
@@ -49,9 +57,7 @@ class MissingColumnError(ValidationError):
 
     def __init__(self, column: str, dataframe_name: str = "DataFrame", available: list = None):
         available_str = f" Available columns: {available}" if available else ""
-        super().__init__(
-            f"Required column '{column}' not found in {dataframe_name}.{available_str}"
-        )
+        super().__init__(f"Required column '{column}' not found in {dataframe_name}.{available_str}")
         self.column = column
         self.available = available
 
@@ -60,9 +66,7 @@ class InsufficientSamplesError(ValidationError):
     """Raised when there are too few samples for an analysis."""
 
     def __init__(self, required: int, actual: int, context: str = "analysis"):
-        super().__init__(
-            f"Insufficient samples for {context}: need at least {required}, got {actual}"
-        )
+        super().__init__(f"Insufficient samples for {context}: need at least {required}, got {actual}")
         self.required = required
         self.actual = actual
 
@@ -91,38 +95,46 @@ class InvalidParameterError(ValidationError):
 # Analysis errors
 # ============================================================================
 
+
 class AnalysisError(EpiNexusError):
     """Base class for analysis-specific errors."""
+
     pass
 
 
 class DifferentialAnalysisError(AnalysisError):
     """Raised when differential peak analysis fails."""
+
     pass
 
 
 class NormalizationError(AnalysisError):
     """Raised when count matrix normalization fails."""
+
     pass
 
 
 class PeakAnnotationError(AnalysisError):
     """Raised when peak annotation fails."""
+
     pass
 
 
 class MotifAnalysisError(AnalysisError):
     """Raised when TF motif analysis fails."""
+
     pass
 
 
 class IntegrationError(AnalysisError):
     """Raised when multi-omics integration fails."""
+
     pass
 
 
 class PeakGeneLinkError(AnalysisError):
     """Raised when peak-to-gene linking fails."""
+
     pass
 
 
@@ -130,29 +142,35 @@ class PeakGeneLinkError(AnalysisError):
 # Pipeline errors
 # ============================================================================
 
+
 class PipelineError(EpiNexusError):
     """Base class for pipeline execution errors."""
+
     pass
 
 
 class AlignmentError(PipelineError):
     """Raised when read alignment fails."""
+
     pass
 
 
 class PeakCallingError(PipelineError):
     """Raised when peak calling fails."""
+
     pass
 
 
 class PipelineConfigError(PipelineError):
     """Raised when pipeline configuration is invalid."""
+
     pass
 
 
 # ============================================================================
 # Validation helpers
 # ============================================================================
+
 
 def validate_dataframe(
     df,
@@ -191,9 +209,7 @@ def validate_dataframe(
     if min_rows > 0 and len(df) < min_rows:
         if len(df) == 0:
             raise EmptyDataError(name)
-        raise ValidationError(
-            f"{name} has {len(df)} rows but at least {min_rows} are required"
-        )
+        raise ValidationError(f"{name} has {len(df)} rows but at least {min_rows} are required")
 
     if required_columns:
         for col in required_columns:

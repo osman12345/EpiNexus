@@ -16,14 +16,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Page configuration - MUST be first Streamlit command
 st.set_page_config(
-    page_title="EpiNexus - Epigenomics Analysis",
-    page_icon="🧬",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="EpiNexus - Epigenomics Analysis", page_icon="🧬", layout="wide", initial_sidebar_state="expanded"
 )
 
 # Hide Streamlit deploy button, menu, and header
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Hide deploy button */
     .stDeployButton {display: none !important;}
@@ -41,11 +39,14 @@ st.markdown("""
     footer {visibility: hidden !important;}
     [data-testid="stFooter"] {display: none !important;}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # =============================================================================
 # INITIALIZE SESSION STATE
 # =============================================================================
+
 
 def init_session_state():
     defaults = {
@@ -64,16 +65,19 @@ def init_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
+
 init_session_state()
 
 # =============================================================================
 # HOME PAGE CONTENT (must be defined before st.Page references it)
 # =============================================================================
 
+
 def render_home_dashboard():
     """Render the main dashboard / home page."""
 
-    st.markdown("""
+    st.markdown(
+        """
     <h1 style="background: linear-gradient(90deg, #1f77b4, #7b2cbf);
                -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
         🧬 EpiNexus
@@ -81,7 +85,9 @@ def render_home_dashboard():
     <p style="font-size: 1.2rem; color: #666;">
         Comprehensive Epigenomics Analysis Platform for ChIP-seq, CUT&Tag, and ATAC-seq
     </p>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Quick start cards
     st.markdown("### 🚀 Quick Start")

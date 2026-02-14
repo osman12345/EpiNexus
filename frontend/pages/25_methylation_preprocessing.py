@@ -12,7 +12,6 @@ import pandas as pd
 from pathlib import Path
 import subprocess
 import tempfile
-import shutil
 
 # =============================================================================
 # CONFIGURATION
@@ -22,24 +21,21 @@ ALIGNERS = {
     "Bismark": {
         "description": "Gold standard for bisulfite alignment",
         "command": "bismark",
-        "url": "https://www.bioinformatics.babraham.ac.uk/projects/bismark/"
+        "url": "https://www.bioinformatics.babraham.ac.uk/projects/bismark/",
     },
     "bwa-meth": {
         "description": "Fast bisulfite aligner using BWA",
         "command": "bwameth.py",
-        "url": "https://github.com/brentp/bwa-meth"
+        "url": "https://github.com/brentp/bwa-meth",
     },
 }
 
 METHYLATION_CALLERS = {
     "Bismark Extractor": {
         "description": "Extract methylation calls from Bismark BAM",
-        "command": "bismark_methylation_extractor"
+        "command": "bismark_methylation_extractor",
     },
-    "MethylDackel": {
-        "description": "Fast methylation caller for any aligner",
-        "command": "MethylDackel"
-    },
+    "MethylDackel": {"description": "Fast methylation caller for any aligner", "command": "MethylDackel"},
 }
 
 GENOMES = {
@@ -52,10 +48,12 @@ GENOMES = {
 # Try to import workflow manager
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
         from components.workflow_manager import WorkflowManager
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -64,17 +62,19 @@ except ImportError:
 # UTILITY FUNCTIONS
 # =============================================================================
 
+
 def check_tool(tool_name: str) -> bool:
     """Check if a command-line tool is available."""
     try:
         result = subprocess.run(
             [tool_name, "--version"] if tool_name != "bwameth.py" else [tool_name, "-h"],
             capture_output=True,
-            check=False
+            check=False,
         )
         return result.returncode == 0 or "bismark" in result.stderr.decode().lower()
     except FileNotFoundError:
         return False
+
 
 def check_genome_index(genome: str, aligner: str) -> dict:
     """Check if genome index exists for the specified aligner."""
@@ -92,23 +92,23 @@ def check_genome_index(genome: str, aligner: str) -> dict:
 
     return {"exists": False, "path": None}
 
+
 def run_bismark_alignment(
-    fastq1: str,
-    fastq2: str | None,
-    genome_path: str,
-    output_dir: str,
-    threads: int = 4,
-    options: dict = None
+    fastq1: str, fastq2: str | None, genome_path: str, output_dir: str, threads: int = 4, options: dict = None
 ) -> dict:
     """Run Bismark alignment."""
     options = options or {}
 
     cmd = [
         "bismark",
-        "--genome", genome_path,
-        "--output_dir", output_dir,
-        "--parallel", str(max(1, threads // 4)),  # Bismark uses 4 threads per instance
-        "--temp_dir", tempfile.gettempdir(),
+        "--genome",
+        genome_path,
+        "--output_dir",
+        output_dir,
+        "--parallel",
+        str(max(1, threads // 4)),  # Bismark uses 4 threads per instance
+        "--temp_dir",
+        tempfile.gettempdir(),
     ]
 
     # Add options
@@ -133,15 +133,12 @@ def run_bismark_alignment(
         "success": result.returncode == 0,
         "stdout": result.stdout,
         "stderr": result.stderr,
-        "command": " ".join(cmd)
+        "command": " ".join(cmd),
     }
 
+
 def run_methylation_extraction(
-    bam_file: str,
-    genome_path: str,
-    output_dir: str,
-    paired: bool = True,
-    options: dict = None
+    bam_file: str, genome_path: str, output_dir: str, paired: bool = True, options: dict = None
 ) -> dict:
     """Run Bismark methylation extractor."""
     options = options or {}
@@ -151,8 +148,10 @@ def run_methylation_extraction(
         "--gzip",
         "--bedGraph",
         "--cytosine_report",
-        "--genome_folder", genome_path,
-        "-o", output_dir,
+        "--genome_folder",
+        genome_path,
+        "-o",
+        output_dir,
     ]
 
     if paired:
@@ -177,22 +176,21 @@ def run_methylation_extraction(
         "success": result.returncode == 0,
         "stdout": result.stdout,
         "stderr": result.stderr,
-        "command": " ".join(cmd)
+        "command": " ".join(cmd),
     }
 
-def run_methyldackel(
-    bam_file: str,
-    genome_fasta: str,
-    output_prefix: str,
-    options: dict = None
-) -> dict:
+
+def run_methyldackel(bam_file: str, genome_fasta: str, output_prefix: str, options: dict = None) -> dict:
     """Run MethylDackel for methylation calling."""
     options = options or {}
 
     cmd = [
-        "MethylDackel", "extract",
-        "--CHH", "--CHG",  # Include non-CpG contexts
-        "-o", output_prefix,
+        "MethylDackel",
+        "extract",
+        "--CHH",
+        "--CHG",  # Include non-CpG contexts
+        "-o",
+        output_prefix,
     ]
 
     if options.get("min_depth"):
@@ -209,8 +207,9 @@ def run_methyldackel(
         "success": result.returncode == 0,
         "stdout": result.stdout,
         "stderr": result.stderr,
-        "command": " ".join(cmd)
+        "command": " ".join(cmd),
     }
+
 
 def parse_bismark_report(report_path: str) -> dict:
     """Parse Bismark alignment report."""
@@ -242,22 +241,24 @@ def parse_bismark_report(report_path: str) -> dict:
         match = re.search(pattern, content)
         if match:
             value = match.group(1)
-            stats[key] = float(value) if '.' in value else int(value)
+            stats[key] = float(value) if "." in value else int(value)
 
     return stats
+
 
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
+
 
 def main():
     st.title("🧬 Methylation Preprocessing")
     st.markdown("Bisulfite alignment and methylation calling")
 
     # Initialize session state
-    if 'meth_alignments' not in st.session_state:
+    if "meth_alignments" not in st.session_state:
         st.session_state.meth_alignments = []
-    if 'meth_calls' not in st.session_state:
+    if "meth_calls" not in st.session_state:
         st.session_state.meth_calls = []
 
     # Check tool availability
@@ -307,10 +308,7 @@ def main():
             """)
 
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🧬 Alignment", "📊 Methylation Calling",
-        "📁 Upload Existing", "📋 Results"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(["🧬 Alignment", "📊 Methylation Calling", "📁 Upload Existing", "📋 Results"])
 
     # =========================================================================
     # TAB 1: ALIGNMENT
@@ -321,17 +319,9 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            aligner = st.selectbox(
-                "Aligner",
-                list(ALIGNERS.keys()),
-                help="Bismark is recommended for most use cases"
-            )
+            aligner = st.selectbox("Aligner", list(ALIGNERS.keys()), help="Bismark is recommended for most use cases")
 
-            genome = st.selectbox(
-                "Reference Genome",
-                list(GENOMES.keys()),
-                format_func=lambda x: f"{x} - {GENOMES[x]}"
-            )
+            genome = st.selectbox("Reference Genome", list(GENOMES.keys()), format_func=lambda x: f"{x} - {GENOMES[x]}")
 
             # Check for genome index
             index_info = check_genome_index(genome, aligner)
@@ -340,8 +330,7 @@ def main():
                 genome_path = index_info["path"]
             else:
                 genome_path = st.text_input(
-                    "Path to Bismark genome index",
-                    help="Directory containing Bisulfite_Genome folder"
+                    "Path to Bismark genome index", help="Directory containing Bisulfite_Genome folder"
                 )
 
                 st.info("""
@@ -352,15 +341,9 @@ def main():
                 """)
 
         with col2:
-            library_type = st.selectbox(
-                "Library Type",
-                ["Directional (standard)", "Non-directional", "PBAT"]
-            )
+            library_type = st.selectbox("Library Type", ["Directional (standard)", "Non-directional", "PBAT"])
 
-            seq_type = st.radio(
-                "Sequencing Type",
-                ["Paired-end", "Single-end"]
-            )
+            seq_type = st.radio("Sequencing Type", ["Paired-end", "Single-end"])
 
             threads = st.slider("Threads", 1, 32, 8)
 
@@ -369,21 +352,17 @@ def main():
         # Input files
         st.markdown("### Input FASTQ Files")
 
-        input_method = st.radio(
-            "Input Method",
-            ["Upload Files", "Specify Paths"],
-            horizontal=True
-        )
+        input_method = st.radio("Input Method", ["Upload Files", "Specify Paths"], horizontal=True)
 
         if input_method == "Upload Files":
             if seq_type == "Paired-end":
                 col1, col2 = st.columns(2)
                 with col1:
-                    fastq1 = st.file_uploader("Read 1 (R1)", type=['fastq', 'fq', 'gz'])
+                    fastq1 = st.file_uploader("Read 1 (R1)", type=["fastq", "fq", "gz"])
                 with col2:
-                    fastq2 = st.file_uploader("Read 2 (R2)", type=['fastq', 'fq', 'gz'])
+                    fastq2 = st.file_uploader("Read 2 (R2)", type=["fastq", "fq", "gz"])
             else:
-                fastq1 = st.file_uploader("FASTQ File", type=['fastq', 'fq', 'gz'])
+                fastq1 = st.file_uploader("FASTQ File", type=["fastq", "fq", "gz"])
                 fastq2 = None
         else:
             if seq_type == "Paired-end":
@@ -402,8 +381,9 @@ def main():
         with st.expander("Advanced Options"):
             col1, col2 = st.columns(2)
             with col1:
-                local_align = st.checkbox("Local alignment", value=False,
-                                         help="Use local alignment instead of end-to-end")
+                local_align = st.checkbox(
+                    "Local alignment", value=False, help="Use local alignment instead of end-to-end"
+                )
                 ambiguous = st.checkbox("Report ambiguous", value=False)
             with col2:
                 nucleotide_cov = st.checkbox("Nucleotide coverage report", value=True)
@@ -419,13 +399,15 @@ def main():
                     st.info("Alignment would run here with the specified parameters")
 
                     # Simulated result for demo
-                    st.session_state.meth_alignments.append({
-                        'sample': sample_name,
-                        'aligner': aligner,
-                        'genome': genome,
-                        'status': 'completed',
-                        'bam_file': f"{sample_name}_bismark_bt2.bam"
-                    })
+                    st.session_state.meth_alignments.append(
+                        {
+                            "sample": sample_name,
+                            "aligner": aligner,
+                            "genome": genome,
+                            "status": "completed",
+                            "bam_file": f"{sample_name}_bismark_bt2.bam",
+                        }
+                    )
 
                     st.success("Alignment complete!")
 
@@ -434,13 +416,9 @@ def main():
                         WorkflowManager.record_step(
                             step_name="Bisulfite Alignment",
                             tool="Bismark",
-                            parameters={
-                                'aligner': aligner,
-                                'genome': genome,
-                                'sample': sample_name
-                            },
-                            inputs=['fastq_files', 'genome_index'],
-                            outputs=['aligned_bam']
+                            parameters={"aligner": aligner, "genome": genome, "sample": sample_name},
+                            inputs=["fastq_files", "genome_index"],
+                            outputs=["aligned_bam"],
                         )
 
     # =========================================================================
@@ -452,36 +430,25 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            caller = st.selectbox(
-                "Methylation Caller",
-                list(METHYLATION_CALLERS.keys())
-            )
+            caller = st.selectbox("Methylation Caller", list(METHYLATION_CALLERS.keys()))
 
             # Input BAM
-            bam_source = st.radio(
-                "BAM Source",
-                ["From Alignment Step", "Upload BAM", "Specify Path"],
-                horizontal=True
-            )
+            bam_source = st.radio("BAM Source", ["From Alignment Step", "Upload BAM", "Specify Path"], horizontal=True)
 
         with col2:
             min_cov = st.slider("Minimum Coverage", 1, 20, 5)
 
-            contexts = st.multiselect(
-                "Methylation Contexts",
-                ["CpG", "CHG", "CHH"],
-                default=["CpG"]
-            )
+            contexts = st.multiselect("Methylation Contexts", ["CpG", "CHG", "CHH"], default=["CpG"])
 
         if bam_source == "From Alignment Step":
             if st.session_state.meth_alignments:
-                bam_options = [a['bam_file'] for a in st.session_state.meth_alignments]
+                bam_options = [a["bam_file"] for a in st.session_state.meth_alignments]
                 selected_bam = st.selectbox("Select BAM", bam_options)
             else:
                 st.info("No alignments available. Run alignment first or upload BAM.")
                 selected_bam = None
         elif bam_source == "Upload BAM":
-            bam_upload = st.file_uploader("Upload BAM file", type=['bam'])
+            bam_upload = st.file_uploader("Upload BAM file", type=["bam"])
             selected_bam = bam_upload.name if bam_upload else None
         else:
             selected_bam = st.text_input("BAM file path")
@@ -493,8 +460,7 @@ def main():
                 comprehensive = st.checkbox("Comprehensive output", value=True)
                 merge_non_cpg = st.checkbox("Merge non-CpG", value=False)
             with col2:
-                no_overlap = st.checkbox("No overlap (PE)", value=True,
-                                        help="Avoid double-counting overlapping reads")
+                no_overlap = st.checkbox("No overlap (PE)", value=True, help="Avoid double-counting overlapping reads")
                 cytosine_report = st.checkbox("Cytosine report", value=True)
 
         if st.button("▶️ Extract Methylation", type="primary"):
@@ -502,12 +468,14 @@ def main():
                 with st.spinner(f"Running {caller}..."):
                     st.info("Methylation extraction would run here")
 
-                    st.session_state.meth_calls.append({
-                        'sample': Path(selected_bam).stem,
-                        'caller': caller,
-                        'contexts': contexts,
-                        'status': 'completed'
-                    })
+                    st.session_state.meth_calls.append(
+                        {
+                            "sample": Path(selected_bam).stem,
+                            "caller": caller,
+                            "contexts": contexts,
+                            "status": "completed",
+                        }
+                    )
 
                     st.success("Methylation calling complete!")
 
@@ -516,13 +484,9 @@ def main():
                         WorkflowManager.record_step(
                             step_name="Methylation Calling",
                             tool=caller,
-                            parameters={
-                                'bam_file': selected_bam,
-                                'min_coverage': min_cov,
-                                'contexts': contexts
-                            },
-                            inputs=['aligned_bam'],
-                            outputs=['methylation_calls']
+                            parameters={"bam_file": selected_bam, "min_coverage": min_cov, "contexts": contexts},
+                            inputs=["aligned_bam"],
+                            outputs=["methylation_calls"],
                         )
             else:
                 st.error("Please select or upload a BAM file")
@@ -544,9 +508,7 @@ def main():
         """)
 
         uploaded_files = st.file_uploader(
-            "Upload methylation files",
-            type=['cov', 'bedgraph', 'txt', 'gz', 'methylkit'],
-            accept_multiple_files=True
+            "Upload methylation files", type=["cov", "bedgraph", "txt", "gz", "methylkit"], accept_multiple_files=True
         )
 
         if uploaded_files:
@@ -590,16 +552,18 @@ def main():
             st.markdown("### Export")
             if st.button("Export Processing Summary"):
                 summary = {
-                    'alignments': st.session_state.meth_alignments,
-                    'methylation_calls': st.session_state.meth_calls
+                    "alignments": st.session_state.meth_alignments,
+                    "methylation_calls": st.session_state.meth_calls,
                 }
                 import json
+
                 st.download_button(
                     "Download Summary (JSON)",
                     json.dumps(summary, indent=2),
                     "methylation_processing_summary.json",
-                    "application/json"
+                    "application/json",
                 )
+
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,6 @@ Uses:
 """
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 import pandas as pd
@@ -20,7 +19,6 @@ import pandas as pd
 from app.core.differential import (
     DifferentialAnalyzer,
     DifferentialConfig,
-    DifferentialResults as DiffResults,
     Sample,
 )
 
@@ -30,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DiffBindConfig:
     """Configuration for DiffBind-style analysis (Python implementation)."""
+
     comparison_name: str
     group1: str
     group2: str
@@ -61,6 +60,7 @@ class DiffBindConfig:
 @dataclass
 class DiffBindResults:
     """Results from DiffBind-style analysis."""
+
     comparison_name: str
     total_peaks: int
     significant_peaks: int
@@ -86,7 +86,7 @@ class DiffBindResults:
                 "total_peaks": self.total_peaks,
                 "significant_peaks": self.significant_peaks,
                 "gained": self.gained_peaks,
-                "lost": self.lost_peaks
+                "lost": self.lost_peaks,
             }
 
 
@@ -102,11 +102,7 @@ class DiffBindRunner:
         """Initialize the DiffBind runner."""
         self.analyzer = DifferentialAnalyzer()
 
-    def create_sample_sheet(
-        self,
-        samples: List[Dict],
-        output_path: str
-    ) -> str:
+    def create_sample_sheet(self, samples: List[Dict], output_path: str) -> str:
         """
         Create sample sheet CSV.
 
@@ -131,12 +127,7 @@ class DiffBindRunner:
 
         return output_path
 
-    def run(
-        self,
-        samples: List[Dict],
-        config: DiffBindConfig,
-        output_dir: Optional[str] = None
-    ) -> DiffBindResults:
+    def run(self, samples: List[Dict], config: DiffBindConfig, output_dir: Optional[str] = None) -> DiffBindResults:
         """
         Run differential peak analysis.
 
@@ -163,14 +154,16 @@ class DiffBindRunner:
         # Convert to Sample objects
         sample_objects = []
         for s in samples:
-            sample_objects.append(Sample(
-                sample_id=s.get('SampleID', s.get('sample_id')),
-                condition=s.get('Condition', s.get('condition')),
-                histone_mark=s.get('Factor', s.get('histone_mark', config.histone_mark)),
-                replicate=s.get('Replicate', s.get('replicate', 1)),
-                bam_file=s.get('bamReads', s.get('bam_file')),
-                peak_file=s.get('Peaks', s.get('peak_file'))
-            ))
+            sample_objects.append(
+                Sample(
+                    sample_id=s.get("SampleID", s.get("sample_id")),
+                    condition=s.get("Condition", s.get("condition")),
+                    histone_mark=s.get("Factor", s.get("histone_mark", config.histone_mark)),
+                    replicate=s.get("Replicate", s.get("replicate", 1)),
+                    bam_file=s.get("bamReads", s.get("bam_file")),
+                    peak_file=s.get("Peaks", s.get("peak_file")),
+                )
+            )
 
         # Create differential config
         diff_config = DifferentialConfig(
@@ -186,7 +179,7 @@ class DiffBindRunner:
             # CUT&Tag specific options
             assay_type=config.assay_type,
             use_control=config.use_control,
-            spike_in_genome=config.spike_in_genome
+            spike_in_genome=config.spike_in_genome,
         )
 
         # Run analysis
@@ -205,14 +198,10 @@ class DiffBindRunner:
             significant_peaks_file=f"{out_dir}/significant_peaks.csv" if out_dir else None,
             all_peaks=results.all_peaks,
             significant_df=results.significant,
-            summary=results.to_dict()
+            summary=results.to_dict(),
         )
 
-    def run_from_samplesheet(
-        self,
-        samplesheet_path: str,
-        config: DiffBindConfig
-    ) -> DiffBindResults:
+    def run_from_samplesheet(self, samplesheet_path: str, config: DiffBindConfig) -> DiffBindResults:
         """
         Run analysis from an existing sample sheet.
 
@@ -238,7 +227,7 @@ def run_diffbind(
     assay_type: str = "ChIP-seq",
     use_control: bool = True,
     spike_in_genome: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> DiffBindResults:
     """
     Run DiffBind-style differential peak analysis.
@@ -274,10 +263,10 @@ def run_diffbind(
     """
     # Auto-select normalization for CUT&Tag without controls
     if assay_type in ["CUT&Tag", "CUT&RUN"] and not use_control:
-        if spike_in_genome and 'normalize_method' not in kwargs:
-            kwargs['normalize_method'] = 'spike_in'
-        elif 'normalize_method' not in kwargs:
-            kwargs['normalize_method'] = 'library_size'
+        if spike_in_genome and "normalize_method" not in kwargs:
+            kwargs["normalize_method"] = "spike_in"
+        elif "normalize_method" not in kwargs:
+            kwargs["normalize_method"] = "library_size"
 
     config = DiffBindConfig(
         comparison_name=comparison_name,
@@ -288,7 +277,7 @@ def run_diffbind(
         assay_type=assay_type,
         use_control=use_control,
         spike_in_genome=spike_in_genome,
-        **kwargs
+        **kwargs,
     )
 
     runner = DiffBindRunner()

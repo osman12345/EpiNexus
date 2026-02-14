@@ -14,12 +14,10 @@ Pure Python implementation using:
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
-from collections import defaultdict
 import re
 
 logger = logging.getLogger(__name__)
@@ -27,20 +25,23 @@ logger = logging.getLogger(__name__)
 # Optional imports
 try:
     from Bio import SeqIO
-    from Bio.Seq import Seq
+    from Bio.Seq import Seq  # noqa: F401
+
     BIOPYTHON_AVAILABLE = True
 except ImportError:
     BIOPYTHON_AVAILABLE = False
     logger.warning("Biopython not available - install with: pip install biopython")
 
 try:
-    import pysam
+    import pysam  # noqa: F401
+
     PYSAM_AVAILABLE = True
 except ImportError:
     PYSAM_AVAILABLE = False
 
 try:
     from scipy import stats
+
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -51,9 +52,11 @@ except ImportError:
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class MotifMatch:
     """A TF motif match in a sequence."""
+
     tf_name: str
     motif_id: str
     chrom: str
@@ -68,6 +71,7 @@ class MotifMatch:
 @dataclass
 class TFBindingSite:
     """A predicted TF binding site."""
+
     tf_name: str
     chrom: str
     start: int
@@ -82,6 +86,7 @@ class TFBindingSite:
 @dataclass
 class MotifEnrichmentResult:
     """Result of motif enrichment analysis."""
+
     tf_name: str
     motif_id: str
     target_count: int
@@ -97,6 +102,7 @@ class MotifEnrichmentResult:
 @dataclass
 class TFTargetPrediction:
     """Predicted TF-target gene relationship."""
+
     tf_name: str
     target_gene: str
     binding_score: float
@@ -110,6 +116,7 @@ class TFTargetPrediction:
 # Position Weight Matrix (PWM) Handling
 # =============================================================================
 
+
 class PositionWeightMatrix:
     """
     Position Weight Matrix for TF motif representation.
@@ -120,13 +127,7 @@ class PositionWeightMatrix:
     - Custom matrix format
     """
 
-    def __init__(
-        self,
-        matrix: np.ndarray,
-        name: str,
-        motif_id: str = None,
-        alphabet: str = "ACGT"
-    ):
+    def __init__(self, matrix: np.ndarray, name: str, motif_id: str = None, alphabet: str = "ACGT"):
         """
         Initialize PWM.
 
@@ -165,10 +166,10 @@ class PositionWeightMatrix:
             Log-odds score
         """
         if len(sequence) != self.length:
-            return float('-inf')
+            return float("-inf")
 
         sequence = sequence.upper()
-        base_to_idx = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+        base_to_idx = {"A": 0, "C": 1, "G": 2, "T": 3}
 
         score = 0.0
         for i, base in enumerate(sequence):
@@ -188,7 +189,7 @@ class PositionWeightMatrix:
         return self._pwm.min(axis=0).sum()
 
     @classmethod
-    def from_jaspar(cls, jaspar_entry: str) -> 'PositionWeightMatrix':
+    def from_jaspar(cls, jaspar_entry: str) -> "PositionWeightMatrix":
         """
         Parse PWM from JASPAR format.
 
@@ -199,11 +200,11 @@ class PositionWeightMatrix:
         G [ 1 0 3 ... ]
         T [ 2 19 11 ... ]
         """
-        lines = jaspar_entry.strip().split('\n')
+        lines = jaspar_entry.strip().split("\n")
 
         # Parse header
         header = lines[0]
-        if header.startswith('>'):
+        if header.startswith(">"):
             parts = header[1:].split()
             motif_id = parts[0] if parts else "unknown"
             name = parts[1] if len(parts) > 1 else motif_id
@@ -217,7 +218,7 @@ class PositionWeightMatrix:
 
         for line in matrix_lines:
             # Extract numbers from line like "A [ 1 2 3 ]"
-            numbers = re.findall(r'[\d.]+', line)
+            numbers = re.findall(r"[\d.]+", line)
             if numbers:
                 matrix.append([float(n) for n in numbers])
 
@@ -225,7 +226,7 @@ class PositionWeightMatrix:
 
     def to_consensus(self) -> str:
         """Get consensus sequence."""
-        bases = ['A', 'C', 'G', 'T']
+        bases = ["A", "C", "G", "T"]
         consensus = ""
         for i in range(self.length):
             max_idx = self.matrix[:, i].argmax()
@@ -236,6 +237,7 @@ class PositionWeightMatrix:
 # =============================================================================
 # JASPAR Database
 # =============================================================================
+
 
 class JASPARDatabase:
     """
@@ -272,80 +274,146 @@ class JASPARDatabase:
     # Format: {motif_id: (name, consensus, matrix)}
     BUILTIN_MOTIFS = {
         # AP-1 family
-        "MA0476.1": ("FOS", "TGAGTCA", np.array([
-            [0.1, 0.0, 0.8, 0.0, 0.1, 0.0, 0.8],  # A
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0],  # C
-            [0.1, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0],  # G
-            [0.7, 0.1, 0.1, 1.0, 0.9, 0.1, 0.2],  # T
-        ])),
-        "MA0099.3": ("JUN", "TGAGTCA", np.array([
-            [0.1, 0.0, 0.8, 0.0, 0.1, 0.0, 0.8],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0],
-            [0.1, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
-            [0.7, 0.1, 0.1, 1.0, 0.9, 0.1, 0.2],
-        ])),
+        "MA0476.1": (
+            "FOS",
+            "TGAGTCA",
+            np.array(
+                [
+                    [0.1, 0.0, 0.8, 0.0, 0.1, 0.0, 0.8],  # A
+                    [0.1, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0],  # C
+                    [0.1, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0],  # G
+                    [0.7, 0.1, 0.1, 1.0, 0.9, 0.1, 0.2],  # T
+                ]
+            ),
+        ),
+        "MA0099.3": (
+            "JUN",
+            "TGAGTCA",
+            np.array(
+                [
+                    [0.1, 0.0, 0.8, 0.0, 0.1, 0.0, 0.8],
+                    [0.1, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0],
+                    [0.1, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0],
+                    [0.7, 0.1, 0.1, 1.0, 0.9, 0.1, 0.2],
+                ]
+            ),
+        ),
         # NF-kB
-        "MA0061.1": ("NF-kappaB", "GGGAATTTCC", np.array([
-            [0.0, 0.0, 0.0, 0.9, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.9, 0.9],
-            [1.0, 1.0, 1.0, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.1, 0.1],
-        ])),
+        "MA0061.1": (
+            "NF-kappaB",
+            "GGGAATTTCC",
+            np.array(
+                [
+                    [0.0, 0.0, 0.0, 0.9, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.9, 0.9],
+                    [1.0, 1.0, 1.0, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.1, 0.1],
+                ]
+            ),
+        ),
         # GATA factors
-        "MA0035.4": ("GATA1", "AGATAA", np.array([
-            [0.8, 0.0, 0.9, 0.0, 0.9, 0.9],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.9, 0.1, 0.0, 0.0, 0.0],
-            [0.1, 0.1, 0.0, 1.0, 0.1, 0.1],
-        ])),
-        "MA0036.3": ("GATA2", "AGATAA", np.array([
-            [0.8, 0.0, 0.9, 0.0, 0.9, 0.9],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.9, 0.1, 0.0, 0.0, 0.0],
-            [0.1, 0.1, 0.0, 1.0, 0.1, 0.1],
-        ])),
+        "MA0035.4": (
+            "GATA1",
+            "AGATAA",
+            np.array(
+                [
+                    [0.8, 0.0, 0.9, 0.0, 0.9, 0.9],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.1, 0.9, 0.1, 0.0, 0.0, 0.0],
+                    [0.1, 0.1, 0.0, 1.0, 0.1, 0.1],
+                ]
+            ),
+        ),
+        "MA0036.3": (
+            "GATA2",
+            "AGATAA",
+            np.array(
+                [
+                    [0.8, 0.0, 0.9, 0.0, 0.9, 0.9],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.1, 0.9, 0.1, 0.0, 0.0, 0.0],
+                    [0.1, 0.1, 0.0, 1.0, 0.1, 0.1],
+                ]
+            ),
+        ),
         # ETS factors
-        "MA0098.3": ("ETS1", "GGAA", np.array([
-            [0.0, 0.0, 0.9, 0.9],
-            [0.0, 0.0, 0.0, 0.0],
-            [1.0, 1.0, 0.1, 0.1],
-            [0.0, 0.0, 0.0, 0.0],
-        ])),
+        "MA0098.3": (
+            "ETS1",
+            "GGAA",
+            np.array(
+                [
+                    [0.0, 0.0, 0.9, 0.9],
+                    [0.0, 0.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.1, 0.1],
+                    [0.0, 0.0, 0.0, 0.0],
+                ]
+            ),
+        ),
         # MEF2
-        "MA0052.4": ("MEF2A", "CTAAAAATAG", np.array([
-            [0.0, 0.0, 0.9, 0.9, 0.9, 0.9, 0.9, 0.0, 0.9, 0.0],
-            [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9],
-            [0.1, 0.9, 0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.1, 0.1],
-        ])),
+        "MA0052.4": (
+            "MEF2A",
+            "CTAAAAATAG",
+            np.array(
+                [
+                    [0.0, 0.0, 0.9, 0.9, 0.9, 0.9, 0.9, 0.0, 0.9, 0.0],
+                    [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9],
+                    [0.1, 0.9, 0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.1, 0.1],
+                ]
+            ),
+        ),
         # SP1
-        "MA0079.4": ("SP1", "GGGCGG", np.array([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.9, 0.0, 0.0],
-            [1.0, 1.0, 1.0, 0.1, 1.0, 1.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])),
+        "MA0079.4": (
+            "SP1",
+            "GGGCGG",
+            np.array(
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.9, 0.0, 0.0],
+                    [1.0, 1.0, 1.0, 0.1, 1.0, 1.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                ]
+            ),
+        ),
         # CREB/ATF
-        "MA0018.3": ("CREB1", "TGACGTCA", np.array([
-            [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.9],
-            [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.9, 0.0],
-            [0.0, 0.9, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0],
-            [1.0, 0.1, 0.1, 0.1, 0.1, 1.0, 0.1, 0.1],
-        ])),
+        "MA0018.3": (
+            "CREB1",
+            "TGACGTCA",
+            np.array(
+                [
+                    [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.9],
+                    [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.9, 0.0],
+                    [0.0, 0.9, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0],
+                    [1.0, 0.1, 0.1, 0.1, 0.1, 1.0, 0.1, 0.1],
+                ]
+            ),
+        ),
         # NRF2
-        "MA0150.2": ("NRF2", "TGACNNNGC", np.array([
-            [0.0, 0.0, 0.9, 0.0, 0.25, 0.25, 0.25, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.9, 0.25, 0.25, 0.25, 0.0, 0.9],
-            [0.0, 0.9, 0.0, 0.0, 0.25, 0.25, 0.25, 0.9, 0.0],
-            [1.0, 0.1, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.1],
-        ])),
+        "MA0150.2": (
+            "NRF2",
+            "TGACNNNGC",
+            np.array(
+                [
+                    [0.0, 0.0, 0.9, 0.0, 0.25, 0.25, 0.25, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.9, 0.25, 0.25, 0.25, 0.0, 0.9],
+                    [0.0, 0.9, 0.0, 0.0, 0.25, 0.25, 0.25, 0.9, 0.0],
+                    [1.0, 0.1, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.1],
+                ]
+            ),
+        ),
         # p53
-        "MA0106.3": ("TP53", "CATGCCCGGGCATG", np.array([
-            [0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0],
-            [0.9, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.0, 0.0, 0.0, 0.9],
-            [0.1, 0.1, 0.9, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.1],
-        ])),
+        "MA0106.3": (
+            "TP53",
+            "CATGCCCGGGCATG",
+            np.array(
+                [
+                    [0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0],
+                    [0.9, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.0, 0.0, 0.0, 0.9],
+                    [0.1, 0.1, 0.9, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.1],
+                ]
+            ),
+        ),
     }
 
     def __init__(self, custom_motifs_file: Optional[str] = None):
@@ -377,10 +445,10 @@ class JASPARDatabase:
             content = f.read()
 
         # Split by motif entries
-        entries = content.split('>')[1:]  # Skip empty first element
+        entries = content.split(">")[1:]  # Skip empty first element
 
         for entry in entries:
-            entry = '>' + entry
+            entry = ">" + entry
             try:
                 pwm = PositionWeightMatrix.from_jaspar(entry)
                 self.motifs[pwm.motif_id] = pwm
@@ -407,6 +475,7 @@ class JASPARDatabase:
 # Motif Scanner
 # =============================================================================
 
+
 class MotifScanner:
     """
     Scan sequences for TF binding motifs.
@@ -418,7 +487,7 @@ class MotifScanner:
         self,
         motif_db: JASPARDatabase,
         score_threshold: float = 0.8,  # Fraction of max score
-        p_value_threshold: float = 1e-4
+        p_value_threshold: float = 1e-4,
     ):
         """
         Initialize motif scanner.
@@ -432,11 +501,7 @@ class MotifScanner:
         self.score_threshold = score_threshold
         self.p_value_threshold = p_value_threshold
 
-    def scan_sequence(
-        self,
-        sequence: str,
-        motif_ids: Optional[List[str]] = None
-    ) -> List[MotifMatch]:
+    def scan_sequence(self, sequence: str, motif_ids: Optional[List[str]] = None) -> List[MotifMatch]:
         """
         Scan a sequence for all motifs.
 
@@ -452,7 +517,8 @@ class MotifScanner:
 
         motifs_to_scan = (
             [self.db.motifs[mid] for mid in motif_ids if mid in self.db.motifs]
-            if motif_ids else list(self.db.motifs.values())
+            if motif_ids
+            else list(self.db.motifs.values())
         )
 
         for motif in motifs_to_scan:
@@ -460,11 +526,7 @@ class MotifScanner:
 
         return matches
 
-    def _scan_single_motif(
-        self,
-        sequence: str,
-        motif: PositionWeightMatrix
-    ) -> List[MotifMatch]:
+    def _scan_single_motif(self, sequence: str, motif: PositionWeightMatrix) -> List[MotifMatch]:
         """Scan for a single motif."""
         matches = []
 
@@ -473,7 +535,7 @@ class MotifScanner:
 
         # Scan forward strand
         for i in range(len(sequence) - motif.length + 1):
-            subseq = sequence[i:i + motif.length]
+            subseq = sequence[i : i + motif.length]
             score = motif.score_sequence(subseq)
 
             if score >= min_acceptable:
@@ -481,22 +543,24 @@ class MotifScanner:
                 p_value = 10 ** (-(score / max_score) * 4)  # Rough approximation
 
                 if p_value <= self.p_value_threshold:
-                    matches.append(MotifMatch(
-                        tf_name=motif.name,
-                        motif_id=motif.motif_id,
-                        chrom="",  # Set by caller
-                        start=i,
-                        end=i + motif.length,
-                        strand="+",
-                        score=score,
-                        p_value=p_value,
-                        sequence=subseq
-                    ))
+                    matches.append(
+                        MotifMatch(
+                            tf_name=motif.name,
+                            motif_id=motif.motif_id,
+                            chrom="",  # Set by caller
+                            start=i,
+                            end=i + motif.length,
+                            strand="+",
+                            score=score,
+                            p_value=p_value,
+                            sequence=subseq,
+                        )
+                    )
 
         # Scan reverse strand
         rev_comp = self._reverse_complement(sequence)
         for i in range(len(rev_comp) - motif.length + 1):
-            subseq = rev_comp[i:i + motif.length]
+            subseq = rev_comp[i : i + motif.length]
             score = motif.score_sequence(subseq)
 
             if score >= min_acceptable:
@@ -505,17 +569,19 @@ class MotifScanner:
                 if p_value <= self.p_value_threshold:
                     # Adjust position for reverse strand
                     real_start = len(sequence) - i - motif.length
-                    matches.append(MotifMatch(
-                        tf_name=motif.name,
-                        motif_id=motif.motif_id,
-                        chrom="",
-                        start=real_start,
-                        end=real_start + motif.length,
-                        strand="-",
-                        score=score,
-                        p_value=p_value,
-                        sequence=subseq
-                    ))
+                    matches.append(
+                        MotifMatch(
+                            tf_name=motif.name,
+                            motif_id=motif.motif_id,
+                            chrom="",
+                            start=real_start,
+                            end=real_start + motif.length,
+                            strand="-",
+                            score=score,
+                            p_value=p_value,
+                            sequence=subseq,
+                        )
+                    )
 
         return matches
 
@@ -524,13 +590,14 @@ class MotifScanner:
 
         Handles standard bases (A, T, G, C) and maps unknown bases to N.
         """
-        complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', 'N': 'N'}
-        return ''.join(complement.get(b, 'N') for b in reversed(seq.upper()))
+        complement = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
+        return "".join(complement.get(b, "N") for b in reversed(seq.upper()))
 
 
 # =============================================================================
 # Motif Enrichment Analysis
 # =============================================================================
+
 
 class MotifEnrichmentAnalyzer:
     """
@@ -539,11 +606,7 @@ class MotifEnrichmentAnalyzer:
     Compares motif occurrence in target peaks vs background.
     """
 
-    def __init__(
-        self,
-        motif_db: JASPARDatabase,
-        genome_fasta: Optional[str] = None
-    ):
+    def __init__(self, motif_db: JASPARDatabase, genome_fasta: Optional[str] = None):
         """
         Initialize enrichment analyzer.
 
@@ -567,8 +630,9 @@ class MotifEnrichmentAnalyzer:
         if self._genome is None and self.genome_fasta:
             if BIOPYTHON_AVAILABLE:
                 import gzip
-                opener = gzip.open if self.genome_fasta.endswith('.gz') else open
-                with opener(self.genome_fasta, 'rt') as fh:
+
+                opener = gzip.open if self.genome_fasta.endswith(".gz") else open
+                with opener(self.genome_fasta, "rt") as fh:
                     self._genome = SeqIO.to_dict(SeqIO.parse(fh, "fasta"))
             else:
                 self._genome = self._parse_fasta_simple(self.genome_fasta)
@@ -592,23 +656,23 @@ class MotifEnrichmentAnalyzer:
         current_id: Optional[str] = None
         current_seq: list = []
 
-        opener = gzip.open if fasta_path.endswith('.gz') else open
+        opener = gzip.open if fasta_path.endswith(".gz") else open
 
-        with opener(fasta_path, 'rt') as f:
+        with opener(fasta_path, "rt") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
-                if line.startswith('>'):
+                if line.startswith(">"):
                     if current_id is not None:
-                        sequences[current_id] = ''.join(current_seq).upper()
+                        sequences[current_id] = "".join(current_seq).upper()
                     current_id = line[1:].split()[0]
                     current_seq = []
                 else:
                     current_seq.append(line)
 
         if current_id is not None:
-            sequences[current_id] = ''.join(current_seq).upper()
+            sequences[current_id] = "".join(current_seq).upper()
 
         return sequences
 
@@ -626,18 +690,14 @@ class MotifEnrichmentAnalyzer:
             line_width: Number of characters per sequence line (default 80,
                 the NCBI standard).
         """
-        with open(output_path, 'w') as fh:
+        with open(output_path, "w") as fh:
             for seq_id, seq in sequences.items():
                 fh.write(f">{seq_id}\n")
                 for i in range(0, len(seq), line_width):
-                    fh.write(seq[i:i + line_width] + "\n")
+                    fh.write(seq[i : i + line_width] + "\n")
 
     def get_peak_sequences(
-        self,
-        peaks: pd.DataFrame,
-        chrom_col: str = 'chrom',
-        start_col: str = 'start',
-        end_col: str = 'end'
+        self, peaks: pd.DataFrame, chrom_col: str = "chrom", start_col: str = "start", end_col: str = "end"
     ) -> List[str]:
         """Extract sequences for peaks from reference genome."""
         self._load_genome()
@@ -660,10 +720,7 @@ class MotifEnrichmentAnalyzer:
         return sequences
 
     def analyze_enrichment(
-        self,
-        target_sequences: List[str],
-        background_sequences: List[str],
-        motif_ids: Optional[List[str]] = None
+        self, target_sequences: List[str], background_sequences: List[str], motif_ids: Optional[List[str]] = None
     ) -> List[MotifEnrichmentResult]:
         """
         Analyze motif enrichment in target vs background.
@@ -680,7 +737,8 @@ class MotifEnrichmentAnalyzer:
 
         motifs = (
             [self.db.motifs[mid] for mid in motif_ids if mid in self.db.motifs]
-            if motif_ids else list(self.db.motifs.values())
+            if motif_ids
+            else list(self.db.motifs.values())
         )
 
         for motif in motifs:
@@ -698,10 +756,7 @@ class MotifEnrichmentAnalyzer:
         return results
 
     def _test_single_motif(
-        self,
-        motif: PositionWeightMatrix,
-        target_seqs: List[str],
-        bg_seqs: List[str]
+        self, motif: PositionWeightMatrix, target_seqs: List[str], bg_seqs: List[str]
     ) -> MotifEnrichmentResult:
         """Test enrichment for a single motif."""
         # Count sequences with motif
@@ -727,15 +782,15 @@ class MotifEnrichmentAnalyzer:
         bg_pct = (bg_with_motif / len(bg_seqs) * 100) if bg_seqs else 0
 
         # Fold enrichment
-        fold_enrichment = (target_pct / bg_pct) if bg_pct > 0 else float('inf')
+        fold_enrichment = (target_pct / bg_pct) if bg_pct > 0 else float("inf")
 
         # Fisher's exact test
         if SCIPY_AVAILABLE:
             contingency = [
                 [target_with_motif, len(target_seqs) - target_with_motif],
-                [bg_with_motif, len(bg_seqs) - bg_with_motif]
+                [bg_with_motif, len(bg_seqs) - bg_with_motif],
             ]
-            _, p_value = stats.fisher_exact(contingency, alternative='greater')
+            _, p_value = stats.fisher_exact(contingency, alternative="greater")
         else:
             # Fallback: simple approximation when scipy not available
             if target_pct > bg_pct and bg_pct > 0:
@@ -753,13 +808,10 @@ class MotifEnrichmentAnalyzer:
             fold_enrichment=fold_enrichment,
             p_value=p_value,
             adjusted_p_value=p_value,  # Will be adjusted later
-            target_sequences=target_matches[:10]  # Keep top 10 examples
+            target_sequences=target_matches[:10],  # Keep top 10 examples
         )
 
-    def _adjust_pvalues(
-        self,
-        results: List[MotifEnrichmentResult]
-    ) -> List[MotifEnrichmentResult]:
+    def _adjust_pvalues(self, results: List[MotifEnrichmentResult]) -> List[MotifEnrichmentResult]:
         """Benjamini-Hochberg p-value adjustment."""
         n = len(results)
         if n == 0:
@@ -775,8 +827,7 @@ class MotifEnrichmentAnalyzer:
         # Enforce monotonicity
         for i in range(n - 2, -1, -1):
             sorted_results[i].adjusted_p_value = min(
-                sorted_results[i].adjusted_p_value,
-                sorted_results[i + 1].adjusted_p_value
+                sorted_results[i].adjusted_p_value, sorted_results[i + 1].adjusted_p_value
             )
 
         return results
@@ -785,6 +836,7 @@ class MotifEnrichmentAnalyzer:
 # =============================================================================
 # TF-Target Gene Prediction
 # =============================================================================
+
 
 class TFTargetPredictor:
     """
@@ -800,7 +852,7 @@ class TFTargetPredictor:
     def __init__(
         self,
         max_distance: int = 100000,  # Max distance from TSS
-        promoter_distance: int = 3000
+        promoter_distance: int = 3000,
     ):
         """
         Initialize predictor.
@@ -817,7 +869,7 @@ class TFTargetPredictor:
         tf_peaks: pd.DataFrame,
         gene_annotation: pd.DataFrame,
         histone_data: Optional[Dict[str, pd.DataFrame]] = None,
-        expression_data: Optional[pd.DataFrame] = None
+        expression_data: Optional[pd.DataFrame] = None,
     ) -> List[TFTargetPrediction]:
         """
         Predict TF target genes.
@@ -834,51 +886,46 @@ class TFTargetPredictor:
         predictions = []
 
         for _, peak in tf_peaks.iterrows():
-            peak_chrom = peak.get('chrom', peak.get('Chromosome'))
-            peak_center = (peak.get('start', 0) + peak.get('end', 0)) // 2
-            peak_id = peak.get('peak_id', f"{peak_chrom}:{peak.get('start')}-{peak.get('end')}")
-            tf_name = peak.get('tf_name', 'Unknown_TF')
+            peak_chrom = peak.get("chrom", peak.get("Chromosome"))
+            peak_center = (peak.get("start", 0) + peak.get("end", 0)) // 2
+            peak_id = peak.get("peak_id", f"{peak_chrom}:{peak.get('start')}-{peak.get('end')}")
+            tf_name = peak.get("tf_name", "Unknown_TF")
 
             # Find nearby genes
             nearby_genes = gene_annotation[
-                (gene_annotation['chrom'] == peak_chrom) &
-                (abs(gene_annotation['tss'] - peak_center) <= self.max_distance)
+                (gene_annotation["chrom"] == peak_chrom)
+                & (abs(gene_annotation["tss"] - peak_center) <= self.max_distance)
             ]
 
             for _, gene in nearby_genes.iterrows():
-                distance = peak_center - gene['tss']
+                distance = peak_center - gene["tss"]
 
                 # Get histone context if available
                 histone_context = None
                 if histone_data:
                     histone_context = self._get_histone_context(
-                        peak_chrom, peak.get('start'), peak.get('end'),
-                        histone_data
+                        peak_chrom, peak.get("start"), peak.get("end"), histone_data
                     )
 
                 # Calculate confidence
-                confidence = self._calculate_confidence(
-                    distance, histone_context, expression_data, gene['gene_name']
-                )
+                confidence = self._calculate_confidence(distance, histone_context, expression_data, gene["gene_name"])
 
-                predictions.append(TFTargetPrediction(
-                    tf_name=tf_name,
-                    target_gene=gene['gene_name'],
-                    binding_score=peak.get('score', 0),
-                    distance_to_tss=distance,
-                    peak_id=peak_id,
-                    histone_context=histone_context,
-                    confidence=confidence
-                ))
+                predictions.append(
+                    TFTargetPrediction(
+                        tf_name=tf_name,
+                        target_gene=gene["gene_name"],
+                        binding_score=peak.get("score", 0),
+                        distance_to_tss=distance,
+                        peak_id=peak_id,
+                        histone_context=histone_context,
+                        confidence=confidence,
+                    )
+                )
 
         return predictions
 
     def _get_histone_context(
-        self,
-        chrom: str,
-        start: int,
-        end: int,
-        histone_data: Dict[str, pd.DataFrame]
+        self, chrom: str, start: int, end: int, histone_data: Dict[str, pd.DataFrame]
     ) -> Dict[str, str]:
         """Get histone mark status at TF binding site."""
         context = {}
@@ -886,24 +933,20 @@ class TFTargetPredictor:
         for mark, data in histone_data.items():
             # Check for overlapping significant peaks
             overlapping = data[
-                (data['chrom'] == chrom) &
-                (data['start'] <= end) &
-                (data['end'] >= start) &
-                (data.get('significant', True))
+                (data["chrom"] == chrom)
+                & (data["start"] <= end)
+                & (data["end"] >= start)
+                & (data.get("significant", True))
             ]
 
             if len(overlapping) > 0:
-                direction = overlapping['direction'].iloc[0] if 'direction' in overlapping.columns else 'present'
+                direction = overlapping["direction"].iloc[0] if "direction" in overlapping.columns else "present"
                 context[mark] = direction
 
         return context if context else None
 
     def _calculate_confidence(
-        self,
-        distance: int,
-        histone_context: Optional[Dict],
-        expression_data: Optional[pd.DataFrame],
-        gene_name: str
+        self, distance: int, histone_context: Optional[Dict], expression_data: Optional[pd.DataFrame], gene_name: str
     ) -> str:
         """Calculate prediction confidence."""
         score = 0
@@ -918,14 +961,14 @@ class TFTargetPredictor:
 
         # Histone context score
         if histone_context:
-            if 'H3K27ac' in histone_context:
+            if "H3K27ac" in histone_context:
                 score += 2  # Active mark present
-            if 'H3K4me1' in histone_context:
+            if "H3K4me1" in histone_context:
                 score += 1  # Enhancer mark
 
         # Expression concordance
         if expression_data is not None and gene_name in expression_data.index:
-            if expression_data.loc[gene_name, 'significant']:
+            if expression_data.loc[gene_name, "significant"]:
                 score += 2
 
         # Convert to confidence level
@@ -940,6 +983,7 @@ class TFTargetPredictor:
 # =============================================================================
 # TF + Histone Integration
 # =============================================================================
+
 
 class TFHistoneIntegrator:
     """
@@ -956,10 +1000,7 @@ class TFHistoneIntegrator:
         pass
 
     def analyze_cooccupancy(
-        self,
-        tf_peaks: pd.DataFrame,
-        histone_peaks: Dict[str, pd.DataFrame],
-        overlap_fraction: float = 0.5
+        self, tf_peaks: pd.DataFrame, histone_peaks: Dict[str, pd.DataFrame], overlap_fraction: float = 0.5
     ) -> pd.DataFrame:
         """
         Analyze co-occupancy of TF and histone marks.
@@ -981,23 +1022,20 @@ class TFHistoneIntegrator:
             total_tf = len(tf_peaks)
             total_mark = len(mark_peaks)
 
-            results.append({
-                'histone_mark': mark_name,
-                'tf_peaks_total': total_tf,
-                'mark_peaks_total': total_mark,
-                'overlapping': overlaps,
-                'tf_overlap_pct': (overlaps / total_tf * 100) if total_tf > 0 else 0,
-                'mark_overlap_pct': (overlaps / total_mark * 100) if total_mark > 0 else 0
-            })
+            results.append(
+                {
+                    "histone_mark": mark_name,
+                    "tf_peaks_total": total_tf,
+                    "mark_peaks_total": total_mark,
+                    "overlapping": overlaps,
+                    "tf_overlap_pct": (overlaps / total_tf * 100) if total_tf > 0 else 0,
+                    "mark_overlap_pct": (overlaps / total_mark * 100) if total_mark > 0 else 0,
+                }
+            )
 
         return pd.DataFrame(results)
 
-    def _count_overlaps(
-        self,
-        peaks1: pd.DataFrame,
-        peaks2: pd.DataFrame,
-        min_overlap: float = 0.5
-    ) -> int:
+    def _count_overlaps(self, peaks1: pd.DataFrame, peaks2: pd.DataFrame, min_overlap: float = 0.5) -> int:
         """Count overlapping peaks using interval-tree algorithm.
 
         Uses genomic_utils.count_overlaps_with_fraction for O(n log n) performance.
@@ -1007,16 +1045,19 @@ class TFHistoneIntegrator:
         p1 = standardize_peak_columns(peaks1)
         p2 = standardize_peak_columns(peaks2)
         return count_overlaps_with_fraction(
-            p1, p2,
+            p1,
+            p2,
             min_overlap_frac=min_overlap,
-            chrom_col="chr", start_col="start", end_col="end",
+            chrom_col="chr",
+            start_col="start",
+            end_col="end",
         )
 
     def find_tf_at_differential_marks(
         self,
         tf_peaks: pd.DataFrame,
         diff_histone_peaks: pd.DataFrame,
-        direction: str = 'both'  # 'gained', 'lost', or 'both'
+        direction: str = "both",  # 'gained', 'lost', or 'both'
     ) -> pd.DataFrame:
         """
         Find TF binding sites at differential histone mark regions.
@@ -1033,10 +1074,8 @@ class TFHistoneIntegrator:
         """
         from .genomic_utils import find_first_overlaps
 
-        if direction != 'both':
-            diff_peaks = diff_histone_peaks[
-                diff_histone_peaks['direction'].str.lower() == direction.lower()
-            ].copy()
+        if direction != "both":
+            diff_peaks = diff_histone_peaks[diff_histone_peaks["direction"].str.lower() == direction.lower()].copy()
         else:
             diff_peaks = diff_histone_peaks.copy()
 
@@ -1044,10 +1083,13 @@ class TFHistoneIntegrator:
             return pd.DataFrame()
 
         # Use interval-tree-based first-overlap search
-        chrom_col = 'chrom' if 'chrom' in tf_peaks.columns else 'chr'
+        chrom_col = "chrom" if "chrom" in tf_peaks.columns else "chr"
         hits = find_first_overlaps(
-            tf_peaks, diff_peaks,
-            chrom_col=chrom_col, start_col="start", end_col="end",
+            tf_peaks,
+            diff_peaks,
+            chrom_col=chrom_col,
+            start_col="start",
+            end_col="end",
         )
 
         if hits.empty:
@@ -1059,9 +1101,9 @@ class TFHistoneIntegrator:
             tf_row = tf_peaks.loc[hit["query_idx"]]
             h_row = diff_peaks.loc[hit["subject_idx"]]
             result = tf_row.to_dict()
-            result['histone_peak_id'] = h_row.get('peak_id')
-            result['histone_direction'] = h_row.get('direction')
-            result['histone_log2FC'] = h_row.get('log2FC', h_row.get('Fold'))
+            result["histone_peak_id"] = h_row.get("peak_id")
+            result["histone_direction"] = h_row.get("direction")
+            result["histone_log2FC"] = h_row.get("log2FC", h_row.get("Fold"))
             overlapping_tf.append(result)
 
         return pd.DataFrame(overlapping_tf)
@@ -1071,11 +1113,12 @@ class TFHistoneIntegrator:
 # Convenience Functions
 # =============================================================================
 
+
 def run_tf_motif_analysis(
     peaks_df: pd.DataFrame,
     genome_fasta: str,
     background_peaks: Optional[pd.DataFrame] = None,
-    custom_motifs: Optional[str] = None
+    custom_motifs: Optional[str] = None,
 ) -> Tuple[List[MotifEnrichmentResult], pd.DataFrame]:
     """
     Convenience function to run complete TF motif analysis.
@@ -1104,7 +1147,8 @@ def run_tf_motif_analysis(
     else:
         # Simple background: shuffle target sequences
         import random
-        bg_seqs = [''.join(random.sample(s, len(s))) for s in target_seqs if s]
+
+        bg_seqs = ["".join(random.sample(s, len(s))) for s in target_seqs if s]
 
     # Run enrichment
     enrichment_results = analyzer.analyze_enrichment(target_seqs, bg_seqs)
@@ -1118,10 +1162,10 @@ def run_tf_motif_analysis(
         if seq:
             matches = scanner.scan_sequence(seq)
             tf_names = list(set(m.tf_name for m in matches))
-            motif_annotations.append(';'.join(tf_names) if tf_names else '')
+            motif_annotations.append(";".join(tf_names) if tf_names else "")
         else:
-            motif_annotations.append('')
+            motif_annotations.append("")
 
-    peaks_annotated['tf_motifs'] = motif_annotations
+    peaks_annotated["tf_motifs"] = motif_annotations
 
     return enrichment_results, peaks_annotated

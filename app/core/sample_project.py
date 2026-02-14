@@ -28,7 +28,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later OR Commercial
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -38,6 +37,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def create_sample_project(
     output_dir: str,
@@ -101,18 +101,38 @@ _CHR_WEIGHTS /= _CHR_WEIGHTS.sum()
 def _write_sample_sheet(root: Path, genome: str) -> None:
     """Write a sample sheet CSV."""
     rows = [
-        {"sample_name": "Treatment_Rep1", "condition": "Treatment", "replicate": 1,
-         "histone_mark": "H3K27ac", "genome": genome,
-         "peak_file": "peaks/Treatment_Rep1_H3K27ac.narrowPeak"},
-        {"sample_name": "Treatment_Rep2", "condition": "Treatment", "replicate": 2,
-         "histone_mark": "H3K27ac", "genome": genome,
-         "peak_file": "peaks/Treatment_Rep2_H3K27ac.narrowPeak"},
-        {"sample_name": "Control_Rep1", "condition": "Control", "replicate": 1,
-         "histone_mark": "H3K27ac", "genome": genome,
-         "peak_file": "peaks/Control_Rep1_H3K27ac.narrowPeak"},
-        {"sample_name": "Control_Rep2", "condition": "Control", "replicate": 2,
-         "histone_mark": "H3K27ac", "genome": genome,
-         "peak_file": "peaks/Control_Rep2_H3K27ac.narrowPeak"},
+        {
+            "sample_name": "Treatment_Rep1",
+            "condition": "Treatment",
+            "replicate": 1,
+            "histone_mark": "H3K27ac",
+            "genome": genome,
+            "peak_file": "peaks/Treatment_Rep1_H3K27ac.narrowPeak",
+        },
+        {
+            "sample_name": "Treatment_Rep2",
+            "condition": "Treatment",
+            "replicate": 2,
+            "histone_mark": "H3K27ac",
+            "genome": genome,
+            "peak_file": "peaks/Treatment_Rep2_H3K27ac.narrowPeak",
+        },
+        {
+            "sample_name": "Control_Rep1",
+            "condition": "Control",
+            "replicate": 1,
+            "histone_mark": "H3K27ac",
+            "genome": genome,
+            "peak_file": "peaks/Control_Rep1_H3K27ac.narrowPeak",
+        },
+        {
+            "sample_name": "Control_Rep2",
+            "condition": "Control",
+            "replicate": 2,
+            "histone_mark": "H3K27ac",
+            "genome": genome,
+            "peak_file": "peaks/Control_Rep2_H3K27ac.narrowPeak",
+        },
     ]
     pd.DataFrame(rows).to_csv(root / "sample_sheet.csv", index=False)
 
@@ -130,13 +150,20 @@ def _write_narrowpeak(path: Path, rng: np.random.Generator, sample: str) -> None
     qvals = np.round(pvals * rng.uniform(0.5, 1.0, n), 2)
     summits = widths // 2
 
-    df = pd.DataFrame({
-        "chrom": chroms, "start": starts, "end": ends,
-        "name": [f"{sample}_peak_{i}" for i in range(n)],
-        "score": scores, "strand": ".",
-        "signalValue": signals, "pValue": pvals,
-        "qValue": qvals, "peak": summits,
-    })
+    df = pd.DataFrame(
+        {
+            "chrom": chroms,
+            "start": starts,
+            "end": ends,
+            "name": [f"{sample}_peak_{i}" for i in range(n)],
+            "score": scores,
+            "strand": ".",
+            "signalValue": signals,
+            "pValue": pvals,
+            "qValue": qvals,
+            "peak": summits,
+        }
+    )
     df.sort_values(["chrom", "start"], inplace=True)
     df.to_csv(path, sep="\t", header=False, index=False)
 
@@ -159,12 +186,17 @@ def _write_differential_results(path: Path, rng: np.random.Generator) -> None:
         "Not Significant",
     )
 
-    pd.DataFrame({
-        "chr": chroms, "start": starts, "end": ends,
-        "log2FoldChange": np.round(log2fc, 4),
-        "pvalue": pval, "FDR": fdr,
-        "direction": direction,
-    }).to_csv(path, index=False)
+    pd.DataFrame(
+        {
+            "chr": chroms,
+            "start": starts,
+            "end": ends,
+            "log2FoldChange": np.round(log2fc, 4),
+            "pvalue": pval,
+            "FDR": fdr,
+            "direction": direction,
+        }
+    ).to_csv(path, index=False)
 
 
 def _write_expression_table(path: Path, rng: np.random.Generator) -> None:
@@ -179,17 +211,19 @@ def _write_expression_table(path: Path, rng: np.random.Generator) -> None:
     pval = np.clip(pval, 1e-300, 1.0)
     fdr = np.minimum(pval * n / (np.argsort(np.argsort(pval)) + 1), 1.0)
 
-    pd.DataFrame({
-        "gene_id": gene_ids, "gene_name": symbols,
-        "baseMean": np.round(basemean, 2),
-        "log2FoldChange": np.round(log2fc, 4),
-        "pvalue": pval, "padj": fdr,
-    }).to_csv(path, index=False)
+    pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "gene_name": symbols,
+            "baseMean": np.round(basemean, 2),
+            "log2FoldChange": np.round(log2fc, 4),
+            "pvalue": pval,
+            "padj": fdr,
+        }
+    ).to_csv(path, index=False)
 
 
-def _write_methylation_data(
-    path: Path, rng: np.random.Generator, bias: float = 1.0
-) -> None:
+def _write_methylation_data(path: Path, rng: np.random.Generator, bias: float = 1.0) -> None:
     """Generate a Bismark-style .cov methylation file.
 
     Args:
@@ -214,12 +248,16 @@ def _write_methylation_data(
     count_meth = np.round(coverage * meth / 100).astype(int)
     count_unmeth = coverage - count_meth
 
-    pd.DataFrame({
-        "chr": chroms, "start": starts, "end": ends,
-        "meth_pct": np.round(meth, 2),
-        "count_meth": count_meth,
-        "count_unmeth": count_unmeth,
-    }).sort_values(["chr", "start"]).to_csv(path, sep="\t", header=False, index=False)
+    pd.DataFrame(
+        {
+            "chr": chroms,
+            "start": starts,
+            "end": ends,
+            "meth_pct": np.round(meth, 2),
+            "count_meth": count_meth,
+            "count_unmeth": count_unmeth,
+        }
+    ).sort_values(["chr", "start"]).to_csv(path, sep="\t", header=False, index=False)
 
 
 def _write_readme(root: Path, genome: str) -> None:

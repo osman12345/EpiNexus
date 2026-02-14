@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QCMetrics:
     """QC metrics for a sample."""
+
     sample_name: str
 
     # Mapping metrics
@@ -71,7 +72,7 @@ class QCMetrics:
             "spikein_reads": self.spikein_reads,
             "scale_factor": self.scale_factor,
             "pass_qc": self.pass_qc,
-            "qc_warnings": self.qc_warnings
+            "qc_warnings": self.qc_warnings,
         }
 
 
@@ -85,11 +86,7 @@ class QCAnalyzer:
     MIN_PEAK_COUNT = 1000
     OPTIMAL_FRAGMENT_SIZE = (150, 300)
 
-    def __init__(
-        self,
-        samtools_path: str = "samtools",
-        bedtools_path: str = "bedtools"
-    ):
+    def __init__(self, samtools_path: str = "samtools", bedtools_path: str = "bedtools"):
         """
         Initialize QC analyzer.
 
@@ -115,12 +112,7 @@ class QCAnalyzer:
 
         try:
             # Get flagstat
-            result = subprocess.run(
-                [self.samtools, "flagstat", bam_path],
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            result = subprocess.run([self.samtools, "flagstat", bam_path], capture_output=True, text=True, check=True)
 
             # Parse flagstat output
             for line in result.stdout.split("\n"):
@@ -144,11 +136,7 @@ class QCAnalyzer:
 
         return metrics
 
-    def calculate_fragment_sizes(
-        self,
-        bam_path: str,
-        sample_size: int = 100000
-    ) -> Tuple[int, float, List[int]]:
+    def calculate_fragment_sizes(self, bam_path: str, sample_size: int = 100000) -> Tuple[int, float, List[int]]:
         """
         Calculate fragment size distribution from BAM file.
 
@@ -165,7 +153,7 @@ class QCAnalyzer:
                 [self.samtools, "view", "-f", "66", bam_path],  # Properly paired, first in pair
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             sizes = []
@@ -189,11 +177,7 @@ class QCAnalyzer:
 
         return 0, 0.0, []
 
-    def calculate_frip(
-        self,
-        bam_path: str,
-        peak_path: str
-    ) -> Tuple[int, float]:
+    def calculate_frip(self, bam_path: str, peak_path: str) -> Tuple[int, float]:
         """
         Calculate Fraction of Reads in Peaks (FRiP).
 
@@ -210,7 +194,7 @@ class QCAnalyzer:
                 [self.bedtools, "intersect", "-a", bam_path, "-b", peak_path, "-bed", "-u"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Count reads
@@ -218,10 +202,7 @@ class QCAnalyzer:
 
             # Get total mapped reads
             total_result = subprocess.run(
-                [self.samtools, "view", "-c", "-F", "4", bam_path],
-                capture_output=True,
-                text=True,
-                check=True
+                [self.samtools, "view", "-c", "-F", "4", bam_path], capture_output=True, text=True, check=True
             )
             total_mapped = int(total_result.stdout.strip())
 
@@ -247,7 +228,7 @@ class QCAnalyzer:
         sample_name: str,
         bam_path: Optional[str] = None,
         peak_path: Optional[str] = None,
-        spikein_bam: Optional[str] = None
+        spikein_bam: Optional[str] = None,
     ) -> QCMetrics:
         """
         Run full QC analysis on a sample.
@@ -307,7 +288,9 @@ class QCAnalyzer:
             warnings.append(f"Low mapping rate: {metrics.mapping_rate:.1%} (threshold: {self.MIN_MAPPING_RATE:.1%})")
 
         if metrics.duplicate_rate > self.MAX_DUPLICATE_RATE:
-            warnings.append(f"High duplication: {metrics.duplicate_rate:.1%} (threshold: {self.MAX_DUPLICATE_RATE:.1%})")
+            warnings.append(
+                f"High duplication: {metrics.duplicate_rate:.1%} (threshold: {self.MAX_DUPLICATE_RATE:.1%})"
+            )
 
         if metrics.frip_score < self.MIN_FRIP and metrics.frip_score > 0:
             warnings.append(f"Low FRiP: {metrics.frip_score:.2%} (threshold: {self.MIN_FRIP:.1%})")
@@ -326,11 +309,7 @@ class QCAnalyzer:
 
         return metrics
 
-    def generate_qc_report(
-        self,
-        samples: List[QCMetrics],
-        output_path: str
-    ) -> pd.DataFrame:
+    def generate_qc_report(self, samples: List[QCMetrics], output_path: str) -> pd.DataFrame:
         """
         Generate a QC report for multiple samples.
 

@@ -9,8 +9,6 @@ Tests cover:
 """
 
 import io
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -28,8 +26,6 @@ from app.core.genomic_utils import (
     sort_chromosomes,
     filter_standard_chroms,
     CHROM_COLS,
-    START_COLS,
-    END_COLS,
     _sweepline_overlaps,
 )
 
@@ -93,16 +89,20 @@ class TestFindOverlaps:
 
     def test_report_count(self):
         """report='count' returns per-query overlap counts."""
-        query = pd.DataFrame({
-            "chr": ["chr1", "chr1", "chr2"],
-            "start": [100, 500, 100],
-            "end": [300, 700, 300],
-        })
-        subject = pd.DataFrame({
-            "chr": ["chr1", "chr1"],
-            "start": [200, 600],
-            "end": [400, 800],
-        })
+        query = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1", "chr2"],
+                "start": [100, 500, 100],
+                "end": [300, 700, 300],
+            }
+        )
+        subject = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1"],
+                "start": [200, 600],
+                "end": [400, 800],
+            }
+        )
         result = find_overlaps(query, subject, report="count")
         assert "count" in result.columns
         assert len(result) == 3
@@ -114,11 +114,13 @@ class TestFindOverlaps:
     def test_report_first(self):
         """report='first' returns at most one hit per query."""
         query = pd.DataFrame({"chr": ["chr1"], "start": [100], "end": [500]})
-        subject = pd.DataFrame({
-            "chr": ["chr1", "chr1"],
-            "start": [150, 300],
-            "end": [250, 400],
-        })
+        subject = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1"],
+                "start": [150, 300],
+                "end": [250, 400],
+            }
+        )
         result = find_overlaps(query, subject, report="first")
         assert len(result) == 1
 
@@ -158,9 +160,15 @@ class TestSweeplineOverlaps:
         s_indices = np.array([0, 1])
 
         results = _sweepline_overlaps(
-            q_starts, q_ends, q_indices,
-            s_starts, s_ends, s_indices,
-            min_overlap_bp=1, min_overlap_frac=0.0, report="all",
+            q_starts,
+            q_ends,
+            q_indices,
+            s_starts,
+            s_ends,
+            s_indices,
+            min_overlap_bp=1,
+            min_overlap_frac=0.0,
+            report="all",
         )
         assert len(results) == 2
 
@@ -174,9 +182,15 @@ class TestSweeplineOverlaps:
         s_indices = np.array([0])
 
         results = _sweepline_overlaps(
-            q_starts, q_ends, q_indices,
-            s_starts, s_ends, s_indices,
-            min_overlap_bp=1, min_overlap_frac=0.0, report="all",
+            q_starts,
+            q_ends,
+            q_indices,
+            s_starts,
+            s_ends,
+            s_indices,
+            min_overlap_bp=1,
+            min_overlap_frac=0.0,
+            report="all",
         )
         assert len(results) == 0
 
@@ -191,27 +205,33 @@ class TestCountOverlaps:
 
     def test_returns_array(self, sample_peaks):
         """Return type is a numpy array with correct length."""
-        subject = pd.DataFrame({
-            "chr": ["chr1", "chr2"],
-            "start": [1500, 2500],
-            "end": [2500, 3500],
-        })
+        subject = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr2"],
+                "start": [1500, 2500],
+                "end": [2500, 3500],
+            }
+        )
         result = count_overlaps(sample_peaks, subject)
         assert isinstance(result, np.ndarray)
         assert len(result) == len(sample_peaks)
 
     def test_known_counts(self):
         """Verify correct counts for known overlap pattern."""
-        query = pd.DataFrame({
-            "chr": ["chr1", "chr1", "chr2"],
-            "start": [100, 500, 100],
-            "end": [300, 700, 300],
-        })
-        subject = pd.DataFrame({
-            "chr": ["chr1", "chr1"],
-            "start": [200, 250],
-            "end": [400, 350],
-        })
+        query = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1", "chr2"],
+                "start": [100, 500, 100],
+                "end": [300, 700, 300],
+            }
+        )
+        subject = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1"],
+                "start": [200, 250],
+                "end": [400, 350],
+            }
+        )
         result = count_overlaps(query, subject)
         # First query (100-300) overlaps both subjects, second (500-700) overlaps none
         assert result[0] == 2
@@ -243,11 +263,13 @@ class TestFindFirstOverlaps:
     def test_returns_first_only(self):
         """Only the first overlap per query is returned."""
         query = pd.DataFrame({"chr": ["chr1"], "start": [100], "end": [500]})
-        subject = pd.DataFrame({
-            "chr": ["chr1", "chr1"],
-            "start": [150, 300],
-            "end": [250, 400],
-        })
+        subject = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1"],
+                "start": [150, 300],
+                "end": [250, 400],
+            }
+        )
         result = find_first_overlaps(query, subject)
         assert len(result) == 1
 
@@ -257,27 +279,33 @@ class TestExcludeOverlapping:
 
     def test_removes_overlapping(self):
         """Peaks overlapping exclusion regions are removed."""
-        peaks = pd.DataFrame({
-            "chr": ["chr1", "chr1", "chr2"],
-            "start": [100, 500, 100],
-            "end": [200, 600, 200],
-        })
-        exclusion = pd.DataFrame({
-            "chr": ["chr1"],
-            "start": [150],
-            "end": [250],
-        })
+        peaks = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr1", "chr2"],
+                "start": [100, 500, 100],
+                "end": [200, 600, 200],
+            }
+        )
+        exclusion = pd.DataFrame(
+            {
+                "chr": ["chr1"],
+                "start": [150],
+                "end": [250],
+            }
+        )
         result = exclude_overlapping(peaks, exclusion)
         # First peak overlaps exclusion; peaks 2 and 3 should remain
         assert len(result) == 2
 
     def test_no_exclusion(self):
         """Empty exclusion keeps all peaks."""
-        peaks = pd.DataFrame({
-            "chr": ["chr1", "chr2"],
-            "start": [100, 200],
-            "end": [200, 300],
-        })
+        peaks = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr2"],
+                "start": [100, 200],
+                "end": [200, 300],
+            }
+        )
         exclusion = pd.DataFrame(columns=["chr", "start", "end"])
         result = exclude_overlapping(peaks, exclusion)
         assert len(result) == len(peaks)
@@ -318,12 +346,14 @@ class TestStandardizePeakColumns:
 
     def test_renames_variants(self):
         """Non-standard column names get renamed."""
-        df = pd.DataFrame({
-            "chrom": ["chr1"],
-            "chromStart": [100],
-            "chromEnd": [200],
-            "signalValue": [5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "chrom": ["chr1"],
+                "chromStart": [100],
+                "chromEnd": [200],
+                "signalValue": [5.0],
+            }
+        )
         result = standardize_peak_columns(df)
         assert "chr" in result.columns
         assert "start" in result.columns
@@ -402,20 +432,24 @@ class TestFilterStandardChroms:
 
     def test_removes_nonstandard(self):
         """Random and haplotype contigs are removed."""
-        df = pd.DataFrame({
-            "chr": ["chr1", "chr2", "chrUn_gl000220", "chr1_random", "chrX"],
-            "start": [100, 200, 300, 400, 500],
-            "end": [200, 300, 400, 500, 600],
-        })
+        df = pd.DataFrame(
+            {
+                "chr": ["chr1", "chr2", "chrUn_gl000220", "chr1_random", "chrX"],
+                "start": [100, 200, 300, 400, 500],
+                "end": [200, 300, 400, 500, 600],
+            }
+        )
         result = filter_standard_chroms(df)
         assert set(result["chr"]) == {"chr1", "chr2", "chrX"}
 
     def test_empty_after_filter(self):
         """If all chroms are non-standard, result is empty."""
-        df = pd.DataFrame({
-            "chr": ["chrUn", "chrGL"],
-            "start": [100, 200],
-            "end": [200, 300],
-        })
+        df = pd.DataFrame(
+            {
+                "chr": ["chrUn", "chrGL"],
+                "start": [100, 200],
+                "end": [200, 300],
+            }
+        )
         result = filter_standard_chroms(df)
         assert len(result) == 0

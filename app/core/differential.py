@@ -22,17 +22,17 @@ This file is part of EpiNexus.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 # Optional imports with fallbacks
 try:
     import pysam
+
     PYSAM_AVAILABLE = True
 except ImportError:
     PYSAM_AVAILABLE = False
@@ -40,6 +40,7 @@ except ImportError:
 
 try:
     import pyranges as pr
+
     PYRANGES_AVAILABLE = True
 except ImportError:
     PYRANGES_AVAILABLE = False
@@ -48,6 +49,7 @@ except ImportError:
 try:
     from pydeseq2.dds import DeseqDataSet
     from pydeseq2.ds import DeseqStats
+
     PYDESEQ2_AVAILABLE = True
 except ImportError:
     PYDESEQ2_AVAILABLE = False
@@ -57,6 +59,7 @@ except ImportError:
 @dataclass
 class Sample:
     """Sample metadata."""
+
     sample_id: str
     condition: str
     histone_mark: str
@@ -71,6 +74,7 @@ class Sample:
 @dataclass
 class DifferentialConfig:
     """Configuration for differential analysis."""
+
     comparison_name: str
     group1: str  # Treatment
     group2: str  # Control
@@ -114,20 +118,15 @@ class DifferentialConfig:
         if self.lfc_threshold < 0:
             raise InvalidParameterError("lfc_threshold", self.lfc_threshold, ">= 0")
         if self.normalize_method not in self.VALID_NORM_METHODS:
-            raise InvalidParameterError(
-                "normalize_method", self.normalize_method,
-                f"one of {self.VALID_NORM_METHODS}"
-            )
+            raise InvalidParameterError("normalize_method", self.normalize_method, f"one of {self.VALID_NORM_METHODS}")
         if self.assay_type not in self.VALID_ASSAY_TYPES:
-            raise InvalidParameterError(
-                "assay_type", self.assay_type,
-                f"one of {self.VALID_ASSAY_TYPES}"
-            )
+            raise InvalidParameterError("assay_type", self.assay_type, f"one of {self.VALID_ASSAY_TYPES}")
 
 
 @dataclass
 class DifferentialResults:
     """Results from differential analysis."""
+
     comparison_name: str
     total_peaks: int
     significant_peaks: int
@@ -147,7 +146,7 @@ class DifferentialResults:
             "total_peaks": self.total_peaks,
             "significant_peaks": self.significant_peaks,
             "gained_peaks": self.gained_peaks,
-            "lost_peaks": self.lost_peaks
+            "lost_peaks": self.lost_peaks,
         }
 
 
@@ -202,23 +201,19 @@ class DifferentialAnalyzer:
                 first_line = f.readline().strip()
                 if not first_line:
                     raise PeakFileFormatError(f"Peak file has no data: {peak_file}")
-                n_cols = len(first_line.split('\t'))
+                n_cols = len(first_line.split("\t"))
 
             if n_cols < 3:
                 raise PeakFileFormatError(
-                    f"Peak file must have at least 3 columns (chrom, start, end), "
-                    f"found {n_cols}: {peak_file}"
+                    f"Peak file must have at least 3 columns (chrom, start, end), found {n_cols}: {peak_file}"
                 )
 
             if n_cols >= 10:  # narrowPeak format
-                cols = ['chrom', 'start', 'end', 'name', 'score', 'strand',
-                       'signalValue', 'pValue', 'qValue', 'summit']
-                df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols],
-                                 comment='#')
+                cols = ["chrom", "start", "end", "name", "score", "strand", "signalValue", "pValue", "qValue", "summit"]
+                df = pd.read_csv(peak_file, sep="\t", header=None, names=cols[:n_cols], comment="#")
             else:  # BED format
-                cols = ['chrom', 'start', 'end', 'name', 'score', 'strand']
-                df = pd.read_csv(peak_file, sep='\t', header=None, names=cols[:n_cols],
-                                 comment='#')
+                cols = ["chrom", "start", "end", "name", "score", "strand"]
+                df = pd.read_csv(peak_file, sep="\t", header=None, names=cols[:n_cols], comment="#")
         except PeakFileFormatError:
             raise
         except Exception as e:
@@ -228,31 +223,28 @@ class DifferentialAnalyzer:
             raise PeakFileFormatError(f"No peaks found in file: {peak_file}")
 
         # Ensure required columns
-        df['chrom'] = df['chrom'].astype(str)
-        df['start'] = pd.to_numeric(df['start'], errors='coerce')
-        df['end'] = pd.to_numeric(df['end'], errors='coerce')
+        df["chrom"] = df["chrom"].astype(str)
+        df["start"] = pd.to_numeric(df["start"], errors="coerce")
+        df["end"] = pd.to_numeric(df["end"], errors="coerce")
 
         # Drop rows with invalid coordinates
-        invalid_mask = df['start'].isna() | df['end'].isna()
+        invalid_mask = df["start"].isna() | df["end"].isna()
         if invalid_mask.any():
             n_invalid = invalid_mask.sum()
             logger.warning(f"Dropped {n_invalid} peaks with non-numeric coordinates from {peak_file}")
             df = df[~invalid_mask].copy()
 
-        df['start'] = df['start'].astype(int)
-        df['end'] = df['end'].astype(int)
+        df["start"] = df["start"].astype(int)
+        df["end"] = df["end"].astype(int)
 
         # Add summit if not present (use peak center)
-        if 'summit' not in df.columns:
-            df['summit'] = (df['start'] + df['end']) // 2 - df['start']
+        if "summit" not in df.columns:
+            df["summit"] = (df["start"] + df["end"]) // 2 - df["start"]
 
         return df
 
     def create_consensus_peaks(
-        self,
-        samples: List[Sample],
-        min_overlap: int = 2,
-        summit_extend: int = 250
+        self, samples: List[Sample], min_overlap: int = 2, summit_extend: int = 250
     ) -> pd.DataFrame:
         """
         Create consensus peak set from multiple samples.
@@ -273,18 +265,21 @@ class DifferentialAnalyzer:
                 continue
 
             peaks = self.load_peaks(sample.peak_file)
-            peaks['sample'] = sample.sample_id
+            peaks["sample"] = sample.sample_id
             all_peaks.append(peaks)
 
         if not all_peaks:
             from .exceptions import EmptyDataError
+
             raise EmptyDataError("peak files (no valid peak files found for any sample)")
 
         if len(all_peaks) < min_overlap:
             from .exceptions import InsufficientSamplesError
+
             raise InsufficientSamplesError(
-                required=min_overlap, actual=len(all_peaks),
-                context=f"consensus peak generation (min_overlap={min_overlap})"
+                required=min_overlap,
+                actual=len(all_peaks),
+                context=f"consensus peak generation (min_overlap={min_overlap})",
             )
 
         combined = pd.concat(all_peaks, ignore_index=True)
@@ -298,59 +293,48 @@ class DifferentialAnalyzer:
         logger.info(f"Created {len(consensus)} consensus peaks from {len(samples)} samples")
         return consensus
 
-    def _merge_peaks_pyranges(
-        self,
-        peaks: pd.DataFrame,
-        min_overlap: int,
-        summit_extend: int
-    ) -> pd.DataFrame:
+    def _merge_peaks_pyranges(self, peaks: pd.DataFrame, min_overlap: int, summit_extend: int) -> pd.DataFrame:
         """Merge peaks using pyranges."""
         # Create summit-centered regions
         peaks = peaks.copy()
-        peaks['summit_pos'] = peaks['start'] + peaks['summit']
-        peaks['Start'] = peaks['summit_pos'] - summit_extend
-        peaks['End'] = peaks['summit_pos'] + summit_extend
-        peaks['Chromosome'] = peaks['chrom']
+        peaks["summit_pos"] = peaks["start"] + peaks["summit"]
+        peaks["Start"] = peaks["summit_pos"] - summit_extend
+        peaks["End"] = peaks["summit_pos"] + summit_extend
+        peaks["Chromosome"] = peaks["chrom"]
 
         # Ensure no negative starts
-        peaks['Start'] = peaks['Start'].clip(lower=0)
+        peaks["Start"] = peaks["Start"].clip(lower=0)
 
-        gr = pr.PyRanges(peaks[['Chromosome', 'Start', 'End', 'sample']])
+        gr = pr.PyRanges(peaks[["Chromosome", "Start", "End", "sample"]])
 
         # Cluster overlapping peaks
         clustered = gr.cluster()
         cluster_df = clustered.df
 
         # Count samples per cluster
-        cluster_counts = cluster_df.groupby('Cluster').agg({
-            'Chromosome': 'first',
-            'Start': 'min',
-            'End': 'max',
-            'sample': 'nunique'
-        }).reset_index()
+        cluster_counts = (
+            cluster_df.groupby("Cluster")
+            .agg({"Chromosome": "first", "Start": "min", "End": "max", "sample": "nunique"})
+            .reset_index()
+        )
 
-        cluster_counts.columns = ['cluster', 'chrom', 'start', 'end', 'n_samples']
+        cluster_counts.columns = ["cluster", "chrom", "start", "end", "n_samples"]
 
         # Filter by minimum overlap
-        consensus = cluster_counts[cluster_counts['n_samples'] >= min_overlap].copy()
-        consensus['peak_id'] = [f"peak_{i:06d}" for i in range(len(consensus))]
+        consensus = cluster_counts[cluster_counts["n_samples"] >= min_overlap].copy()
+        consensus["peak_id"] = [f"peak_{i:06d}" for i in range(len(consensus))]
 
-        return consensus[['peak_id', 'chrom', 'start', 'end', 'n_samples']]
+        return consensus[["peak_id", "chrom", "start", "end", "n_samples"]]
 
-    def _merge_peaks_pandas(
-        self,
-        peaks: pd.DataFrame,
-        min_overlap: int,
-        summit_extend: int
-    ) -> pd.DataFrame:
+    def _merge_peaks_pandas(self, peaks: pd.DataFrame, min_overlap: int, summit_extend: int) -> pd.DataFrame:
         """Merge peaks using pandas (fallback)."""
         # Sort peaks
         peaks = peaks.copy()
-        peaks['summit_pos'] = peaks['start'] + peaks['summit']
-        peaks['new_start'] = (peaks['summit_pos'] - summit_extend).clip(lower=0)
-        peaks['new_end'] = peaks['summit_pos'] + summit_extend
+        peaks["summit_pos"] = peaks["start"] + peaks["summit"]
+        peaks["new_start"] = (peaks["summit_pos"] - summit_extend).clip(lower=0)
+        peaks["new_end"] = peaks["summit_pos"] + summit_extend
 
-        peaks = peaks.sort_values(['chrom', 'new_start'])
+        peaks = peaks.sort_values(["chrom", "new_start"])
 
         # Simple greedy merge
         merged = []
@@ -361,47 +345,42 @@ class DifferentialAnalyzer:
 
         for _, row in peaks.iterrows():
             if current_chrom is None:
-                current_chrom = row['chrom']
-                current_start = row['new_start']
-                current_end = row['new_end']
-                current_samples = {row['sample']}
-            elif row['chrom'] == current_chrom and row['new_start'] <= current_end:
+                current_chrom = row["chrom"]
+                current_start = row["new_start"]
+                current_end = row["new_end"]
+                current_samples = {row["sample"]}
+            elif row["chrom"] == current_chrom and row["new_start"] <= current_end:
                 # Overlapping - extend
-                current_end = max(current_end, row['new_end'])
-                current_samples.add(row['sample'])
+                current_end = max(current_end, row["new_end"])
+                current_samples.add(row["sample"])
             else:
                 # Save current and start new
                 if len(current_samples) >= min_overlap:
-                    merged.append({
-                        'chrom': current_chrom,
-                        'start': current_start,
-                        'end': current_end,
-                        'n_samples': len(current_samples)
-                    })
-                current_chrom = row['chrom']
-                current_start = row['new_start']
-                current_end = row['new_end']
-                current_samples = {row['sample']}
+                    merged.append(
+                        {
+                            "chrom": current_chrom,
+                            "start": current_start,
+                            "end": current_end,
+                            "n_samples": len(current_samples),
+                        }
+                    )
+                current_chrom = row["chrom"]
+                current_start = row["new_start"]
+                current_end = row["new_end"]
+                current_samples = {row["sample"]}
 
         # Don't forget last region
         if current_chrom and len(current_samples) >= min_overlap:
-            merged.append({
-                'chrom': current_chrom,
-                'start': current_start,
-                'end': current_end,
-                'n_samples': len(current_samples)
-            })
+            merged.append(
+                {"chrom": current_chrom, "start": current_start, "end": current_end, "n_samples": len(current_samples)}
+            )
 
         consensus = pd.DataFrame(merged)
-        consensus['peak_id'] = [f"peak_{i:06d}" for i in range(len(consensus))]
+        consensus["peak_id"] = [f"peak_{i:06d}" for i in range(len(consensus))]
 
-        return consensus[['peak_id', 'chrom', 'start', 'end', 'n_samples']]
+        return consensus[["peak_id", "chrom", "start", "end", "n_samples"]]
 
-    def count_reads_in_peaks(
-        self,
-        consensus_peaks: pd.DataFrame,
-        samples: List[Sample]
-    ) -> pd.DataFrame:
+    def count_reads_in_peaks(self, consensus_peaks: pd.DataFrame, samples: List[Sample]) -> pd.DataFrame:
         """
         Count reads in consensus peaks for each sample.
 
@@ -427,11 +406,7 @@ class DifferentialAnalyzer:
             with pysam.AlignmentFile(sample.bam_file, "rb") as bam:
                 for _, peak in consensus_peaks.iterrows():
                     try:
-                        count = bam.count(
-                            peak['chrom'],
-                            int(peak['start']),
-                            int(peak['end'])
-                        )
+                        count = bam.count(peak["chrom"], int(peak["start"]), int(peak["end"]))
                     except ValueError:
                         count = 0
                     sample_counts.append(count)
@@ -439,14 +414,11 @@ class DifferentialAnalyzer:
             counts[sample.sample_id] = sample_counts
             logger.info(f"Counted reads for {sample.sample_id}")
 
-        count_df = pd.DataFrame(counts, index=consensus_peaks['peak_id'])
+        count_df = pd.DataFrame(counts, index=consensus_peaks["peak_id"])
         return count_df
 
     def normalize_counts(
-        self,
-        counts: pd.DataFrame,
-        method: str = "RLE",
-        spike_in_counts: Optional[pd.Series] = None
+        self, counts: pd.DataFrame, method: str = "RLE", spike_in_counts: Optional[pd.Series] = None
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Normalize count matrix.
@@ -515,7 +487,7 @@ class DifferentialAnalyzer:
             obs = counts[sample]
 
             # M values (log ratios)
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore"):
                 m = np.log2(obs / ref)
                 a = 0.5 * np.log2(obs * ref)
 
@@ -537,7 +509,7 @@ class DifferentialAnalyzer:
 
         size_factors = {}
         for sample in counts.columns:
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore"):
                 ratios = counts[sample] / median_counts
             size_factors[sample] = np.nanmedian(ratios)
 
@@ -621,11 +593,7 @@ class DifferentialAnalyzer:
 
         return normalized
 
-    def count_spike_in_reads(
-        self,
-        samples: List[Sample],
-        spike_in_genome: str = "E_coli"
-    ) -> pd.Series:
+    def count_spike_in_reads(self, samples: List[Sample], spike_in_genome: str = "E_coli") -> pd.Series:
         """
         Count reads mapping to spike-in genome for each sample.
 
@@ -651,7 +619,7 @@ class DifferentialAnalyzer:
                 continue
 
             # Look for spike-in specific BAM or count from main BAM
-            spikein_bam = Path(sample.bam_file).with_suffix('.spikein.bam')
+            spikein_bam = Path(sample.bam_file).with_suffix(".spikein.bam")
 
             if spikein_bam.exists():
                 # Dedicated spike-in BAM exists
@@ -662,16 +630,10 @@ class DifferentialAnalyzer:
                 try:
                     with pysam.AlignmentFile(sample.bam_file, "rb") as bam:
                         # Find spike-in chromosomes (e.g., those starting with spike_in_genome prefix)
-                        spikein_refs = [
-                            ref for ref in bam.references
-                            if spike_in_genome.lower() in ref.lower()
-                        ]
+                        spikein_refs = [ref for ref in bam.references if spike_in_genome.lower() in ref.lower()]
 
                         if spikein_refs:
-                            count = sum(
-                                bam.count(ref, 0, bam.get_reference_length(ref))
-                                for ref in spikein_refs
-                            )
+                            count = sum(bam.count(ref, 0, bam.get_reference_length(ref)) for ref in spikein_refs)
                         else:
                             # No spike-in refs found - might need separate alignment
                             logger.warning(
@@ -689,13 +651,7 @@ class DifferentialAnalyzer:
 
         return pd.Series(spike_counts)
 
-    def run_deseq2(
-        self,
-        counts: pd.DataFrame,
-        samples: List[Sample],
-        group1: str,
-        group2: str
-    ) -> pd.DataFrame:
+    def run_deseq2(self, counts: pd.DataFrame, samples: List[Sample], group1: str, group2: str) -> pd.DataFrame:
         """
         Run differential analysis using PyDESeq2.
 
@@ -714,20 +670,15 @@ class DifferentialAnalyzer:
 
         # Prepare metadata
         sample_ids = [s.sample_id for s in samples if s.sample_id in counts.columns]
-        metadata = pd.DataFrame({
-            'sample': sample_ids,
-            'condition': [s.condition for s in samples if s.sample_id in counts.columns]
-        }).set_index('sample')
+        metadata = pd.DataFrame(
+            {"sample": sample_ids, "condition": [s.condition for s in samples if s.sample_id in counts.columns]}
+        ).set_index("sample")
 
         # Subset counts to matching samples
         counts_subset = counts[sample_ids].T  # PyDESeq2 expects samples x genes
 
         # Create DESeq dataset
-        dds = DeseqDataSet(
-            counts=counts_subset,
-            metadata=metadata,
-            design_factors="condition"
-        )
+        dds = DeseqDataSet(counts=counts_subset, metadata=metadata, design_factors="condition")
 
         # Run DESeq2
         dds.deseq2()
@@ -737,28 +688,21 @@ class DifferentialAnalyzer:
         stat_res.summary()
 
         results = stat_res.results_df.copy()
-        results['peak_id'] = results.index
+        results["peak_id"] = results.index
         results = results.reset_index(drop=True)
 
         # Rename columns to match expected output
-        results = results.rename(columns={
-            'log2FoldChange': 'log2FC',
-            'pvalue': 'pvalue',
-            'padj': 'FDR',
-            'baseMean': 'baseMean'
-        })
+        results = results.rename(
+            columns={"log2FoldChange": "log2FC", "pvalue": "pvalue", "padj": "FDR", "baseMean": "baseMean"}
+        )
 
         # Add direction
-        results['direction'] = np.where(results['log2FC'] > 0, 'Gained', 'Lost')
+        results["direction"] = np.where(results["log2FC"] > 0, "Gained", "Lost")
 
         return results
 
     def _run_differential_fallback(
-        self,
-        counts: pd.DataFrame,
-        samples: List[Sample],
-        group1: str,
-        group2: str
+        self, counts: pd.DataFrame, samples: List[Sample], group1: str, group2: str
     ) -> pd.DataFrame:
         """Fallback differential analysis using scipy."""
         from scipy import stats
@@ -780,43 +724,35 @@ class DifferentialAnalyzer:
 
             # Mann-Whitney U test
             try:
-                _, pval = stats.mannwhitneyu(g1_counts, g2_counts, alternative='two-sided')
+                _, pval = stats.mannwhitneyu(g1_counts, g2_counts, alternative="two-sided")
             except (ValueError, TypeError) as e:
                 # Can fail if all values are identical or arrays are empty
                 logger.debug(f"Mann-Whitney test failed for {peak_id}: {e}")
                 pval = 1.0
 
-            results.append({
-                'peak_id': peak_id,
-                'log2FC': log2fc,
-                'pvalue': pval,
-                'baseMean': (g1_mean + g2_mean) / 2
-            })
+            results.append({"peak_id": peak_id, "log2FC": log2fc, "pvalue": pval, "baseMean": (g1_mean + g2_mean) / 2})
 
         results_df = pd.DataFrame(results)
 
         # FDR correction
         try:
             from scipy.stats import false_discovery_control
-            results_df['FDR'] = false_discovery_control(results_df['pvalue'])
+
+            results_df["FDR"] = false_discovery_control(results_df["pvalue"])
         except (ImportError, AttributeError):
             # false_discovery_control not available in older scipy versions
             # Fall back to manual Benjamini-Hochberg
             logger.info("Using manual Benjamini-Hochberg FDR correction")
-            pvals = results_df['pvalue'].values
+            pvals = results_df["pvalue"].values
             n = len(pvals)
             ranks = np.argsort(np.argsort(pvals)) + 1
-            results_df['FDR'] = np.minimum(1, pvals * n / ranks)
+            results_df["FDR"] = np.minimum(1, pvals * n / ranks)
 
-        results_df['direction'] = np.where(results_df['log2FC'] > 0, 'Gained', 'Lost')
+        results_df["direction"] = np.where(results_df["log2FC"] > 0, "Gained", "Lost")
 
         return results_df
 
-    def run(
-        self,
-        samples: List[Sample],
-        config: DifferentialConfig
-    ) -> DifferentialResults:
+    def run(self, samples: List[Sample], config: DifferentialConfig) -> DifferentialResults:
         """
         Run complete differential analysis pipeline.
 
@@ -837,9 +773,7 @@ class DifferentialAnalyzer:
         # Step 1: Create consensus peaks
         logger.info("Creating consensus peaks...")
         consensus = self.create_consensus_peaks(
-            samples,
-            min_overlap=config.min_overlap,
-            summit_extend=config.summit_extend
+            samples, min_overlap=config.min_overlap, summit_extend=config.summit_extend
         )
 
         # Step 2: Count reads
@@ -854,28 +788,25 @@ class DifferentialAnalyzer:
 
         # Step 4: Normalize
         logger.info(f"Normalizing with {config.normalize_method}...")
-        normalized, size_factors = self.normalize_counts(
-            counts, config.normalize_method, spike_in_counts
-        )
+        normalized, size_factors = self.normalize_counts(counts, config.normalize_method, spike_in_counts)
 
         # Step 4: Differential analysis
         logger.info("Running differential analysis...")
         results = self.run_deseq2(counts, samples, config.group1, config.group2)
 
         # Step 5: Merge with peak coordinates
-        results = results.merge(consensus, on='peak_id', how='left')
+        results = results.merge(consensus, on="peak_id", how="left")
 
         # Step 6: Filter significant
-        results['significant'] = (
-            (results['FDR'] < config.fdr_threshold) &
-            (np.abs(results['log2FC']) > config.lfc_threshold)
+        results["significant"] = (results["FDR"] < config.fdr_threshold) & (
+            np.abs(results["log2FC"]) > config.lfc_threshold
         )
 
-        significant = results[results['significant']].copy()
+        significant = results[results["significant"]].copy()
 
         # Calculate summary stats
-        gained = (significant['direction'] == 'Gained').sum()
-        lost = (significant['direction'] == 'Lost').sum()
+        gained = (significant["direction"] == "Gained").sum()
+        lost = (significant["direction"] == "Lost").sum()
 
         # Save results if output_dir specified
         if config.output_dir:
@@ -898,18 +829,13 @@ class DifferentialAnalyzer:
             lost_peaks=int(lost),
             all_peaks=results,
             significant=significant,
-            output_dir=config.output_dir
+            output_dir=config.output_dir,
         )
 
 
 # Convenience function
 def run_differential_analysis(
-    samples: List[Dict],
-    comparison_name: str,
-    group1: str,
-    group2: str,
-    output_dir: str = None,
-    **kwargs
+    samples: List[Dict], comparison_name: str, group1: str, group2: str, output_dir: str = None, **kwargs
 ) -> DifferentialResults:
     """
     Convenience function to run differential analysis.
@@ -928,11 +854,7 @@ def run_differential_analysis(
     sample_objects = [Sample(**s) for s in samples]
 
     config = DifferentialConfig(
-        comparison_name=comparison_name,
-        group1=group1,
-        group2=group2,
-        output_dir=output_dir,
-        **kwargs
+        comparison_name=comparison_name, group1=group1, group2=group2, output_dir=output_dir, **kwargs
     )
 
     analyzer = DifferentialAnalyzer()

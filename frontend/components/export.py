@@ -8,17 +8,15 @@ Provides:
 - Multi-panel figure assembly
 """
 
-import io
-import base64
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 import plotly.graph_objects as go
-import plotly.io as pio
 from dataclasses import dataclass
 
 
 @dataclass
 class JournalPreset:
     """Journal-specific figure requirements."""
+
     name: str
     max_width_mm: float  # Single column width
     max_width_full_mm: float  # Full page width
@@ -39,7 +37,7 @@ JOURNAL_PRESETS = {
         font_family="Arial",
         min_font_size=5,
         formats=["pdf", "eps", "tiff"],
-        color_mode="cmyk"
+        color_mode="cmyk",
     ),
     "cell": JournalPreset(
         name="Cell",
@@ -49,7 +47,7 @@ JOURNAL_PRESETS = {
         font_family="Arial",
         min_font_size=6,
         formats=["pdf", "eps", "tiff"],
-        color_mode="cmyk"
+        color_mode="cmyk",
     ),
     "science": JournalPreset(
         name="Science",
@@ -59,7 +57,7 @@ JOURNAL_PRESETS = {
         font_family="Helvetica",
         min_font_size=6,
         formats=["pdf", "eps"],
-        color_mode="rgb"
+        color_mode="rgb",
     ),
     "plos": JournalPreset(
         name="PLOS",
@@ -69,7 +67,7 @@ JOURNAL_PRESETS = {
         font_family="Arial",
         min_font_size=8,
         formats=["tiff", "eps", "pdf"],
-        color_mode="rgb"
+        color_mode="rgb",
     ),
     "biorxiv": JournalPreset(
         name="bioRxiv (Preprint)",
@@ -79,7 +77,7 @@ JOURNAL_PRESETS = {
         font_family="Arial",
         min_font_size=8,
         formats=["png", "pdf", "svg"],
-        color_mode="rgb"
+        color_mode="rgb",
     ),
     "presentation": JournalPreset(
         name="Presentation",
@@ -89,8 +87,8 @@ JOURNAL_PRESETS = {
         font_family="Arial",
         min_font_size=14,
         formats=["png", "svg"],
-        color_mode="rgb"
-    )
+        color_mode="rgb",
+    ),
 }
 
 
@@ -111,7 +109,7 @@ class FigureExporter:
         width: str = "single",  # 'single' or 'full'
         height_mm: Optional[float] = None,
         title: str = None,
-        add_panel_label: str = None  # e.g., 'A', 'B', 'C'
+        add_panel_label: str = None,  # e.g., 'A', 'B', 'C'
     ) -> go.Figure:
         """Format figure for publication."""
 
@@ -129,15 +127,9 @@ class FigureExporter:
         fig.update_layout(
             width=width_px,
             height=height_px,
-            font=dict(
-                family=self.preset.font_family,
-                size=max(self.preset.min_font_size, 10)
-            ),
-            title=dict(
-                text=title,
-                font=dict(size=max(self.preset.min_font_size + 2, 12))
-            ) if title else None,
-            margin=dict(l=50, r=20, t=40 if title else 20, b=50)
+            font=dict(family=self.preset.font_family, size=max(self.preset.min_font_size, 10)),
+            title=dict(text=title, font=dict(size=max(self.preset.min_font_size + 2, 12))) if title else None,
+            margin=dict(l=50, r=20, t=40 if title else 20, b=50),
         )
 
         # Add panel label
@@ -149,33 +141,25 @@ class FigureExporter:
                 x=-0.05,
                 y=1.05,
                 showarrow=False,
-                font=dict(size=14, family=self.preset.font_family)
+                font=dict(size=14, family=self.preset.font_family),
             )
 
         return fig
 
-    def export_png(
-        self,
-        fig: go.Figure,
-        scale: float = 2.0
-    ) -> bytes:
+    def export_png(self, fig: go.Figure, scale: float = 2.0) -> bytes:
         """Export figure as PNG."""
         return fig.to_image(format="png", scale=scale)
 
     def export_svg(self, fig: go.Figure) -> str:
         """Export figure as SVG."""
-        return fig.to_image(format="svg").decode('utf-8')
+        return fig.to_image(format="svg").decode("utf-8")
 
     def export_pdf(self, fig: go.Figure) -> bytes:
         """Export figure as PDF."""
         return fig.to_image(format="pdf")
 
     def get_download_link(
-        self,
-        fig: go.Figure,
-        filename: str,
-        format: str = "png",
-        scale: float = 2.0
+        self, fig: go.Figure, filename: str, format: str = "png", scale: float = 2.0
     ) -> Tuple[bytes, str]:
         """Get downloadable figure data."""
 
@@ -183,7 +167,7 @@ class FigureExporter:
             data = self.export_png(fig, scale)
             mime = "image/png"
         elif format == "svg":
-            data = self.export_svg(fig).encode('utf-8')
+            data = self.export_svg(fig).encode("utf-8")
             mime = "image/svg+xml"
         elif format == "pdf":
             data = self.export_pdf(fig)
@@ -193,10 +177,7 @@ class FigureExporter:
 
         return data, mime
 
-    def create_figure_legend(
-        self,
-        items: List[Dict[str, str]]
-    ) -> str:
+    def create_figure_legend(self, items: List[Dict[str, str]]) -> str:
         """Create a figure legend text.
 
         Args:
@@ -208,8 +189,8 @@ class FigureExporter:
         legend_parts = []
 
         for item in items:
-            label = item.get('label', '')
-            desc = item.get('description', '')
+            label = item.get("label", "")
+            desc = item.get("description", "")
             legend_parts.append(f"**{label}**: {desc}")
 
         return " ".join(legend_parts)
@@ -228,23 +209,19 @@ class MultiPanelFigure:
 
     def create_layout(
         self,
-        layout: str = "2x2"  # '1x2', '2x1', '2x2', '3x1', etc.
+        layout: str = "2x2",  # '1x2', '2x1', '2x2', '3x1', etc.
     ) -> go.Figure:
         """Create combined multi-panel figure."""
         from plotly.subplots import make_subplots
 
         # Parse layout
-        rows, cols = map(int, layout.split('x'))
+        rows, cols = map(int, layout.split("x"))
 
         # Create subplots
-        fig = make_subplots(
-            rows=rows,
-            cols=cols,
-            subplot_titles=[label for label, _ in self.panels[:rows*cols]]
-        )
+        fig = make_subplots(rows=rows, cols=cols, subplot_titles=[label for label, _ in self.panels[: rows * cols]])
 
         # Add each panel
-        for i, (label, panel_fig) in enumerate(self.panels[:rows*cols]):
+        for i, (label, panel_fig) in enumerate(self.panels[: rows * cols]):
             row = i // cols + 1
             col = i % cols + 1
 
@@ -253,11 +230,7 @@ class MultiPanelFigure:
 
         return fig
 
-    def export_all(
-        self,
-        format: str = "png",
-        scale: float = 2.0
-    ) -> List[Tuple[str, bytes]]:
+    def export_all(self, format: str = "png", scale: float = 2.0) -> List[Tuple[str, bytes]]:
         """Export all panels as separate files."""
         results = []
 
@@ -278,22 +251,15 @@ def render_export_ui(fig: go.Figure, default_filename: str = "figure"):
 
         with col1:
             preset = st.selectbox(
-                "Journal/Format",
-                list(JOURNAL_PRESETS.keys()),
-                format_func=lambda x: JOURNAL_PRESETS[x].name
+                "Journal/Format", list(JOURNAL_PRESETS.keys()), format_func=lambda x: JOURNAL_PRESETS[x].name
             )
 
         with col2:
-            format = st.selectbox(
-                "File Format",
-                ["png", "svg", "pdf"]
-            )
+            format = st.selectbox("File Format", ["png", "svg", "pdf"])
 
         with col3:
             width = st.selectbox(
-                "Width",
-                ["single", "full"],
-                format_func=lambda x: "Single Column" if x == "single" else "Full Page"
+                "Width", ["single", "full"], format_func=lambda x: "Single Column" if x == "single" else "Full Page"
             )
 
         # Scale for PNG
@@ -308,16 +274,6 @@ def render_export_ui(fig: go.Figure, default_filename: str = "figure"):
             exporter = FigureExporter(preset)
             formatted_fig = exporter.format_figure(fig, width=width)
 
-            data, mime = exporter.get_download_link(
-                formatted_fig,
-                filename,
-                format,
-                scale
-            )
+            data, mime = exporter.get_download_link(formatted_fig, filename, format, scale)
 
-            st.download_button(
-                f"Download {format.upper()}",
-                data,
-                f"{filename}.{format}",
-                mime
-            )
+            st.download_button(f"Download {format.upper()}", data, f"{filename}.{format}", mime)

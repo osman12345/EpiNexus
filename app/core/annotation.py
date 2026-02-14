@@ -13,7 +13,7 @@ Provides:
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -21,7 +21,8 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 try:
-    import pyranges as pr
+    import pyranges as pr  # noqa: F401
+
     PYRANGES_AVAILABLE = True
 except ImportError:
     PYRANGES_AVAILABLE = False
@@ -30,6 +31,7 @@ except ImportError:
 @dataclass
 class AnnotationConfig:
     """Configuration for peak annotation."""
+
     # TSS region definition
     tss_upstream: int = 3000
     tss_downstream: int = 3000
@@ -40,13 +42,13 @@ class AnnotationConfig:
     def __post_init__(self):
         if self.feature_priority is None:
             self.feature_priority = {
-                'Promoter': 1,
-                '5UTR': 2,
-                '3UTR': 3,
-                'Exon': 4,
-                'Intron': 5,
-                'Downstream': 6,
-                'Intergenic': 7
+                "Promoter": 1,
+                "5UTR": 2,
+                "3UTR": 3,
+                "Exon": 4,
+                "Intron": 5,
+                "Downstream": 6,
+                "Intergenic": 7,
             }
 
 
@@ -99,19 +101,19 @@ class GeneAnnotation:
         df = self._parse_gtf(gtf_file)
 
         # Extract genes
-        self.genes = df[df['feature'] == 'gene'].copy()
+        self.genes = df[df["feature"] == "gene"].copy()
         self.genes = self._standardize_columns(self.genes)
 
         # Extract transcripts
-        self.transcripts = df[df['feature'] == 'transcript'].copy()
+        self.transcripts = df[df["feature"] == "transcript"].copy()
 
         # Extract exons
-        self.exons = df[df['feature'] == 'exon'].copy()
+        self.exons = df[df["feature"] == "exon"].copy()
 
         # Create gene info lookup
-        self.gene_info = self.genes.set_index('gene_id')[
-            ['gene_name', 'chrom', 'start', 'end', 'strand']
-        ].to_dict('index')
+        self.gene_info = self.genes.set_index("gene_id")[["gene_name", "chrom", "start", "end", "strand"]].to_dict(
+            "index"
+        )
 
         logger.info(f"Loaded {len(self.genes)} genes, {len(self.exons)} exons")
 
@@ -121,14 +123,15 @@ class GeneAnnotation:
 
         # Handle gzipped files
         import gzip
-        opener = gzip.open if gtf_file.endswith('.gz') else open
 
-        with opener(gtf_file, 'rt') as f:
+        opener = gzip.open if gtf_file.endswith(".gz") else open
+
+        with opener(gtf_file, "rt") as f:
             for line in f:
-                if line.startswith('#'):
+                if line.startswith("#"):
                     continue
 
-                fields = line.strip().split('\t')
+                fields = line.strip().split("\t")
                 if len(fields) < 9:
                     continue
 
@@ -137,33 +140,35 @@ class GeneAnnotation:
                 # Parse attributes
                 attrs = self._parse_attributes(attributes)
 
-                records.append({
-                    'chrom': chrom,
-                    'source': source,
-                    'feature': feature,
-                    'start': int(start),
-                    'end': int(end),
-                    'strand': strand,
-                    **attrs
-                })
+                records.append(
+                    {
+                        "chrom": chrom,
+                        "source": source,
+                        "feature": feature,
+                        "start": int(start),
+                        "end": int(end),
+                        "strand": strand,
+                        **attrs,
+                    }
+                )
 
         return pd.DataFrame(records)
 
     def _parse_attributes(self, attr_string: str) -> Dict[str, str]:
         """Parse GTF attribute string."""
         attrs = {}
-        for item in attr_string.strip().split(';'):
+        for item in attr_string.strip().split(";"):
             item = item.strip()
             if not item:
                 continue
 
             # Handle both GTF and GFF formats
-            if '=' in item:  # GFF3
-                key, value = item.split('=', 1)
-            elif ' ' in item:  # GTF
-                parts = item.split(' ', 1)
+            if "=" in item:  # GFF3
+                key, value = item.split("=", 1)
+            elif " " in item:  # GTF
+                parts = item.split(" ", 1)
                 key = parts[0]
-                value = parts[1].strip('"') if len(parts) > 1 else ''
+                value = parts[1].strip('"') if len(parts) > 1 else ""
             else:
                 continue
 
@@ -176,26 +181,22 @@ class GeneAnnotation:
         df = df.copy()
 
         # Standardize gene_id
-        if 'gene_id' not in df.columns:
-            for col in ['ID', 'Name', 'gene']:
+        if "gene_id" not in df.columns:
+            for col in ["ID", "Name", "gene"]:
                 if col in df.columns:
-                    df['gene_id'] = df[col]
+                    df["gene_id"] = df[col]
                     break
 
         # Standardize gene_name
-        if 'gene_name' not in df.columns:
-            for col in ['gene_symbol', 'Name', 'gene_id']:
+        if "gene_name" not in df.columns:
+            for col in ["gene_symbol", "Name", "gene_id"]:
                 if col in df.columns:
-                    df['gene_name'] = df[col]
+                    df["gene_name"] = df[col]
                     break
 
         return df
 
-    def get_promoter_regions(
-        self,
-        upstream: int = 3000,
-        downstream: int = 3000
-    ) -> pd.DataFrame:
+    def get_promoter_regions(self, upstream: int = 3000, downstream: int = 3000) -> pd.DataFrame:
         """
         Get promoter regions for all genes.
 
@@ -212,26 +213,18 @@ class GeneAnnotation:
         promoters = self.genes.copy()
 
         # Calculate TSS based on strand
-        promoters['tss'] = np.where(
-            promoters['strand'] == '+',
-            promoters['start'],
-            promoters['end']
-        )
+        promoters["tss"] = np.where(promoters["strand"] == "+", promoters["start"], promoters["end"])
 
         # Define promoter region
-        promoters['prom_start'] = np.where(
-            promoters['strand'] == '+',
-            promoters['tss'] - upstream,
-            promoters['tss'] - downstream
+        promoters["prom_start"] = np.where(
+            promoters["strand"] == "+", promoters["tss"] - upstream, promoters["tss"] - downstream
         ).clip(min=0)
 
-        promoters['prom_end'] = np.where(
-            promoters['strand'] == '+',
-            promoters['tss'] + downstream,
-            promoters['tss'] + upstream
+        promoters["prom_end"] = np.where(
+            promoters["strand"] == "+", promoters["tss"] + downstream, promoters["tss"] + upstream
         )
 
-        return promoters[['gene_id', 'gene_name', 'chrom', 'prom_start', 'prom_end', 'strand', 'tss']]
+        return promoters[["gene_id", "gene_name", "chrom", "prom_start", "prom_end", "strand", "tss"]]
 
 
 class PeakAnnotator:
@@ -244,11 +237,7 @@ class PeakAnnotator:
     - Genomic feature classification
     """
 
-    def __init__(
-        self,
-        gene_annotation: GeneAnnotation,
-        config: AnnotationConfig = None
-    ):
+    def __init__(self, gene_annotation: GeneAnnotation, config: AnnotationConfig = None):
         """
         Initialize peak annotator.
 
@@ -261,16 +250,11 @@ class PeakAnnotator:
 
         # Pre-compute promoter regions
         self.promoters = self.genes.get_promoter_regions(
-            upstream=self.config.tss_upstream,
-            downstream=self.config.tss_downstream
+            upstream=self.config.tss_upstream, downstream=self.config.tss_downstream
         )
 
     def annotate_peaks(
-        self,
-        peaks: pd.DataFrame,
-        chrom_col: str = 'chrom',
-        start_col: str = 'start',
-        end_col: str = 'end'
+        self, peaks: pd.DataFrame, chrom_col: str = "chrom", start_col: str = "start", end_col: str = "end"
     ) -> pd.DataFrame:
         """
         Annotate peaks with nearest gene and genomic features.
@@ -287,113 +271,91 @@ class PeakAnnotator:
         peaks = peaks.copy()
 
         # Calculate peak centers
-        peaks['peak_center'] = (peaks[start_col] + peaks[end_col]) // 2
+        peaks["peak_center"] = (peaks[start_col] + peaks[end_col]) // 2
 
         # Find nearest gene for each peak
         annotations = []
 
         for idx, peak in peaks.iterrows():
-            ann = self._annotate_single_peak(
-                peak[chrom_col],
-                peak[start_col],
-                peak[end_col],
-                peak['peak_center']
-            )
-            ann['peak_idx'] = idx
+            ann = self._annotate_single_peak(peak[chrom_col], peak[start_col], peak[end_col], peak["peak_center"])
+            ann["peak_idx"] = idx
             annotations.append(ann)
 
         ann_df = pd.DataFrame(annotations)
 
         # Merge with original peaks
-        result = peaks.merge(ann_df, left_index=True, right_on='peak_idx', how='left')
-        result = result.drop(columns=['peak_idx'], errors='ignore')
+        result = peaks.merge(ann_df, left_index=True, right_on="peak_idx", how="left")
+        result = result.drop(columns=["peak_idx"], errors="ignore")
 
         return result
 
-    def _annotate_single_peak(
-        self,
-        chrom: str,
-        start: int,
-        end: int,
-        center: int
-    ) -> Dict[str, Any]:
+    def _annotate_single_peak(self, chrom: str, start: int, end: int, center: int) -> Dict[str, Any]:
         """Annotate a single peak."""
         result = {
-            'gene_id': None,
-            'gene_name': None,
-            'distance_to_tss': None,
-            'annotation': 'Intergenic',
-            'gene_strand': None
+            "gene_id": None,
+            "gene_name": None,
+            "distance_to_tss": None,
+            "annotation": "Intergenic",
+            "gene_strand": None,
         }
 
         # Get genes on same chromosome
-        chrom_genes = self.genes.genes[self.genes.genes['chrom'] == chrom]
+        chrom_genes = self.genes.genes[self.genes.genes["chrom"] == chrom]
 
         if len(chrom_genes) == 0:
             return result
 
         # Get promoters on same chromosome
-        chrom_promoters = self.promoters[self.promoters['chrom'] == chrom]
+        chrom_promoters = self.promoters[self.promoters["chrom"] == chrom]
 
         # Check promoter overlap first
-        promoter_hits = chrom_promoters[
-            (chrom_promoters['prom_start'] <= end) &
-            (chrom_promoters['prom_end'] >= start)
-        ]
+        promoter_hits = chrom_promoters[(chrom_promoters["prom_start"] <= end) & (chrom_promoters["prom_end"] >= start)]
 
         if len(promoter_hits) > 0:
             # Take closest promoter
             promoter_hits = promoter_hits.copy()
-            promoter_hits['dist'] = np.abs(promoter_hits['tss'] - center)
-            closest = promoter_hits.loc[promoter_hits['dist'].idxmin()]
+            promoter_hits["dist"] = np.abs(promoter_hits["tss"] - center)
+            closest = promoter_hits.loc[promoter_hits["dist"].idxmin()]
 
-            result['gene_id'] = closest['gene_id']
-            result['gene_name'] = closest['gene_name']
-            result['distance_to_tss'] = int(center - closest['tss'])
-            result['gene_strand'] = closest['strand']
-            result['annotation'] = 'Promoter'
+            result["gene_id"] = closest["gene_id"]
+            result["gene_name"] = closest["gene_name"]
+            result["distance_to_tss"] = int(center - closest["tss"])
+            result["gene_strand"] = closest["strand"]
+            result["annotation"] = "Promoter"
             return result
 
         # Find nearest gene
         chrom_genes = chrom_genes.copy()
-        chrom_genes['tss'] = np.where(
-            chrom_genes['strand'] == '+',
-            chrom_genes['start'],
-            chrom_genes['end']
-        )
-        chrom_genes['dist'] = np.abs(chrom_genes['tss'] - center)
-        closest_gene = chrom_genes.loc[chrom_genes['dist'].idxmin()]
+        chrom_genes["tss"] = np.where(chrom_genes["strand"] == "+", chrom_genes["start"], chrom_genes["end"])
+        chrom_genes["dist"] = np.abs(chrom_genes["tss"] - center)
+        closest_gene = chrom_genes.loc[chrom_genes["dist"].idxmin()]
 
-        result['gene_id'] = closest_gene.get('gene_id')
-        result['gene_name'] = closest_gene.get('gene_name')
-        result['distance_to_tss'] = int(center - closest_gene['tss'])
-        result['gene_strand'] = closest_gene['strand']
+        result["gene_id"] = closest_gene.get("gene_id")
+        result["gene_name"] = closest_gene.get("gene_name")
+        result["distance_to_tss"] = int(center - closest_gene["tss"])
+        result["gene_strand"] = closest_gene["strand"]
 
         # Determine annotation type
-        gene_start = closest_gene['start']
-        gene_end = closest_gene['end']
+        gene_start = closest_gene["start"]
+        gene_end = closest_gene["end"]
 
         if start >= gene_start and end <= gene_end:
             # Inside gene body
-            result['annotation'] = 'Intron'  # Simplified - would need exon data for precise
+            result["annotation"] = "Intron"  # Simplified - would need exon data for precise
         elif center > gene_end:
-            if closest_gene['strand'] == '+':
-                result['annotation'] = 'Downstream'
+            if closest_gene["strand"] == "+":
+                result["annotation"] = "Downstream"
             else:
-                result['annotation'] = 'Upstream'
+                result["annotation"] = "Upstream"
         else:
-            if closest_gene['strand'] == '+':
-                result['annotation'] = 'Upstream'
+            if closest_gene["strand"] == "+":
+                result["annotation"] = "Upstream"
             else:
-                result['annotation'] = 'Downstream'
+                result["annotation"] = "Downstream"
 
         return result
 
-    def annotate_to_genes(
-        self,
-        peaks: pd.DataFrame,
-        summarize: bool = True
-    ) -> pd.DataFrame:
+    def annotate_to_genes(self, peaks: pd.DataFrame, summarize: bool = True) -> pd.DataFrame:
         """
         Annotate peaks and optionally create gene-level summary.
 
@@ -411,28 +373,37 @@ class PeakAnnotator:
             return annotated
 
         # Create gene-level summary
-        gene_summary = annotated.groupby(['gene_id', 'gene_name']).agg({
-            'peak_id': 'count',
-            'annotation': lambda x: ','.join(x.unique()),
-            'distance_to_tss': 'min',
-            'FDR': 'min' if 'FDR' in annotated.columns else lambda x: None,
-            'log2FC': 'mean' if 'log2FC' in annotated.columns else lambda x: None,
-            'direction': lambda x: ','.join(x.unique()) if 'direction' in annotated.columns else None
-        }).reset_index()
+        gene_summary = (
+            annotated.groupby(["gene_id", "gene_name"])
+            .agg(
+                {
+                    "peak_id": "count",
+                    "annotation": lambda x: ",".join(x.unique()),
+                    "distance_to_tss": "min",
+                    "FDR": "min" if "FDR" in annotated.columns else lambda x: None,
+                    "log2FC": "mean" if "log2FC" in annotated.columns else lambda x: None,
+                    "direction": lambda x: ",".join(x.unique()) if "direction" in annotated.columns else None,
+                }
+            )
+            .reset_index()
+        )
 
         gene_summary.columns = [
-            'gene_id', 'gene_name', 'n_peaks', 'annotations',
-            'min_distance_to_tss', 'min_FDR', 'mean_log2FC', 'directions'
+            "gene_id",
+            "gene_name",
+            "n_peaks",
+            "annotations",
+            "min_distance_to_tss",
+            "min_FDR",
+            "mean_log2FC",
+            "directions",
         ]
 
-        return gene_summary.sort_values('min_FDR' if 'min_FDR' in gene_summary.columns else 'n_peaks')
+        return gene_summary.sort_values("min_FDR" if "min_FDR" in gene_summary.columns else "n_peaks")
 
 
 def annotate_differential_peaks(
-    peaks_df: pd.DataFrame,
-    gtf_file: str,
-    tss_upstream: int = 3000,
-    tss_downstream: int = 3000
+    peaks_df: pd.DataFrame, gtf_file: str, tss_upstream: int = 3000, tss_downstream: int = 3000
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Convenience function to annotate differential peaks.
@@ -450,10 +421,7 @@ def annotate_differential_peaks(
     genes = GeneAnnotation(gtf_file)
 
     # Configure annotator
-    config = AnnotationConfig(
-        tss_upstream=tss_upstream,
-        tss_downstream=tss_downstream
-    )
+    config = AnnotationConfig(tss_upstream=tss_upstream, tss_downstream=tss_downstream)
 
     annotator = PeakAnnotator(genes, config)
 
@@ -571,14 +539,15 @@ class AnnotationDatabase:
     def _load_cached_pickle(cache_file: Path) -> "GeneAnnotation":
         """Load legacy pickle cache (for one-time migration to parquet)."""
         import pickle
-        with open(cache_file, 'rb') as f:
+
+        with open(cache_file, "rb") as f:
             data = pickle.load(f)
 
         annotation = GeneAnnotation.__new__(GeneAnnotation)
-        annotation.genes = data['genes']
-        annotation.transcripts = data['transcripts']
-        annotation.exons = data['exons']
-        annotation.gene_info = data['gene_info']
-        annotation.genome = data['genome']
+        annotation.genes = data["genes"]
+        annotation.transcripts = data["transcripts"]
+        annotation.exons = data["exons"]
+        annotation.gene_info = data["gene_info"]
+        annotation.genome = data["genome"]
 
         return annotation

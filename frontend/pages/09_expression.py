@@ -8,28 +8,24 @@ Provides:
 - Multi-omics summary views
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-st.set_page_config(
-    page_title="Expression Integration - EpiNexus",
-    page_icon="📊",
-    layout="wide"
-)
+st.set_page_config(page_title="Expression Integration - EpiNexus", page_icon="📊", layout="wide")
 
 # Try to import data manager
 try:
     from frontend.components.data_manager import DataManager
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
@@ -37,10 +33,12 @@ except ImportError:
 # Try to import workflow manager
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
         from components.workflow_manager import WorkflowManager
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -48,18 +46,18 @@ except ImportError:
 # Session state
 from frontend.components.theme import COLORS
 
-if 'expression_data' not in st.session_state:
+if "expression_data" not in st.session_state:
     st.session_state.expression_data = None
-if 'integration_results' not in st.session_state:
+if "integration_results" not in st.session_state:
     st.session_state.integration_results = None
 
 
 def has_data() -> bool:
     """Check if user has loaded epigenetic data."""
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         return peaks is not None and len(peaks) > 0
-    return len(st.session_state.get('samples', [])) > 0
+    return len(st.session_state.get("samples", [])) > 0
 
 
 def render_empty_state() -> None:
@@ -67,7 +65,8 @@ def render_empty_state() -> None:
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="text-align: center; padding: 3rem; background: #f8f9fa;
                     border-radius: 12px; border: 2px dashed #dee2e6;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
@@ -76,7 +75,9 @@ def render_empty_state() -> None:
                 Upload your epigenetic data to integrate with expression.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
         st.markdown("")
         if st.button("📁 Go to Data & Project", type="primary", use_container_width=True):
             st.switch_page("pages/01_data_project.py")
@@ -100,12 +101,9 @@ def main() -> None:
         return
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📁 Data Upload",
-        "🌋 Expression Analysis",
-        "🔗 Epigenetic Integration",
-        "📋 Summary Report"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📁 Data Upload", "🌋 Expression Analysis", "🔗 Epigenetic Integration", "📋 Summary Report"]
+    )
 
     with tab1:
         render_data_upload()
@@ -135,11 +133,7 @@ def render_data_upload() -> None:
         - Adjusted p-value (FDR)
         """)
 
-        expr_file = st.file_uploader(
-            "Upload DE results",
-            type=['csv', 'tsv', 'xlsx', 'txt'],
-            key='expr_upload'
-        )
+        expr_file = st.file_uploader("Upload DE results", type=["csv", "tsv", "xlsx", "txt"], key="expr_upload")
 
         if expr_file:
             df = load_expression_file(expr_file)
@@ -159,9 +153,9 @@ def render_data_upload() -> None:
         st.subheader("Histone Mark Data")
         st.markdown("Upload differential peak results for each mark:")
 
-        h3k27ac = st.file_uploader("H3K27ac peaks", type=['csv'], key='h3k27ac')
-        h3k27me3 = st.file_uploader("H3K27me3 peaks", type=['csv'], key='h3k27me3')
-        h3k4me1 = st.file_uploader("H3K4me1 peaks", type=['csv'], key='h3k4me1')
+        h3k27ac = st.file_uploader("H3K27ac peaks", type=["csv"], key="h3k27ac")
+        h3k27me3 = st.file_uploader("H3K27me3 peaks", type=["csv"], key="h3k27me3")
+        h3k4me1 = st.file_uploader("H3K4me1 peaks", type=["csv"], key="h3k4me1")
 
         if h3k27ac or h3k27me3 or h3k4me1:
             st.success("Histone data loaded!")
@@ -199,8 +193,8 @@ def render_expression_analysis() -> None:
 
     # Detect columns
     cols = detect_column_types(df)
-    fdr_col = cols.get('fdr', 'FDR')
-    lfc_col = cols.get('log2fc', 'log2FC')
+    fdr_col = cols.get("fdr", "FDR")
+    lfc_col = cols.get("log2fc", "log2FC")
 
     if fdr_col in df.columns and lfc_col in df.columns:
         sig_up = len(df[(df[fdr_col] < 0.05) & (df[lfc_col] > 0.5)])
@@ -209,9 +203,9 @@ def render_expression_analysis() -> None:
         with col1:
             st.metric("Total Genes", len(df))
         with col2:
-            st.metric("Upregulated", sig_up, delta=f"{sig_up/len(df)*100:.1f}%")
+            st.metric("Upregulated", sig_up, delta=f"{sig_up / len(df) * 100:.1f}%")
         with col3:
-            st.metric("Downregulated", sig_down, delta=f"-{sig_down/len(df)*100:.1f}%")
+            st.metric("Downregulated", sig_down, delta=f"-{sig_down / len(df) * 100:.1f}%")
         with col4:
             st.metric("Unchanged", len(df) - sig_up - sig_down)
 
@@ -219,8 +213,7 @@ def render_expression_analysis() -> None:
     st.subheader("Visualizations")
 
     viz_type = st.selectbox(
-        "Select visualization",
-        ["Volcano Plot", "MA Plot", "Heatmap (Top Genes)", "Expression Distribution"]
+        "Select visualization", ["Volcano Plot", "MA Plot", "Heatmap (Top Genes)", "Expression Distribution"]
     )
 
     if viz_type == "Volcano Plot":
@@ -256,11 +249,9 @@ def render_integration_analysis() -> None:
                 WorkflowManager.record_step(
                     step_name="Expression Integration",
                     tool="EpiNexus Expression Module",
-                    parameters={
-                        'integration_type': 'expression_histone'
-                    },
-                    inputs=['expression_data', 'peaks'],
-                    outputs=['integration_results']
+                    parameters={"integration_type": "expression_histone"},
+                    inputs=["expression_data", "peaks"],
+                    outputs=["integration_results"],
                 )
 
     if st.session_state.integration_results:
@@ -310,7 +301,7 @@ def render_summary_report() -> None:
         "AP-1 (FOS/JUN) motifs are 4.2x enriched in upregulated genes with gained H3K27ac",
         "NF-κB targets show strong concordance between binding and expression",
         "MEF2A regulates 45 cardiac-specific genes that are upregulated in TAC",
-        "H3K27me3 loss precedes activation at key stress response genes"
+        "H3K27me3 loss precedes activation at key stress response genes",
     ]
 
     for i, finding in enumerate(findings, 1):
@@ -319,10 +310,7 @@ def render_summary_report() -> None:
     # Download report
     st.markdown("---")
     st.download_button(
-        "📥 Download Full Report (PDF)",
-        "Report placeholder",
-        "integration_report.pdf",
-        "application/pdf"
+        "📥 Download Full Report (PDF)", "Report placeholder", "integration_report.pdf", "application/pdf"
     )
 
 
@@ -330,14 +318,15 @@ def render_summary_report() -> None:
 # Helper Functions
 # =============================================================================
 
+
 def load_expression_file(uploaded_file) -> pd.DataFrame:
     """Load expression data from uploaded file."""
     name = uploaded_file.name.lower()
 
-    if name.endswith('.xlsx') or name.endswith('.xls'):
+    if name.endswith(".xlsx") or name.endswith(".xls"):
         df = pd.read_excel(uploaded_file)
-    elif name.endswith('.tsv') or name.endswith('.txt'):
-        df = pd.read_csv(uploaded_file, sep='\t')
+    elif name.endswith(".tsv") or name.endswith(".txt"):
+        df = pd.read_csv(uploaded_file, sep="\t")
     else:
         df = pd.read_csv(uploaded_file)
 
@@ -350,27 +339,27 @@ def detect_column_types(df: pd.DataFrame) -> Dict[str, str]:
     col_lower = {c.lower(): c for c in df.columns}
 
     # Log2FC
-    for name in ['log2foldchange', 'log2fc', 'logfc', 'fc']:
+    for name in ["log2foldchange", "log2fc", "logfc", "fc"]:
         if name in col_lower:
-            cols['log2fc'] = col_lower[name]
+            cols["log2fc"] = col_lower[name]
             break
 
     # FDR
-    for name in ['padj', 'fdr', 'adj.p.val', 'q_value', 'qvalue']:
+    for name in ["padj", "fdr", "adj.p.val", "q_value", "qvalue"]:
         if name in col_lower:
-            cols['fdr'] = col_lower[name]
+            cols["fdr"] = col_lower[name]
             break
 
     # Gene symbol
-    for name in ['gene_name', 'gene_symbol', 'symbol', 'gene']:
+    for name in ["gene_name", "gene_symbol", "symbol", "gene"]:
         if name in col_lower:
-            cols['gene'] = col_lower[name]
+            cols["gene"] = col_lower[name]
             break
 
     # Base mean
-    for name in ['basemean', 'aveexpr', 'avgexpr']:
+    for name in ["basemean", "aveexpr", "avgexpr"]:
         if name in col_lower:
-            cols['basemean'] = col_lower[name]
+            cols["basemean"] = col_lower[name]
             break
 
     return cols
@@ -394,16 +383,18 @@ def generate_demo_expression() -> pd.DataFrame:
 
     # Gene names
     genes = [f"Gene{i:05d}" for i in range(n)]
-    symbols = [f"{'ABCDEFGHIJ'[i%10]}{chr(65+i%26)}{i%100}" for i in range(n)]
+    symbols = [f"{'ABCDEFGHIJ'[i % 10]}{chr(65 + i % 26)}{i % 100}" for i in range(n)]
 
-    return pd.DataFrame({
-        'gene_id': genes,
-        'gene_name': symbols,
-        'baseMean': basemean,
-        'log2FoldChange': log2fc,
-        'pvalue': pval,
-        'padj': fdr
-    })
+    return pd.DataFrame(
+        {
+            "gene_id": genes,
+            "gene_name": symbols,
+            "baseMean": basemean,
+            "log2FoldChange": log2fc,
+            "pvalue": pval,
+            "padj": fdr,
+        }
+    )
 
 
 def run_integration_analysis() -> Dict[str, object]:
@@ -411,25 +402,28 @@ def run_integration_analysis() -> Dict[str, object]:
     np.random.seed(42)
 
     return {
-        'total_genes': 15234,
-        'de_genes': 2341,
-        'with_marks': 3456,
-        'concordant_activation': 892,
-        'concordant_repression': 634,
-        'discordant': 519,
-        'categories': pd.DataFrame({
-            'Category': ['Concordant Activation', 'Concordant Repression',
-                        'Discordant', 'No Change'],
-            'Count': [892, 634, 519, 11189]
-        }),
-        'top_genes': pd.DataFrame({
-            'Gene': ['Nppa', 'Nppb', 'Myh7', 'Col1a1', 'Postn'],
-            'log2FC': [3.2, 2.8, 1.9, 2.1, 2.5],
-            'FDR': [1e-20, 1e-18, 1e-12, 1e-10, 1e-9],
-            'H3K27ac': ['Gained', 'Gained', 'Gained', 'Gained', 'Gained'],
-            'H3K27me3': ['Lost', 'Lost', 'No change', 'Lost', 'No change'],
-            'Category': ['Strong activation'] * 5
-        })
+        "total_genes": 15234,
+        "de_genes": 2341,
+        "with_marks": 3456,
+        "concordant_activation": 892,
+        "concordant_repression": 634,
+        "discordant": 519,
+        "categories": pd.DataFrame(
+            {
+                "Category": ["Concordant Activation", "Concordant Repression", "Discordant", "No Change"],
+                "Count": [892, 634, 519, 11189],
+            }
+        ),
+        "top_genes": pd.DataFrame(
+            {
+                "Gene": ["Nppa", "Nppb", "Myh7", "Col1a1", "Postn"],
+                "log2FC": [3.2, 2.8, 1.9, 2.1, 2.5],
+                "FDR": [1e-20, 1e-18, 1e-12, 1e-10, 1e-9],
+                "H3K27ac": ["Gained", "Gained", "Gained", "Gained", "Gained"],
+                "H3K27me3": ["Lost", "Lost", "No change", "Lost", "No change"],
+                "Category": ["Strong activation"] * 5,
+            }
+        ),
     }
 
 
@@ -437,30 +431,31 @@ def run_integration_analysis() -> Dict[str, object]:
 # Visualization Functions
 # =============================================================================
 
+
 def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str) -> None:
     """Render interactive volcano plot."""
     df = df.copy()
-    df['neg_log10_fdr'] = -np.log10(df[fdr_col].clip(lower=1e-300))
+    df["neg_log10_fdr"] = -np.log10(df[fdr_col].clip(lower=1e-300))
 
     # Classify points
-    df['category'] = 'Not Significant'
-    df.loc[(df[fdr_col] < 0.05) & (df[lfc_col] > 0.5), 'category'] = 'Upregulated'
-    df.loc[(df[fdr_col] < 0.05) & (df[lfc_col] < -0.5), 'category'] = 'Downregulated'
+    df["category"] = "Not Significant"
+    df.loc[(df[fdr_col] < 0.05) & (df[lfc_col] > 0.5), "category"] = "Upregulated"
+    df.loc[(df[fdr_col] < 0.05) & (df[lfc_col] < -0.5), "category"] = "Downregulated"
 
     fig = px.scatter(
         df,
         x=lfc_col,
-        y='neg_log10_fdr',
-        color='category',
+        y="neg_log10_fdr",
+        color="category",
         color_discrete_map={
-            'Upregulated': COLORS.UP,
-            'Downregulated': COLORS.DOWN,
-            'Not Significant': COLORS.NOT_SIG,
+            "Upregulated": COLORS.UP,
+            "Downregulated": COLORS.DOWN,
+            "Not Significant": COLORS.NOT_SIG,
         },
         title="Volcano Plot",
-        labels={lfc_col: 'Log2 Fold Change', 'neg_log10_fdr': '-Log10(FDR)'},
+        labels={lfc_col: "Log2 Fold Change", "neg_log10_fdr": "-Log10(FDR)"},
         template="plotly_white",
-        opacity=0.6
+        opacity=0.6,
     )
 
     fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")
@@ -474,23 +469,23 @@ def render_volcano_plot(df: pd.DataFrame, lfc_col: str, fdr_col: str) -> None:
 def render_ma_plot(df: pd.DataFrame, lfc_col: str) -> None:
     """Render MA plot."""
     cols = detect_column_types(df)
-    basemean_col = cols.get('basemean')
+    basemean_col = cols.get("basemean")
 
     if basemean_col is None:
         st.warning("No base mean column found for MA plot")
         return
 
     df = df.copy()
-    df['log_basemean'] = np.log10(df[basemean_col] + 1)
+    df["log_basemean"] = np.log10(df[basemean_col] + 1)
 
     fig = px.scatter(
         df,
-        x='log_basemean',
+        x="log_basemean",
         y=lfc_col,
         opacity=0.4,
         title="MA Plot",
-        labels={'log_basemean': 'Log10 Mean Expression', lfc_col: 'Log2 Fold Change'},
-        template="plotly_white"
+        labels={"log_basemean": "Log10 Mean Expression", lfc_col: "Log2 Fold Change"},
+        template="plotly_white",
     )
 
     fig.add_hline(y=0, line_color="red", line_width=1)
@@ -506,21 +501,20 @@ def render_expression_heatmap(df: pd.DataFrame, lfc_col: str, fdr_col: str) -> N
     top_genes = pd.concat([top_up, top_down])
 
     cols = detect_column_types(df)
-    gene_col = cols.get('gene', df.columns[0])
+    gene_col = cols.get("gene", df.columns[0])
 
-    fig = go.Figure(data=go.Heatmap(
-        z=[top_genes[lfc_col].values],
-        x=top_genes[gene_col].values,
-        colorscale='RdBu_r',
-        zmid=0,
-        colorbar=dict(title='Log2FC')
-    ))
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[top_genes[lfc_col].values],
+            x=top_genes[gene_col].values,
+            colorscale="RdBu_r",
+            zmid=0,
+            colorbar=dict(title="Log2FC"),
+        )
+    )
 
     fig.update_layout(
-        title="Top Differentially Expressed Genes",
-        xaxis_tickangle=45,
-        height=300,
-        template="plotly_white"
+        title="Top Differentially Expressed Genes", xaxis_tickangle=45, height=300, template="plotly_white"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -533,8 +527,8 @@ def render_expression_distribution(df: pd.DataFrame, lfc_col: str) -> None:
         x=lfc_col,
         nbins=100,
         title="Distribution of Log2 Fold Changes",
-        labels={lfc_col: 'Log2 Fold Change'},
-        template="plotly_white"
+        labels={lfc_col: "Log2 Fold Change"},
+        template="plotly_white",
     )
 
     fig.add_vline(x=0, line_color="red", line_width=2)
@@ -560,25 +554,19 @@ def display_integration_results(results: Dict[str, object]) -> None:
     st.subheader("Regulatory Category Distribution")
 
     fig = px.pie(
-        results['categories'],
-        values='Count',
-        names='Category',
+        results["categories"],
+        values="Count",
+        names="Category",
         title="Gene Categories by Expression-Chromatin Concordance",
-        color='Category',
+        color="Category",
         color_discrete_map=COLORS.EXPRESSION_MAP,
-        template="plotly_white"
+        template="plotly_white",
     )
     st.plotly_chart(fig, use_container_width=True)
 
     # Top integrated genes
     st.subheader("Top Integrated Targets")
-    st.dataframe(
-        results['top_genes'].style.format({
-            'log2FC': '{:.2f}',
-            'FDR': '{:.2e}'
-        }),
-        use_container_width=True
-    )
+    st.dataframe(results["top_genes"].style.format({"log2FC": "{:.2f}", "FDR": "{:.2e}"}), use_container_width=True)
 
 
 if __name__ == "__main__":

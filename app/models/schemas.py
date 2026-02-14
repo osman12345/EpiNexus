@@ -10,7 +10,7 @@ Defines schemas for:
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -58,8 +58,10 @@ class GenomeEnum(str, Enum):
 # Sample Schemas
 # ============================================================================
 
+
 class SampleBase(BaseModel):
     """Base sample schema."""
+
     name: str = Field(..., description="Sample name/identifier")
     histone_mark: str = Field(..., description="Histone modification (e.g., H3K27ac)")
     condition: str = Field(..., description="Treatment/condition group")
@@ -71,6 +73,7 @@ class SampleBase(BaseModel):
 
 class SampleCreate(SampleBase):
     """Schema for creating a new sample."""
+
     fastq_r1: Optional[str] = None
     fastq_r2: Optional[str] = None
     bam_file: Optional[str] = None
@@ -80,6 +83,7 @@ class SampleCreate(SampleBase):
 
 class SampleResponse(SampleBase):
     """Schema for sample response."""
+
     id: str
     bam_file: Optional[str] = None
     peak_file: Optional[str] = None
@@ -95,6 +99,7 @@ class SampleResponse(SampleBase):
 
 class SampleListResponse(BaseModel):
     """Response for listing samples."""
+
     samples: List[SampleResponse]
     total: int
 
@@ -103,8 +108,10 @@ class SampleListResponse(BaseModel):
 # Comparison Schemas
 # ============================================================================
 
+
 class ComparisonBase(BaseModel):
     """Base comparison schema."""
+
     name: str = Field(..., description="Comparison name")
     description: Optional[str] = None
     group1: str = Field(..., description="Treatment/case group")
@@ -115,6 +122,7 @@ class ComparisonBase(BaseModel):
 
 class ComparisonCreate(ComparisonBase):
     """Schema for creating a comparison."""
+
     sample_ids: List[str] = Field(..., description="List of sample IDs to include")
     fdr_threshold: float = Field(default=0.1, ge=0, le=1)
     lfc_threshold: float = Field(default=0.5, ge=0)
@@ -124,6 +132,7 @@ class ComparisonCreate(ComparisonBase):
 
 class ComparisonResponse(ComparisonBase):
     """Schema for comparison response."""
+
     id: str
     total_peaks: Optional[int] = None
     significant_peaks: Optional[int] = None
@@ -140,19 +149,23 @@ class ComparisonResponse(ComparisonBase):
 # Job Schemas
 # ============================================================================
 
+
 class JobBase(BaseModel):
     """Base job schema."""
+
     name: str = Field(..., description="Job name")
     job_type: JobTypeEnum = Field(..., description="Type of analysis")
 
 
 class JobCreate(JobBase):
     """Schema for creating a job."""
+
     config: Dict[str, Any] = Field(default_factory=dict, description="Job configuration")
 
 
 class JobResponse(JobBase):
     """Schema for job response."""
+
     id: str
     status: JobStatusEnum
     progress: float = 0.0
@@ -169,6 +182,7 @@ class JobResponse(JobBase):
 
 class JobStatus(BaseModel):
     """Schema for job status updates."""
+
     id: str
     status: JobStatusEnum
     progress: float
@@ -178,6 +192,7 @@ class JobStatus(BaseModel):
 
 class JobListResponse(BaseModel):
     """Response for listing jobs."""
+
     jobs: List[JobResponse]
     total: int
 
@@ -186,8 +201,10 @@ class JobListResponse(BaseModel):
 # Analysis Configuration Schemas
 # ============================================================================
 
+
 class DiffBindConfig(BaseModel):
     """Configuration for DiffBind analysis."""
+
     comparison_id: str = Field(..., description="Comparison to analyze")
 
     # Normalization
@@ -213,22 +230,16 @@ class DiffBindConfig(BaseModel):
 
 class IntegrationConfig(BaseModel):
     """Configuration for multi-mark integration."""
+
     mark_comparisons: Dict[str, str] = Field(
-        ...,
-        description="Map of histone mark to comparison ID (e.g., {'H3K27ac': 'comp_1', 'H3K27me3': 'comp_2'})"
+        ..., description="Map of histone mark to comparison ID (e.g., {'H3K27ac': 'comp_1', 'H3K27me3': 'comp_2'})"
     )
 
     # Integration type
-    integration_type: str = Field(
-        default="two_mark",
-        description="Integration type: two_mark or three_mark"
-    )
+    integration_type: str = Field(default="two_mark", description="Integration type: two_mark or three_mark")
 
     # Optional RNA-seq integration
-    rnaseq_file: Optional[str] = Field(
-        default=None,
-        description="Path to RNA-seq differential expression results"
-    )
+    rnaseq_file: Optional[str] = Field(default=None, description="Path to RNA-seq differential expression results")
 
     # Thresholds
     peak_fdr: float = Field(default=0.1, ge=0, le=1)
@@ -241,6 +252,7 @@ class IntegrationConfig(BaseModel):
 
 class PipelineConfig(BaseModel):
     """Configuration for full pipeline."""
+
     # Input type
     input_type: str = Field(..., description="Input type: fastq, bam, or bed")
     sample_sheet: str = Field(..., description="Path to sample sheet CSV")
@@ -266,6 +278,7 @@ class PipelineConfig(BaseModel):
 
 class AnalysisConfig(BaseModel):
     """Generic analysis configuration."""
+
     analysis_type: str
     config: Union[DiffBindConfig, IntegrationConfig, PipelineConfig, Dict[str, Any]]
 
@@ -274,8 +287,10 @@ class AnalysisConfig(BaseModel):
 # Results Schemas
 # ============================================================================
 
+
 class PeakResult(BaseModel):
     """Schema for a differential peak."""
+
     peak_id: str
     chrom: str
     start: int
@@ -291,6 +306,7 @@ class PeakResult(BaseModel):
 
 class DiffBindResults(BaseModel):
     """Schema for DiffBind analysis results."""
+
     comparison_name: str
     total_peaks: int
     significant_peaks: int
@@ -301,6 +317,7 @@ class DiffBindResults(BaseModel):
 
 class IntegrationResults(BaseModel):
     """Schema for integration analysis results."""
+
     comparison_name: str
     total_genes: int
     chromatin_states: Dict[str, int]
@@ -310,6 +327,7 @@ class IntegrationResults(BaseModel):
 
 class QCMetrics(BaseModel):
     """Schema for QC metrics."""
+
     sample_name: str
     total_reads: int
     mapped_reads: int
@@ -324,8 +342,10 @@ class QCMetrics(BaseModel):
 # File Upload Schemas
 # ============================================================================
 
+
 class FileUpload(BaseModel):
     """Schema for file upload response."""
+
     filename: str
     file_path: str
     file_size: int
@@ -334,6 +354,7 @@ class FileUpload(BaseModel):
 
 class SampleSheetUpload(BaseModel):
     """Schema for sample sheet upload."""
+
     samples: List[SampleCreate]
     validation_errors: Optional[List[str]] = None
     warnings: Optional[List[str]] = None

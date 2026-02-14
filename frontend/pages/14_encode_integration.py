@@ -11,7 +11,7 @@ Browse, download, and integrate public ENCODE datasets:
 import time
 import hashlib
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import streamlit as st
 import pandas as pd
@@ -23,11 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
 
-st.set_page_config(
-    page_title="ENCODE Integration - EpiNexus",
-    page_icon="🏛️",
-    layout="wide"
-)
+st.set_page_config(page_title="ENCODE Integration - EpiNexus", page_icon="🏛️", layout="wide")
 
 # ENCODE API base URL
 ENCODE_API = "https://www.encodeproject.org"
@@ -40,8 +36,8 @@ if "_encode_cache" not in st.session_state:
 if "_encode_last_request_ts" not in st.session_state:
     st.session_state._encode_last_request_ts: float = 0.0
 
-_ENCODE_MIN_INTERVAL: float = 0.5   # min seconds between API calls
-_ENCODE_CACHE_TTL: int = 1800       # cache TTL in seconds (30 min)
+_ENCODE_MIN_INTERVAL: float = 0.5  # min seconds between API calls
+_ENCODE_CACHE_TTL: int = 1800  # cache TTL in seconds (30 min)
 
 
 def _cache_key(url: str, params: Optional[dict] = None) -> str:
@@ -74,7 +70,8 @@ def _rate_limited_get(url: str, params: Optional[dict] = None, timeout: int = 30
         time.sleep(_ENCODE_MIN_INTERVAL - elapsed)
 
     response = requests.get(
-        url, params=params,
+        url,
+        params=params,
         headers={"Accept": "application/json"},
         timeout=timeout,
     )
@@ -93,12 +90,9 @@ def main():
     Compare your data with reference epigenomes.
     """)
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🔍 Search ENCODE",
-        "📥 Download Data",
-        "🔗 Compare with Reference",
-        "📊 Public Datasets"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["🔍 Search ENCODE", "📥 Download Data", "🔗 Compare with Reference", "📊 Public Datasets"]
+    )
 
     with tab1:
         render_encode_search()
@@ -120,37 +114,24 @@ def render_encode_search():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        assay = st.selectbox(
-            "Assay Type",
-            ["ChIP-seq", "ATAC-seq", "DNase-seq", "RNA-seq", "Hi-C"]
-        )
+        assay = st.selectbox("Assay Type", ["ChIP-seq", "ATAC-seq", "DNase-seq", "RNA-seq", "Hi-C"])
 
     with col2:
         target = st.selectbox(
             "Target / Histone Mark",
-            ["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3", "H3K36me3",
-             "H3K9me3", "CTCF", "POLR2A", "EP300", "Other"]
+            ["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3", "H3K36me3", "H3K9me3", "CTCF", "POLR2A", "EP300", "Other"],
         )
 
     with col3:
-        organism = st.selectbox(
-            "Organism",
-            ["Homo sapiens", "Mus musculus", "Drosophila melanogaster"]
-        )
+        organism = st.selectbox("Organism", ["Homo sapiens", "Mus musculus", "Drosophila melanogaster"])
 
     col1, col2 = st.columns(2)
 
     with col1:
-        biosample = st.text_input(
-            "Biosample / Cell Type",
-            placeholder="e.g., K562, HepG2, GM12878"
-        )
+        biosample = st.text_input("Biosample / Cell Type", placeholder="e.g., K562, HepG2, GM12878")
 
     with col2:
-        genome = st.selectbox(
-            "Genome Assembly",
-            ["GRCh38", "hg19", "mm10", "mm39"]
-        )
+        genome = st.selectbox("Genome Assembly", ["GRCh38", "hg19", "mm10", "mm39"])
 
     if st.button("🔍 Search ENCODE", type="primary"):
         with st.spinner("Searching ENCODE database..."):
@@ -158,7 +139,7 @@ def render_encode_search():
             st.session_state.encode_results = results
 
     # Display results
-    if 'encode_results' in st.session_state:
+    if "encode_results" in st.session_state:
         results = st.session_state.encode_results
 
         st.subheader(f"Found {len(results)} experiments")
@@ -166,26 +147,19 @@ def render_encode_search():
         # Filter options
         col1, col2 = st.columns(2)
         with col1:
-            status_filter = st.multiselect(
-                "Status",
-                ["released", "archived"],
-                default=["released"]
-            )
+            status_filter = st.multiselect("Status", ["released", "archived"], default=["released"])
         with col2:
             lab_filter = st.text_input("Filter by lab")
 
         # Display results table
-        filtered = results[results['status'].isin(status_filter)]
+        filtered = results[results["status"].isin(status_filter)]
         if lab_filter:
-            filtered = filtered[filtered['lab'].str.contains(lab_filter, case=False)]
+            filtered = filtered[filtered["lab"].str.contains(lab_filter, case=False)]
 
         st.dataframe(filtered, use_container_width=True, hide_index=True)
 
         # Select for download
-        selected = st.multiselect(
-            "Select experiments to download",
-            filtered['accession'].tolist()
-        )
+        selected = st.multiselect("Select experiments to download", filtered["accession"].tolist())
 
         if selected:
             st.session_state.selected_encode = selected
@@ -196,7 +170,7 @@ def render_download_manager():
     """Manage ENCODE downloads."""
     st.header("Download Manager")
 
-    selected = st.session_state.get('selected_encode', [])
+    selected = st.session_state.get("selected_encode", [])
 
     if not selected:
         st.info("No experiments selected. Use the Search tab to find and select experiments.")
@@ -217,12 +191,12 @@ def render_download_manager():
             with col1:
                 st.markdown(f"**{ds['name']}** ({ds['accession']})")
             with col2:
-                st.caption(ds['size'])
+                st.caption(ds["size"])
             with col3:
                 if st.button("Add", key=f"add_{ds['accession']}"):
-                    if 'selected_encode' not in st.session_state:
+                    if "selected_encode" not in st.session_state:
                         st.session_state.selected_encode = []
-                    st.session_state.selected_encode.append(ds['accession'])
+                    st.session_state.selected_encode.append(ds["accession"])
                     st.rerun()
 
         return
@@ -233,7 +207,7 @@ def render_download_manager():
     file_types = st.multiselect(
         "File types to download",
         ["bigWig (signal)", "bed narrowPeak", "bed broadPeak", "bam (alignments)"],
-        default=["bigWig (signal)", "bed narrowPeak"]
+        default=["bigWig (signal)", "bed narrowPeak"],
     )
 
     # Download location
@@ -250,8 +224,8 @@ def render_download_manager():
     files_df = pd.DataFrame(files_to_download)
     st.dataframe(files_df, use_container_width=True)
 
-    total_size = files_df['size_mb'].sum()
-    st.info(f"Total download size: {total_size:.0f} MB ({total_size/1024:.1f} GB)")
+    total_size = files_df["size_mb"].sum()
+    st.info(f"Total download size: {total_size:.0f} MB ({total_size / 1024:.1f} GB)")
 
     col1, col2 = st.columns(2)
 
@@ -275,14 +249,14 @@ def render_download_manager():
             failed_files = []
 
             for i, f in enumerate(files_to_download):
-                filename = f.get('filename', f"{f.get('file_accession', 'file')}.bed")
-                href = f.get('href', '')
+                filename = f.get("filename", f"{f.get('file_accession', 'file')}.bed")
+                href = f.get("href", "")
 
                 if href:
                     status_text.text(f"Downloading {filename}...")
 
                     # Determine subdirectory based on file type
-                    if 'bigWig' in f.get('type', ''):
+                    if "bigWig" in f.get("type", ""):
                         subdir = abs_download_dir / "bigwig"
                     else:
                         subdir = abs_download_dir / "peaks"
@@ -328,10 +302,7 @@ def render_comparison():
     with col1:
         st.subheader("Your Data")
 
-        uploaded = st.file_uploader(
-            "Upload your peak file",
-            type=['bed', 'narrowPeak', 'broadPeak']
-        )
+        uploaded = st.file_uploader("Upload your peak file", type=["bed", "narrowPeak", "broadPeak"])
 
         if uploaded:
             st.success(f"Loaded: {uploaded.name}")
@@ -340,14 +311,10 @@ def render_comparison():
         st.subheader("Reference Dataset")
 
         ref_cell = st.selectbox(
-            "Reference cell type",
-            ["K562", "GM12878", "HepG2", "H1-hESC", "HUVEC", "IMR90", "NHEK"]
+            "Reference cell type", ["K562", "GM12878", "HepG2", "H1-hESC", "HUVEC", "IMR90", "NHEK"]
         )
 
-        ref_mark = st.selectbox(
-            "Histone mark",
-            ["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3"]
-        )
+        ref_mark = st.selectbox("Histone mark", ["H3K27ac", "H3K4me3", "H3K4me1", "H3K27me3"])
 
     if st.button("🔗 Compare", type="primary"):
         if not uploaded:
@@ -356,16 +323,20 @@ def render_comparison():
             with st.spinner("Computing overlap..."):
                 # Load user peaks from uploaded file
                 try:
-                    if uploaded.name.endswith('.narrowPeak') or uploaded.name.endswith('.broadPeak'):
+                    if uploaded.name.endswith(".narrowPeak") or uploaded.name.endswith(".broadPeak"):
                         # narrowPeak/broadPeak format: chr, start, end, name, score, strand, signal, pValue, qValue, peak
-                        user_peaks_df = pd.read_csv(uploaded, sep='\t', header=None)
+                        user_peaks_df = pd.read_csv(uploaded, sep="\t", header=None)
                         if len(user_peaks_df.columns) >= 3:
-                            user_peaks_df.columns = ['chrom', 'start', 'end'] + [f'col{i}' for i in range(3, len(user_peaks_df.columns))]
+                            user_peaks_df.columns = ["chrom", "start", "end"] + [
+                                f"col{i}" for i in range(3, len(user_peaks_df.columns))
+                            ]
                     else:
                         # BED format
-                        user_peaks_df = pd.read_csv(uploaded, sep='\t', header=None)
+                        user_peaks_df = pd.read_csv(uploaded, sep="\t", header=None)
                         if len(user_peaks_df.columns) >= 3:
-                            user_peaks_df.columns = ['chrom', 'start', 'end'] + [f'col{i}' for i in range(3, len(user_peaks_df.columns))]
+                            user_peaks_df.columns = ["chrom", "start", "end"] + [
+                                f"col{i}" for i in range(3, len(user_peaks_df.columns))
+                            ]
 
                     # Fetch reference peaks from ENCODE
                     ref_peaks_df = fetch_reference_peaks(ref_cell, ref_mark)
@@ -377,7 +348,7 @@ def render_comparison():
                         st.warning("Could not fetch reference data. Using cached reference statistics.")
                         # Use mock but with real user peak count
                         results = compute_overlap_mock()
-                        results['user_peaks'] = len(user_peaks_df)
+                        results["user_peaks"] = len(user_peaks_df)
 
                 except Exception as e:
                     st.error(f"Error processing file: {e}")
@@ -396,22 +367,26 @@ def render_comparison():
 
             import plotly.graph_objects as go
 
-            fig = go.Figure(go.Sunburst(
-                labels=["Total", "Your Peaks Only", "Overlap", "Reference Only"],
-                parents=["", "Total", "Total", "Total"],
-                values=[results['user_peaks'] + results['ref_peaks'] - results['overlap'],
-                       results['user_peaks'] - results['overlap'],
-                       results['overlap'],
-                       results['ref_peaks'] - results['overlap']],
-                branchvalues="total"
-            ))
+            fig = go.Figure(
+                go.Sunburst(
+                    labels=["Total", "Your Peaks Only", "Overlap", "Reference Only"],
+                    parents=["", "Total", "Total", "Total"],
+                    values=[
+                        results["user_peaks"] + results["ref_peaks"] - results["overlap"],
+                        results["user_peaks"] - results["overlap"],
+                        results["overlap"],
+                        results["ref_peaks"] - results["overlap"],
+                    ],
+                    branchvalues="total",
+                )
+            )
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
 
             # Interpretation
             st.subheader("Interpretation")
 
-            if results['jaccard'] > 0.3:
+            if results["jaccard"] > 0.3:
                 st.success(f"""
                 ✅ **High similarity** with {ref_cell} {ref_mark}
 
@@ -419,7 +394,7 @@ def render_comparison():
                 suggesting your ChIP-seq is of good quality and the cell type
                 matches the reference.
                 """)
-            elif results['jaccard'] > 0.1:
+            elif results["jaccard"] > 0.1:
                 st.warning(f"""
                 ⚠️ **Moderate similarity** with {ref_cell} {ref_mark}
 
@@ -450,37 +425,48 @@ def render_public_datasets():
     # Categories
     category = st.selectbox(
         "Category",
-        ["Reference Epigenomes", "Cancer Cell Lines", "Primary Tissues",
-         "Developmental Series", "Drug Treatment"]
+        ["Reference Epigenomes", "Cancer Cell Lines", "Primary Tissues", "Developmental Series", "Drug Treatment"],
     )
 
     if category == "Reference Epigenomes":
         datasets = [
-            {"name": "Roadmap Epigenomics - 127 Epigenomes", "samples": 127,
-             "marks": "H3K4me1, H3K4me3, H3K27ac, H3K27me3, H3K36me3, H3K9me3",
-             "description": "NIH Roadmap comprehensive human epigenome reference"},
-            {"name": "ENCODE Tier 1 Cell Lines", "samples": 6,
-             "marks": "Full histone panel + TFs",
-             "description": "K562, GM12878, H1-hESC, HepG2, HeLa-S3, HUVEC"},
-            {"name": "Blueprint Epigenome", "samples": 300,
-             "marks": "H3K4me1, H3K4me3, H3K27ac, H3K27me3, H3K9me3",
-             "description": "European reference epigenomes for hematopoietic cells"}
+            {
+                "name": "Roadmap Epigenomics - 127 Epigenomes",
+                "samples": 127,
+                "marks": "H3K4me1, H3K4me3, H3K27ac, H3K27me3, H3K36me3, H3K9me3",
+                "description": "NIH Roadmap comprehensive human epigenome reference",
+            },
+            {
+                "name": "ENCODE Tier 1 Cell Lines",
+                "samples": 6,
+                "marks": "Full histone panel + TFs",
+                "description": "K562, GM12878, H1-hESC, HepG2, HeLa-S3, HUVEC",
+            },
+            {
+                "name": "Blueprint Epigenome",
+                "samples": 300,
+                "marks": "H3K4me1, H3K4me3, H3K27ac, H3K27me3, H3K9me3",
+                "description": "European reference epigenomes for hematopoietic cells",
+            },
         ]
 
     elif category == "Cancer Cell Lines":
         datasets = [
-            {"name": "ENCODE Cancer Cell Lines", "samples": 15,
-             "marks": "H3K27ac, H3K4me3, CTCF",
-             "description": "Common cancer cell lines from ENCODE"},
-            {"name": "CCLE Epigenomics", "samples": 60,
-             "marks": "H3K27ac, ATAC-seq",
-             "description": "Cancer Cell Line Encyclopedia epigenomic data"}
+            {
+                "name": "ENCODE Cancer Cell Lines",
+                "samples": 15,
+                "marks": "H3K27ac, H3K4me3, CTCF",
+                "description": "Common cancer cell lines from ENCODE",
+            },
+            {
+                "name": "CCLE Epigenomics",
+                "samples": 60,
+                "marks": "H3K27ac, ATAC-seq",
+                "description": "Cancer Cell Line Encyclopedia epigenomic data",
+            },
         ]
     else:
-        datasets = [
-            {"name": "Sample Dataset", "samples": 10,
-             "marks": "H3K27ac", "description": "Example dataset"}
-        ]
+        datasets = [{"name": "Sample Dataset", "samples": 10, "marks": "H3K27ac", "description": "Example dataset"}]
 
     for ds in datasets:
         with st.container():
@@ -489,7 +475,7 @@ def render_public_datasets():
             with col1:
                 st.markdown(f"### {ds['name']}")
                 st.markdown(f"**Samples:** {ds['samples']} | **Marks:** {ds['marks']}")
-                st.caption(ds['description'])
+                st.caption(ds["description"])
 
             with col2:
                 if st.button("Load", key=f"load_{ds['name'][:10]}"):
@@ -500,7 +486,6 @@ def render_public_datasets():
 
 # Real ENCODE API functions
 import requests  # noqa: E402
-import os  # noqa: E402
 
 
 def search_encode_real(assay, target, organism, biosample, genome):
@@ -508,19 +493,14 @@ def search_encode_real(assay, target, organism, biosample, genome):
     try:
         # Build search URL
         base_url = "https://www.encodeproject.org/search/"
-        params = {
-            "type": "Experiment",
-            "status": "released",
-            "format": "json",
-            "limit": 50
-        }
+        params = {"type": "Experiment", "status": "released", "format": "json", "limit": 50}
 
         # Map assay types
         assay_map = {
             "ChIP-seq": "Histone ChIP-seq" if "H3K" in target else "TF ChIP-seq",
             "ATAC-seq": "ATAC-seq",
             "DNase-seq": "DNase-seq",
-            "RNA-seq": "RNA-seq"
+            "RNA-seq": "RNA-seq",
         }
         if assay in assay_map:
             params["assay_title"] = assay_map[assay]
@@ -542,14 +522,16 @@ def search_encode_real(assay, target, organism, biosample, genome):
         # Parse results
         results = []
         for exp in data.get("@graph", []):
-            results.append({
-                "accession": exp.get("accession", ""),
-                "description": exp.get("description", "")[:80],
-                "biosample": exp.get("biosample_summary", "Unknown"),
-                "lab": exp.get("lab", {}).get("title", "Unknown"),
-                "status": exp.get("status", "unknown"),
-                "date": exp.get("date_released", "")
-            })
+            results.append(
+                {
+                    "accession": exp.get("accession", ""),
+                    "description": exp.get("description", "")[:80],
+                    "biosample": exp.get("biosample_summary", "Unknown"),
+                    "lab": exp.get("lab", {}).get("title", "Unknown"),
+                    "status": exp.get("status", "unknown"),
+                    "date": exp.get("date_released", ""),
+                }
+            )
 
         return pd.DataFrame(results) if results else pd.DataFrame()
 
@@ -563,14 +545,16 @@ def search_encode_mock(assay, target, organism, biosample, genome):
     np.random.seed(42)
     n_results = np.random.randint(20, 50)
 
-    results = pd.DataFrame({
-        'accession': [f'ENCSR{np.random.randint(100000, 999999)}' for _ in range(n_results)],
-        'description': [f'{target} ChIP-seq in {biosample or "various cell types"}' for _ in range(n_results)],
-        'biosample': np.random.choice(['K562', 'GM12878', 'HepG2', 'H1-hESC'], n_results),
-        'lab': np.random.choice(['Bernstein', 'Snyder', 'Ren', 'Stamatoyannopoulos'], n_results),
-        'status': np.random.choice(['released', 'archived'], n_results, p=[0.9, 0.1]),
-        'date': pd.date_range('2020-01-01', periods=n_results, freq='W').strftime('%Y-%m-%d')
-    })
+    results = pd.DataFrame(
+        {
+            "accession": [f"ENCSR{np.random.randint(100000, 999999)}" for _ in range(n_results)],
+            "description": [f"{target} ChIP-seq in {biosample or 'various cell types'}" for _ in range(n_results)],
+            "biosample": np.random.choice(["K562", "GM12878", "HepG2", "H1-hESC"], n_results),
+            "lab": np.random.choice(["Bernstein", "Snyder", "Ren", "Stamatoyannopoulos"], n_results),
+            "status": np.random.choice(["released", "archived"], n_results, p=[0.9, 0.1]),
+            "date": pd.date_range("2020-01-01", periods=n_results, freq="W").strftime("%Y-%m-%d"),
+        }
+    )
     return results
 
 
@@ -602,16 +586,18 @@ def get_experiment_files_real(accession, file_types):
                 include = True
 
             if include:
-                files.append({
-                    'accession': accession,
-                    'file_accession': f.get("accession", ""),
-                    'filename': f.get("accession", "") + "." + file_type.split()[0],
-                    'type': file_type,
-                    'output_type': output_type,
-                    'size_mb': round(f.get("file_size", 0) / 1024 / 1024, 1),
-                    'href': f.get("href", ""),
-                    'assembly': f.get("assembly", "")
-                })
+                files.append(
+                    {
+                        "accession": accession,
+                        "file_accession": f.get("accession", ""),
+                        "filename": f.get("accession", "") + "." + file_type.split()[0],
+                        "type": file_type,
+                        "output_type": output_type,
+                        "size_mb": round(f.get("file_size", 0) / 1024 / 1024, 1),
+                        "href": f.get("href", ""),
+                        "assembly": f.get("assembly", ""),
+                    }
+                )
 
         return files
 
@@ -624,27 +610,31 @@ def get_experiment_files_mock(accession, file_types):
     """Fallback mock file list."""
     files = []
     if "bigWig" in str(file_types):
-        files.append({
-            'accession': accession,
-            'file_accession': f'ENCFF{np.random.randint(100000, 999999)}',
-            'filename': f'{accession}_signal.bigWig',
-            'type': 'bigWig',
-            'output_type': 'signal p-value',
-            'size_mb': np.random.randint(200, 1500),
-            'href': '',
-            'assembly': 'GRCh38'
-        })
+        files.append(
+            {
+                "accession": accession,
+                "file_accession": f"ENCFF{np.random.randint(100000, 999999)}",
+                "filename": f"{accession}_signal.bigWig",
+                "type": "bigWig",
+                "output_type": "signal p-value",
+                "size_mb": np.random.randint(200, 1500),
+                "href": "",
+                "assembly": "GRCh38",
+            }
+        )
     if "narrowPeak" in str(file_types):
-        files.append({
-            'accession': accession,
-            'file_accession': f'ENCFF{np.random.randint(100000, 999999)}',
-            'filename': f'{accession}_peaks.narrowPeak',
-            'type': 'bed narrowPeak',
-            'output_type': 'replicated peaks',
-            'size_mb': np.random.randint(1, 50),
-            'href': '',
-            'assembly': 'GRCh38'
-        })
+        files.append(
+            {
+                "accession": accession,
+                "file_accession": f"ENCFF{np.random.randint(100000, 999999)}",
+                "filename": f"{accession}_peaks.narrowPeak",
+                "type": "bed narrowPeak",
+                "output_type": "replicated peaks",
+                "size_mb": np.random.randint(1, 50),
+                "href": "",
+                "assembly": "GRCh38",
+            }
+        )
     return files
 
 
@@ -661,10 +651,10 @@ def download_encode_file(href, output_dir, filename, progress_callback=None):
         response = requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 
-        total_size = int(response.headers.get('content-length', 0))
+        total_size = int(response.headers.get("content-length", 0))
         downloaded = 0
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
                 downloaded += len(chunk)
@@ -685,13 +675,13 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
     """
     try:
         # Ensure required columns exist
-        for df, name in [(user_peaks_df, 'user'), (ref_peaks_df, 'reference')]:
+        for df, name in [(user_peaks_df, "user"), (ref_peaks_df, "reference")]:
             if df is None or len(df) == 0:
                 raise ValueError(f"No {name} peaks provided")
 
             # Standardize column names
-            if 'chr' in df.columns and 'chrom' not in df.columns:
-                df['chrom'] = df['chr']
+            if "chr" in df.columns and "chrom" not in df.columns:
+                df["chrom"] = df["chr"]
 
         user_count = len(user_peaks_df)
         ref_count = len(ref_peaks_df)
@@ -702,14 +692,14 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
 
             # Create PyRanges objects
             user_gr = pr.PyRanges(
-                chromosomes=user_peaks_df['chrom'].astype(str),
-                starts=user_peaks_df['start'].astype(int),
-                ends=user_peaks_df['end'].astype(int)
+                chromosomes=user_peaks_df["chrom"].astype(str),
+                starts=user_peaks_df["start"].astype(int),
+                ends=user_peaks_df["end"].astype(int),
             )
             ref_gr = pr.PyRanges(
-                chromosomes=ref_peaks_df['chrom'].astype(str),
-                starts=ref_peaks_df['start'].astype(int),
-                ends=ref_peaks_df['end'].astype(int)
+                chromosomes=ref_peaks_df["chrom"].astype(str),
+                starts=ref_peaks_df["start"].astype(int),
+                ends=ref_peaks_df["end"].astype(int),
             )
 
             # Find overlaps
@@ -721,27 +711,30 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
             try:
                 import sys
                 from pathlib import Path
+
                 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
                 from app.core.genomic_utils import find_overlaps
 
                 hits = find_overlaps(
-                    user_peaks_df, ref_peaks_df,
-                    chrom_col='chrom', start_col='start', end_col='end',
-                    report='first',
+                    user_peaks_df,
+                    ref_peaks_df,
+                    chrom_col="chrom",
+                    start_col="start",
+                    end_col="end",
+                    report="first",
                 )
                 overlap_count = len(hits)
             except ImportError:
                 # Last resort: simple pandas-based detection
                 overlap_count = 0
-                for chrom in user_peaks_df['chrom'].unique():
-                    user_chr = user_peaks_df[user_peaks_df['chrom'] == chrom]
-                    ref_chr = ref_peaks_df[ref_peaks_df['chrom'] == chrom]
+                for chrom in user_peaks_df["chrom"].unique():
+                    user_chr = user_peaks_df[user_peaks_df["chrom"] == chrom]
+                    ref_chr = ref_peaks_df[ref_peaks_df["chrom"] == chrom]
                     if len(ref_chr) == 0:
                         continue
                     for _, user_peak in user_chr.iterrows():
                         overlaps = ref_chr[
-                            (ref_chr['start'] < user_peak['end']) &
-                            (ref_chr['end'] > user_peak['start'])
+                            (ref_chr["start"] < user_peak["end"]) & (ref_chr["end"] > user_peak["start"])
                         ]
                         if len(overlaps) > 0:
                             overlap_count += 1
@@ -751,10 +744,10 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
         jaccard = overlap_count / union_count if union_count > 0 else 0
 
         return {
-            'user_peaks': user_count,
-            'ref_peaks': ref_count,
-            'overlap': overlap_count,
-            'jaccard': round(jaccard, 4)
+            "user_peaks": user_count,
+            "ref_peaks": ref_count,
+            "overlap": overlap_count,
+            "jaccard": round(jaccard, 4),
         }
 
     except Exception as e:
@@ -764,12 +757,7 @@ def compute_overlap_real(user_peaks_df: pd.DataFrame, ref_peaks_df: pd.DataFrame
 
 def compute_overlap_mock():
     """Fallback mock overlap computation."""
-    return {
-        'user_peaks': 35000,
-        'ref_peaks': 42000,
-        'overlap': 18500,
-        'jaccard': 0.32
-    }
+    return {"user_peaks": 35000, "ref_peaks": 42000, "overlap": 18500, "jaccard": 0.32}
 
 
 def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
@@ -780,18 +768,18 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
     """
     # ENCODE accession mapping for common reference datasets (GRCh38)
     reference_map = {
-        ('K562', 'H3K27ac'): 'ENCFF469RDC',
-        ('K562', 'H3K4me3'): 'ENCFF422UFO',
-        ('K562', 'H3K4me1'): 'ENCFF316QSQ',
-        ('K562', 'H3K27me3'): 'ENCFF955KRA',
-        ('GM12878', 'H3K27ac'): 'ENCFF798KJR',
-        ('GM12878', 'H3K4me3'): 'ENCFF761RHS',
-        ('GM12878', 'H3K4me1'): 'ENCFF277KXF',
-        ('GM12878', 'H3K27me3'): 'ENCFF053UYS',
-        ('HepG2', 'H3K27ac'): 'ENCFF392KDI',
-        ('HepG2', 'H3K4me3'): 'ENCFF800CDC',
-        ('H1-hESC', 'H3K27ac'): 'ENCFF893FEF',
-        ('H1-hESC', 'H3K4me3'): 'ENCFF329GEL',
+        ("K562", "H3K27ac"): "ENCFF469RDC",
+        ("K562", "H3K4me3"): "ENCFF422UFO",
+        ("K562", "H3K4me1"): "ENCFF316QSQ",
+        ("K562", "H3K27me3"): "ENCFF955KRA",
+        ("GM12878", "H3K27ac"): "ENCFF798KJR",
+        ("GM12878", "H3K4me3"): "ENCFF761RHS",
+        ("GM12878", "H3K4me1"): "ENCFF277KXF",
+        ("GM12878", "H3K27me3"): "ENCFF053UYS",
+        ("HepG2", "H3K27ac"): "ENCFF392KDI",
+        ("HepG2", "H3K4me3"): "ENCFF800CDC",
+        ("H1-hESC", "H3K27ac"): "ENCFF893FEF",
+        ("H1-hESC", "H3K4me3"): "ENCFF329GEL",
     }
 
     # Try to find matching reference dataset
@@ -803,9 +791,9 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
 
     if cache_file.exists():
         try:
-            ref_df = pd.read_csv(cache_file, sep='\t', header=None)
+            ref_df = pd.read_csv(cache_file, sep="\t", header=None)
             if len(ref_df.columns) >= 3:
-                ref_df.columns = ['chrom', 'start', 'end'] + [f'col{i}' for i in range(3, len(ref_df.columns))]
+                ref_df.columns = ["chrom", "start", "end"] + [f"col{i}" for i in range(3, len(ref_df.columns))]
             return ref_df
         except Exception:
             pass
@@ -823,9 +811,9 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
 
                 # Get the file href - look for a related peak file
                 # If this is a bigWig, we need to find the corresponding peak file
-                if data.get('file_type') == 'bigWig':
+                if data.get("file_type") == "bigWig":
                     # Try to find experiment and get peaks
-                    exp_url = data.get('dataset', '')
+                    exp_url = data.get("dataset", "")
                     if exp_url:
                         exp_response = _rate_limited_get(
                             f"https://www.encodeproject.org{exp_url}",
@@ -834,16 +822,16 @@ def fetch_reference_peaks(cell_type: str, histone_mark: str) -> pd.DataFrame:
                         )
                         if exp_response.status_code == 200:
                             exp_data = exp_response.json()
-                            for f in exp_data.get('files', []):
-                                if 'narrowPeak' in f.get('file_type', '') and f.get('status') == 'released':
+                            for f in exp_data.get("files", []):
+                                if "narrowPeak" in f.get("file_type", "") and f.get("status") == "released":
                                     # Download this peak file
-                                    peak_href = f.get('href', '')
+                                    peak_href = f.get("href", "")
                                     if peak_href:
                                         return download_and_parse_peaks(peak_href, cache_file)
 
                 # If it's already a peak file
-                href = data.get('href', '')
-                if href and ('Peak' in data.get('file_type', '') or data.get('file_format') == 'bed'):
+                href = data.get("href", "")
+                if href and ("Peak" in data.get("file_type", "") or data.get("file_format") == "bed"):
                     return download_and_parse_peaks(href, cache_file)
 
         except Exception as e:
@@ -862,14 +850,15 @@ def download_and_parse_peaks(href: str, cache_path: Path) -> pd.DataFrame:
 
         # Save to cache
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, 'wb') as f:
+        with open(cache_path, "wb") as f:
             f.write(response.content)
 
         # Parse peaks
         import io
-        ref_df = pd.read_csv(io.BytesIO(response.content), sep='\t', header=None)
+
+        ref_df = pd.read_csv(io.BytesIO(response.content), sep="\t", header=None)
         if len(ref_df.columns) >= 3:
-            ref_df.columns = ['chrom', 'start', 'end'] + [f'col{i}' for i in range(3, len(ref_df.columns))]
+            ref_df.columns = ["chrom", "start", "end"] + [f"col{i}" for i in range(3, len(ref_df.columns))]
         return ref_df
 
     except Exception as e:
@@ -888,37 +877,37 @@ def generate_synthetic_reference(cell_type: str, histone_mark: str) -> pd.DataFr
 
     # Typical peak counts for different marks
     peak_counts = {
-        'H3K27ac': 45000,   # Active enhancers/promoters
-        'H3K4me3': 25000,   # Promoters
-        'H3K4me1': 80000,   # Enhancers (broadly distributed)
-        'H3K27me3': 35000,  # Polycomb repression
+        "H3K27ac": 45000,  # Active enhancers/promoters
+        "H3K4me3": 25000,  # Promoters
+        "H3K4me1": 80000,  # Enhancers (broadly distributed)
+        "H3K27me3": 35000,  # Polycomb repression
     }
 
     n_peaks = peak_counts.get(histone_mark, 40000)
 
     # Cell-type specific adjustments
     cell_adjustment = {
-        'K562': 1.0,
-        'GM12878': 0.95,
-        'HepG2': 1.05,
-        'H1-hESC': 0.9,
-        'HUVEC': 0.98,
-        'IMR90': 0.92,
-        'NHEK': 0.97
+        "K562": 1.0,
+        "GM12878": 0.95,
+        "HepG2": 1.05,
+        "H1-hESC": 0.9,
+        "HUVEC": 0.98,
+        "IMR90": 0.92,
+        "NHEK": 0.97,
     }
     n_peaks = int(n_peaks * cell_adjustment.get(cell_type, 1.0))
 
     # Generate peaks
-    chromosomes = [f'chr{i}' for i in range(1, 23)] + ['chrX']
+    chromosomes = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
     chr_weights = np.array([8, 7, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 3])
     chr_weights = chr_weights / chr_weights.sum()
 
     # Peak width depends on mark type
     width_params = {
-        'H3K27ac': (800, 300),   # mean, std
-        'H3K4me3': (500, 150),
-        'H3K4me1': (1200, 500),
-        'H3K27me3': (2000, 800),
+        "H3K27ac": (800, 300),  # mean, std
+        "H3K4me3": (500, 150),
+        "H3K4me1": (1200, 500),
+        "H3K27me3": (2000, 800),
     }
     mean_width, std_width = width_params.get(histone_mark, (1000, 400))
 
@@ -927,11 +916,7 @@ def generate_synthetic_reference(cell_type: str, histone_mark: str) -> pd.DataFr
         chrom = np.random.choice(chromosomes, p=chr_weights)
         start = np.random.randint(1000000, 200000000)
         width = max(100, int(np.random.normal(mean_width, std_width)))
-        peaks.append({
-            'chrom': chrom,
-            'start': start,
-            'end': start + width
-        })
+        peaks.append({"chrom": chrom, "start": start, "end": start + width})
 
     return pd.DataFrame(peaks)
 

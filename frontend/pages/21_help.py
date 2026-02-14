@@ -24,12 +24,7 @@ st.set_page_config(page_title="Help - EpiNexus", page_icon="❓", layout="wide")
 def main():
     st.title("❓ Help & Support")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📖 Documentation",
-        "💬 Contact & Feedback",
-        "❓ FAQ",
-        "ℹ️ About"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(["📖 Documentation", "💬 Contact & Feedback", "❓ FAQ", "ℹ️ About"])
 
     with tab1:
         render_documentation()
@@ -58,8 +53,8 @@ def render_documentation():
             "📈 Visualization",
             "⭐ Super-Enhancers",
             "🔬 Multi-omics Integration",
-            "💡 Tips & Best Practices"
-        ]
+            "💡 Tips & Best Practices",
+        ],
     )
 
     st.markdown("---")
@@ -160,12 +155,14 @@ def render_data_qc_docs():
 
     # FRiP visualization
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=['Excellent', 'Good', 'Acceptable', 'Poor'],
-        y=[0.35, 0.25, 0.15, 0.05],
-        marker_color=['#27ae60', '#2ecc71', '#f39c12', '#e74c3c']
-    ))
-    fig.update_layout(title='FRiP Score Thresholds', yaxis_title='FRiP Score', height=300)
+    fig.add_trace(
+        go.Bar(
+            x=["Excellent", "Good", "Acceptable", "Poor"],
+            y=[0.35, 0.25, 0.15, 0.05],
+            marker_color=["#27ae60", "#2ecc71", "#f39c12", "#e74c3c"],
+        )
+    )
+    fig.update_layout(title="FRiP Score Thresholds", yaxis_title="FRiP Score", height=300)
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
@@ -242,17 +239,24 @@ def render_differential_docs():
     log2fc = np.random.normal(0, 1.5, n)
     fdr = 10 ** (-np.abs(log2fc) * np.random.uniform(0.5, 2, n))
 
-    demo_df = pd.DataFrame({
-        'log2FC': log2fc,
-        'FDR': fdr,
-        'Significant': ['Yes' if f < 0.05 and abs(l) > 1 else 'No' for f, l in zip(fdr, log2fc)]
-    })
+    demo_df = pd.DataFrame(
+        {
+            "log2FC": log2fc,
+            "FDR": fdr,
+            "Significant": ["Yes" if f < 0.05 and abs(l) > 1 else "No" for f, l in zip(fdr, log2fc)],
+        }
+    )
 
-    fig = px.scatter(demo_df, x='log2FC', y=-np.log10(demo_df['FDR']),
-                    color='Significant', color_discrete_map={'Yes': '#e74c3c', 'No': '#95a5a6'})
-    fig.add_hline(y=-np.log10(0.05), line_dash='dash', line_color='gray')
-    fig.add_vline(x=1, line_dash='dash', line_color='gray')
-    fig.add_vline(x=-1, line_dash='dash', line_color='gray')
+    fig = px.scatter(
+        demo_df,
+        x="log2FC",
+        y=-np.log10(demo_df["FDR"]),
+        color="Significant",
+        color_discrete_map={"Yes": "#e74c3c", "No": "#95a5a6"},
+    )
+    fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")
+    fig.add_vline(x=1, line_dash="dash", line_color="gray")
+    fig.add_vline(x=-1, line_dash="dash", line_color="gray")
     fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -284,8 +288,7 @@ def render_visualization_docs():
     # Demo heatmap
     np.random.seed(42)
     heatmap_data = np.random.randn(20, 50)
-    fig = px.imshow(heatmap_data, color_continuous_scale='RdBu_r',
-                   labels={'x': 'Position', 'y': 'Genes'})
+    fig = px.imshow(heatmap_data, color_continuous_scale="RdBu_r", labels={"x": "Position", "y": "Genes"})
     fig.update_layout(height=250)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -306,10 +309,10 @@ def render_visualization_docs():
     treat = 2.8 * np.exp(-0.5 * (x / 0.7) ** 2) + 0.4
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x, y=ctrl, name='Control', line=dict(color='#3498db')))
-    fig.add_trace(go.Scatter(x=x, y=treat, name='Treatment', line=dict(color='#e74c3c')))
-    fig.add_vline(x=0, line_dash='dash')
-    fig.update_layout(xaxis_title='Distance from TSS (kb)', yaxis_title='Signal', height=300)
+    fig.add_trace(go.Scatter(x=x, y=ctrl, name="Control", line=dict(color="#3498db")))
+    fig.add_trace(go.Scatter(x=x, y=treat, name="Treatment", line=dict(color="#e74c3c")))
+    fig.add_vline(x=0, line_dash="dash")
+    fig.update_layout(xaxis_title="Distance from TSS (kb)", yaxis_title="Signal", height=300)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -347,19 +350,30 @@ def render_se_docs():
     # Demo hockey stick
     np.random.seed(42)
     n = 500
-    signal = np.sort(np.concatenate([
-        np.random.exponential(10, int(n * 0.9)),
-        np.random.exponential(80, int(n * 0.1))
-    ]))
+    signal = np.sort(np.concatenate([np.random.exponential(10, int(n * 0.9)), np.random.exponential(80, int(n * 0.1))]))
     cutoff_idx = int(n * 0.92)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(n)[:cutoff_idx], y=signal[:cutoff_idx],
-        mode='markers', marker=dict(color='#3498db', size=5), name='Typical Enhancers'))
-    fig.add_trace(go.Scatter(x=np.arange(n)[cutoff_idx:], y=signal[cutoff_idx:],
-        mode='markers', marker=dict(color='#e74c3c', size=8), name='Super-Enhancers'))
-    fig.add_hline(y=signal[cutoff_idx], line_dash='dash')
-    fig.update_layout(xaxis_title='Enhancer Rank', yaxis_title='H3K27ac Signal', height=350)
+    fig.add_trace(
+        go.Scatter(
+            x=np.arange(n)[:cutoff_idx],
+            y=signal[:cutoff_idx],
+            mode="markers",
+            marker=dict(color="#3498db", size=5),
+            name="Typical Enhancers",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=np.arange(n)[cutoff_idx:],
+            y=signal[cutoff_idx:],
+            mode="markers",
+            marker=dict(color="#e74c3c", size=8),
+            name="Super-Enhancers",
+        )
+    )
+    fig.add_hline(y=signal[cutoff_idx], line_dash="dash")
+    fig.update_layout(xaxis_title="Enhancer Rank", yaxis_title="H3K27ac Signal", height=350)
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
@@ -391,16 +405,19 @@ def render_multiomics_docs():
     """)
 
     # Concordance demo
-    concordance = pd.DataFrame({
-        'Histone Change': ['H3K27ac↑', 'H3K27ac↓', 'H3K27me3↑', 'H3K27me3↓'],
-        'Expr Up': [425, 38, 25, 180],
-        'Expr Down': [52, 312, 85, 42],
-        'No Change': [180, 145, 102, 222]
-    })
+    concordance = pd.DataFrame(
+        {
+            "Histone Change": ["H3K27ac↑", "H3K27ac↓", "H3K27me3↑", "H3K27me3↓"],
+            "Expr Up": [425, 38, 25, 180],
+            "Expr Down": [52, 312, 85, 42],
+            "No Change": [180, 145, 102, 222],
+        }
+    )
 
-    fig = px.bar(concordance.melt(id_vars='Histone Change'),
-                x='Histone Change', y='value', color='variable', barmode='group')
-    fig.update_layout(height=300, yaxis_title='Number of Genes')
+    fig = px.bar(
+        concordance.melt(id_vars="Histone Change"), x="Histone Change", y="value", color="variable", barmode="group"
+    )
+    fig.update_layout(height=300, yaxis_title="Number of Genes")
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
@@ -497,7 +514,7 @@ def render_faq():
 **Raw data:** FASTQ, FASTQ.GZ
 **Signal tracks:** BigWig, bedGraph
 **Expression:** CSV with gene_id, log2FC, padj columns
-            """
+            """,
         },
         {
             "q": "What's the difference between ChIP-seq and CUT&Tag?",
@@ -508,7 +525,7 @@ Both can profile histones and transcription factors, but:
 - **CUT&Tag/CUT&RUN**: Enzyme-based, lower background, works with fewer cells, often uses spike-in normalization instead of IgG
 
 EpiNexus supports both with appropriate peak calling and normalization settings.
-            """
+            """,
         },
         {
             "q": "Do I need IgG controls for CUT&Tag?",
@@ -527,7 +544,7 @@ EpiNexus supports both with appropriate peak calling and normalization settings.
 - Traditional ChIP-seq
 - Very low-input experiments where spike-in may be unreliable
 - When comparing to historical ChIP-seq data normalized with IgG
-            """
+            """,
         },
         {
             "q": "What normalization method should I use?",
@@ -545,7 +562,7 @@ EpiNexus supports both with appropriate peak calling and normalization settings.
 - **Spike-in with exogenous DNA**: If you added Drosophila/yeast spike-in
 
 EpiNexus auto-selects the best method based on your assay type and control settings.
-            """
+            """,
         },
         {
             "q": "How do I analyze transcription factors vs histones?",
@@ -555,7 +572,7 @@ EpiNexus auto-selects the best method based on your assay type and control setti
 3. Select your **Target** (Histone Modifications or Transcription Factors)
 
 For TFs, use the dedicated **TF ChIP-seq** page for motif analysis and target genes.
-            """
+            """,
         },
         {
             "q": "What is the demo data?",
@@ -563,7 +580,7 @@ For TFs, use the dedicated **TF ChIP-seq** page for motif analysis and target ge
 Demo data is **simulated** data for demonstration purposes. It shows realistic patterns but is not from real experiments.
 
 Look for the **📌 Demo Mode** indicator at the top of pages. Upload your own data to switch to real analysis.
-            """
+            """,
         },
         {
             "q": "How do I run the preprocessing pipeline?",
@@ -575,7 +592,7 @@ Look for the **📌 Demo Mode** indicator at the top of pages. Upload your own d
 5. Click **Run Pipeline**
 
 **Note:** Requires external tools (Bowtie2, MACS2, etc.) installed on your system.
-            """
+            """,
         },
         {
             "q": "How do I save and load projects?",
@@ -583,7 +600,7 @@ Look for the **📌 Demo Mode** indicator at the top of pages. Upload your own d
 **Save:** Go to **Data & Project** → **Project** tab → Click "Download Project File"
 
 **Load:** Same tab → Upload the `.epinexus` file
-            """
+            """,
         },
         {
             "q": "What are good QC thresholds?",
@@ -594,7 +611,7 @@ Look for the **📌 Demo Mode** indicator at the top of pages. Upload your own d
 | NSC | >1.1 |
 | RSC | >0.8 |
 | Replicate correlation | >0.9 |
-            """
+            """,
         },
         {
             "q": "How do I interpret a volcano plot?",
@@ -603,7 +620,7 @@ Look for the **📌 Demo Mode** indicator at the top of pages. Upload your own d
 - **Y-axis**: -log10 FDR (higher = more significant)
 - **Thresholds**: Typically |log2FC| > 1 and FDR < 0.05
 - **Red points**: Significantly changed regions
-            """
+            """,
         },
         {
             "q": "What are super-enhancers?",
@@ -614,13 +631,13 @@ Super-enhancers are large clusters of enhancers that:
 - Are often associated with disease variants
 
 Use the **Super-Enhancers** page to identify them with the ROSE algorithm.
-            """
+            """,
         },
         {
             "q": "Can I use public data from ENCODE?",
             "a": """
 Yes! Go to **ENCODE Data** in the sidebar to browse and download public ChIP-seq and ATAC-seq datasets.
-            """
+            """,
         },
     ]
 

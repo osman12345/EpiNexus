@@ -10,7 +10,6 @@ Provides:
 
 import json
 import logging
-import time
 import hashlib
 import threading
 from pathlib import Path
@@ -26,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StateSnapshot:
     """A snapshot of application state."""
+
     id: str
     timestamp: str
     state: Dict[str, Any]
@@ -45,12 +45,7 @@ class StateSnapshot:
 class AutoSaveManager:
     """Manage automatic saving of session state."""
 
-    def __init__(
-        self,
-        save_dir: str = "autosave",
-        interval_seconds: int = 60,
-        max_autosaves: int = 10
-    ):
+    def __init__(self, save_dir: str = "autosave", interval_seconds: int = 60, max_autosaves: int = 10):
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.interval = interval_seconds
@@ -88,7 +83,7 @@ class AutoSaveManager:
                     id=datetime.now().strftime("%Y%m%d_%H%M%S"),
                     timestamp=datetime.now().isoformat(),
                     state=state,
-                    description="Auto-save"
+                    description="Auto-save",
                 )
 
                 # Only save if state changed
@@ -108,7 +103,7 @@ class AutoSaveManager:
         filename = f"autosave_{snapshot.id}.json"
         filepath = self.save_dir / filename
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(asdict(snapshot), f, indent=2, default=str)
 
     def _cleanup_old_saves(self):
@@ -121,19 +116,22 @@ class AutoSaveManager:
     def get_autosaves(self) -> List[Dict[str, Any]]:
         """Get list of available auto-saves."""
         import logging
+
         logger = logging.getLogger(__name__)
 
         saves = []
         for f in sorted(self.save_dir.glob("autosave_*.json"), reverse=True):
             try:
-                with open(f, 'r') as file:
+                with open(f, "r") as file:
                     data = json.load(file)
-                    saves.append({
-                        "id": data.get("id", ""),
-                        "timestamp": data.get("timestamp", ""),
-                        "description": data.get("description", ""),
-                        "file": str(f)
-                    })
+                    saves.append(
+                        {
+                            "id": data.get("id", ""),
+                            "timestamp": data.get("timestamp", ""),
+                            "description": data.get("description", ""),
+                            "file": str(f),
+                        }
+                    )
             except (json.JSONDecodeError, KeyError, IOError) as e:
                 # Skip corrupted or unreadable autosave files
                 logger.debug(f"Failed to load autosave {f}: {e}")
@@ -144,7 +142,7 @@ class AutoSaveManager:
         """Load an auto-saved state."""
         filepath = self.save_dir / f"autosave_{save_id}.json"
         if filepath.exists():
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 data = json.load(f)
                 return data.get("state", {})
         return None
@@ -155,7 +153,7 @@ class AutoSaveManager:
             id=datetime.now().strftime("%Y%m%d_%H%M%S"),
             timestamp=datetime.now().isoformat(),
             state=state,
-            description=description
+            description=description,
         )
         self._save_snapshot(snapshot)
         self._last_checksum = snapshot.checksum
@@ -173,11 +171,13 @@ class UndoRedoManager:
     def push_state(self, state: Dict[str, Any], action_name: str = ""):
         """Push a new state to the undo stack."""
         if self._current_state is not None:
-            self._undo_stack.append({
-                "state": copy.deepcopy(self._current_state),
-                "action": action_name,
-                "timestamp": datetime.now().isoformat()
-            })
+            self._undo_stack.append(
+                {
+                    "state": copy.deepcopy(self._current_state),
+                    "action": action_name,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         self._current_state = copy.deepcopy(state)
         self._redo_stack.clear()  # Clear redo stack on new action
@@ -189,11 +189,9 @@ class UndoRedoManager:
 
         # Push current state to redo stack
         if self._current_state is not None:
-            self._redo_stack.append({
-                "state": copy.deepcopy(self._current_state),
-                "action": "Undo",
-                "timestamp": datetime.now().isoformat()
-            })
+            self._redo_stack.append(
+                {"state": copy.deepcopy(self._current_state), "action": "Undo", "timestamp": datetime.now().isoformat()}
+            )
 
         # Pop from undo stack
         previous = self._undo_stack.pop()
@@ -208,11 +206,9 @@ class UndoRedoManager:
 
         # Push current state to undo stack
         if self._current_state is not None:
-            self._undo_stack.append({
-                "state": copy.deepcopy(self._current_state),
-                "action": "Redo",
-                "timestamp": datetime.now().isoformat()
-            })
+            self._undo_stack.append(
+                {"state": copy.deepcopy(self._current_state), "action": "Redo", "timestamp": datetime.now().isoformat()}
+            )
 
         # Pop from redo stack
         next_state = self._redo_stack.pop()
@@ -230,17 +226,11 @@ class UndoRedoManager:
 
     def get_undo_history(self) -> List[Dict[str, str]]:
         """Get list of undoable actions."""
-        return [
-            {"action": item["action"], "timestamp": item["timestamp"]}
-            for item in reversed(self._undo_stack)
-        ]
+        return [{"action": item["action"], "timestamp": item["timestamp"]} for item in reversed(self._undo_stack)]
 
     def get_redo_history(self) -> List[Dict[str, str]]:
         """Get list of redoable actions."""
-        return [
-            {"action": item["action"], "timestamp": item["timestamp"]}
-            for item in reversed(self._redo_stack)
-        ]
+        return [{"action": item["action"], "timestamp": item["timestamp"]} for item in reversed(self._redo_stack)]
 
     def clear_history(self):
         """Clear all undo/redo history."""
@@ -253,10 +243,10 @@ def create_streamlit_state_manager():
     import streamlit as st
 
     # Initialize managers in session state
-    if 'autosave_manager' not in st.session_state:
+    if "autosave_manager" not in st.session_state:
         st.session_state.autosave_manager = AutoSaveManager()
 
-    if 'undo_manager' not in st.session_state:
+    if "undo_manager" not in st.session_state:
         st.session_state.undo_manager = UndoRedoManager()
 
     return st.session_state.autosave_manager, st.session_state.undo_manager
@@ -311,7 +301,7 @@ def render_autosave_recovery():
 
                 with col2:
                     if st.button("Restore", key=f"restore_{save['id']}"):
-                        state = autosave_manager.load_autosave(save['id'])
+                        state = autosave_manager.load_autosave(save["id"])
                         if state:
                             for key, value in state.items():
                                 st.session_state[key] = value

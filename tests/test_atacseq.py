@@ -14,16 +14,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Check for scipy availability
 try:
     import scipy
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
 
-from app.core.atacseq import (
-    ATACQCMetrics,
-    FragmentSizeDistribution,
-    ATACSeqAnalyzer,
-    generate_demo_atac_data
-)
+from app.core.atacseq import ATACQCMetrics, FragmentSizeDistribution, ATACSeqAnalyzer, generate_demo_atac_data
 
 
 class TestATACQCMetrics:
@@ -41,7 +37,7 @@ class TestATACQCMetrics:
             frip=0.35,
             nfr_ratio=0.45,
             peak_count=50000,
-            median_fragment_size=150
+            median_fragment_size=150,
         )
 
         assert metrics.total_reads == 80000000
@@ -60,7 +56,7 @@ class TestFragmentSizeDistribution:
             nfr_fraction=0.35,
             mono_fraction=0.30,
             di_fraction=0.15,
-            tri_fraction=0.05
+            tri_fraction=0.05,
         )
 
         assert len(dist.sizes) == 100
@@ -90,14 +86,10 @@ class TestATACSeqAnalyzer:
             "duplicates": 7600000,
             "frip": 0.35,
             "nfr_ratio": 0.45,
-            "median_fragment": 150
+            "median_fragment": 150,
         }
 
-        peaks = pd.DataFrame({
-            "chr": ["chr1"] * 100,
-            "start": range(100),
-            "end": range(100, 200)
-        })
+        peaks = pd.DataFrame({"chr": ["chr1"] * 100, "start": range(100), "end": range(100, 200)})
 
         tss_scores = np.random.uniform(5, 15, 1000)
 
@@ -118,9 +110,7 @@ class TestATACSeqAnalyzer:
         di_fragments = np.random.normal(400, 40, 2000)
         tri_fragments = np.random.normal(580, 30, 1000)
 
-        fragment_sizes = np.concatenate([
-            nfr_fragments, mono_fragments, di_fragments, tri_fragments
-        ])
+        fragment_sizes = np.concatenate([nfr_fragments, mono_fragments, di_fragments, tri_fragments])
         fragment_sizes = fragment_sizes[fragment_sizes > 0]
 
         dist = analyzer.analyze_fragment_sizes(fragment_sizes)
@@ -142,7 +132,7 @@ class TestATACSeqAnalyzer:
         x = np.arange(window_size)
         center = window_size // 2
         base_signal = np.ones(window_size)
-        peak_signal = 10 * np.exp(-((x - center) ** 2) / (2 * 50 ** 2))
+        peak_signal = 10 * np.exp(-((x - center) ** 2) / (2 * 50**2))
 
         coverage = np.zeros((n_tss, window_size))
         for i in range(n_tss):
@@ -166,28 +156,15 @@ class TestATACSeqAnalyzer:
 
     def test_integrate_with_histones(self, analyzer):
         """Test integration with histone data."""
-        atac_peaks = pd.DataFrame({
-            "chr": ["chr1", "chr1", "chr2"],
-            "start": [1000, 5000, 10000],
-            "end": [2000, 6000, 11000]
-        })
+        atac_peaks = pd.DataFrame(
+            {"chr": ["chr1", "chr1", "chr2"], "start": [1000, 5000, 10000], "end": [2000, 6000, 11000]}
+        )
 
-        h3k4me3_peaks = pd.DataFrame({
-            "chr": ["chr1", "chr1"],
-            "start": [1100, 3000],
-            "end": [1900, 4000]
-        })
+        h3k4me3_peaks = pd.DataFrame({"chr": ["chr1", "chr1"], "start": [1100, 3000], "end": [1900, 4000]})
 
-        h3k27ac_peaks = pd.DataFrame({
-            "chr": ["chr1", "chr2"],
-            "start": [1200, 10500],
-            "end": [1800, 10800]
-        })
+        h3k27ac_peaks = pd.DataFrame({"chr": ["chr1", "chr2"], "start": [1200, 10500], "end": [1800, 10800]})
 
-        histone_peaks = {
-            "H3K4me3": h3k4me3_peaks,
-            "H3K27ac": h3k27ac_peaks
-        }
+        histone_peaks = {"H3K4me3": h3k4me3_peaks, "H3K27ac": h3k27ac_peaks}
 
         results = analyzer.integrate_with_histones(atac_peaks, histone_peaks)
 
@@ -205,7 +182,7 @@ class TestATACSeqAnalyzer:
 
         # Add dips at motif positions
         for pos in motif_positions:
-            coverage[pos - 10:pos + 10] = 50
+            coverage[pos - 10 : pos + 10] = 50
 
         result = analyzer.footprint_analysis(coverage, motif_positions, window=100)
 
@@ -252,17 +229,18 @@ class TestDifferentialAccessibility:
         treat_base[:20] *= 3  # Up in treatment
         treat_base[20:40] //= 3  # Down in treatment
 
-        count_matrix = pd.DataFrame({
-            "ctrl_1": ctrl_base + np.random.poisson(10, n_peaks),
-            "ctrl_2": ctrl_base + np.random.poisson(10, n_peaks),
-            "treat_1": treat_base + np.random.poisson(10, n_peaks),
-            "treat_2": treat_base + np.random.poisson(10, n_peaks)
-        }, index=[f"peak_{i}" for i in range(n_peaks)])
+        count_matrix = pd.DataFrame(
+            {
+                "ctrl_1": ctrl_base + np.random.poisson(10, n_peaks),
+                "ctrl_2": ctrl_base + np.random.poisson(10, n_peaks),
+                "treat_1": treat_base + np.random.poisson(10, n_peaks),
+                "treat_2": treat_base + np.random.poisson(10, n_peaks),
+            },
+            index=[f"peak_{i}" for i in range(n_peaks)],
+        )
 
         results = analyzer.differential_accessibility(
-            count_matrix,
-            condition1=["treat_1", "treat_2"],
-            condition2=["ctrl_1", "ctrl_2"]
+            count_matrix, condition1=["treat_1", "treat_2"], condition2=["ctrl_1", "ctrl_2"]
         )
 
         assert len(results) == n_peaks

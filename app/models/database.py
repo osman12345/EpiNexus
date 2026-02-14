@@ -9,12 +9,8 @@ Defines tables for:
 """
 
 import uuid
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, DateTime,
-    ForeignKey, Text, JSON, Enum as SQLEnum, Table
-)
+from typing import Dict, Any
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON, Enum as SQLEnum, Table
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import enum
@@ -24,6 +20,7 @@ Base = declarative_base()
 
 class JobStatus(enum.Enum):
     """Job status enumeration."""
+
     PENDING = "pending"
     QUEUED = "queued"
     RUNNING = "running"
@@ -34,6 +31,7 @@ class JobStatus(enum.Enum):
 
 class JobType(enum.Enum):
     """Type of analysis job."""
+
     ALIGNMENT = "alignment"
     PEAK_CALLING = "peak_calling"
     DIFFBIND = "diffbind"
@@ -45,6 +43,7 @@ class JobType(enum.Enum):
 
 class DataType(enum.Enum):
     """Input data type."""
+
     FASTQ = "fastq"
     BAM = "bam"
     BED = "bed"
@@ -53,10 +52,10 @@ class DataType(enum.Enum):
 
 # Association table for many-to-many relationship between samples and comparisons
 sample_comparison = Table(
-    'sample_comparison',
+    "sample_comparison",
     Base.metadata,
-    Column('sample_id', String, ForeignKey('samples.id')),
-    Column('comparison_id', String, ForeignKey('comparisons.id'))
+    Column("sample_id", String, ForeignKey("samples.id")),
+    Column("comparison_id", String, ForeignKey("comparisons.id")),
 )
 
 
@@ -107,7 +106,7 @@ class Job(Base):
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "progress": self.progress,
             "current_step": self.current_step,
-            "error_message": self.error_message
+            "error_message": self.error_message,
         }
 
 
@@ -158,11 +157,7 @@ class Sample(Base):
     sample_metadata = Column("sample_metadata", JSON, nullable=True)
 
     # Relationships
-    comparisons = relationship(
-        "Comparison",
-        secondary=sample_comparison,
-        back_populates="samples"
-    )
+    comparisons = relationship("Comparison", secondary=sample_comparison, back_populates="samples")
 
     def __repr__(self):
         return f"<Sample(id={self.id}, name={self.name}, mark={self.histone_mark})>"
@@ -180,7 +175,7 @@ class Sample(Base):
             "peak_file": self.peak_file,
             "bigwig_file": self.bigwig_file,
             "peak_count": self.peak_count,
-            "frip_score": self.frip_score
+            "frip_score": self.frip_score,
         }
 
 
@@ -218,11 +213,7 @@ class Comparison(Base):
     created_at = Column(DateTime, default=func.now())
 
     # Relationships
-    samples = relationship(
-        "Sample",
-        secondary=sample_comparison,
-        back_populates="comparisons"
-    )
+    samples = relationship("Sample", secondary=sample_comparison, back_populates="comparisons")
     analyses = relationship("Analysis", back_populates="comparison")
 
     def __repr__(self):
@@ -242,7 +233,7 @@ class Comparison(Base):
             "total_peaks": self.total_peaks,
             "significant_peaks": self.significant_peaks,
             "gained_peaks": self.gained_peaks,
-            "lost_peaks": self.lost_peaks
+            "lost_peaks": self.lost_peaks,
         }
 
 
@@ -286,5 +277,6 @@ def init_db(engine):
 def get_session(engine):
     """Create a new database session."""
     from sqlalchemy.orm import sessionmaker
+
     Session = sessionmaker(bind=engine)
     return Session()

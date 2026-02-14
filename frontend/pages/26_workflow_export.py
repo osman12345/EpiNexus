@@ -21,10 +21,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Import workflow manager
 try:
     from components.workflow_manager import WorkflowManager, ValidationResult
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
         from frontend.components.workflow_manager import WorkflowManager, ValidationResult
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -33,15 +35,12 @@ except ImportError:
 # PAGE CONFIG
 # =============================================================================
 
-st.set_page_config(
-    page_title="Workflow Export - EpiNexus",
-    page_icon="📤",
-    layout="wide"
-)
+st.set_page_config(page_title="Workflow Export - EpiNexus", page_icon="📤", layout="wide")
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
 
 def format_timestamp(ts: str) -> str:
     """Format ISO timestamp for display."""
@@ -51,44 +50,49 @@ def format_timestamp(ts: str) -> str:
     except (ValueError, TypeError):
         return ts
 
+
 def format_runtime(seconds: float) -> str:
     """Format runtime in human-readable format."""
     if seconds < 60:
         return f"{seconds:.1f}s"
     elif seconds < 3600:
-        return f"{seconds/60:.1f}m"
+        return f"{seconds / 60:.1f}m"
     else:
-        return f"{seconds/3600:.1f}h"
+        return f"{seconds / 3600:.1f}h"
+
 
 def get_step_icon(step_type: str) -> str:
     """Get icon for step type."""
     icons = {
-        'alignment': '🧬',
-        'peak_calling': '📍',
-        'differential': '📈',
-        'annotation': '🏷️',
-        'methylation_alignment': '🔬',
-        'methylation_calling': '🧬',
-        'dmr_analysis': '📊',
-        'super_enhancer': '⭐',
-        'tf_analysis': '🔬',
-        'motif_analysis': '🔤',
+        "alignment": "🧬",
+        "peak_calling": "📍",
+        "differential": "📈",
+        "annotation": "🏷️",
+        "methylation_alignment": "🔬",
+        "methylation_calling": "🧬",
+        "dmr_analysis": "📊",
+        "super_enhancer": "⭐",
+        "tf_analysis": "🔬",
+        "motif_analysis": "🔤",
     }
-    return icons.get(step_type, '⚙️')
+    return icons.get(step_type, "⚙️")
+
 
 def get_status_badge(status: str) -> str:
     """Get status badge HTML."""
     colors = {
-        'completed': ('green', '✅'),
-        'failed': ('red', '❌'),
-        'running': ('orange', '⏳'),
+        "completed": ("green", "✅"),
+        "failed": ("red", "❌"),
+        "running": ("orange", "⏳"),
     }
-    color, icon = colors.get(status, ('gray', '❓'))
+    color, icon = colors.get(status, ("gray", "❓"))
     return f"{icon} {status.title()}"
+
 
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
+
 
 def main():
     st.title("📤 Workflow Export & Reproduce")
@@ -102,9 +106,7 @@ def main():
     WorkflowManager.init_session_state()
 
     # Tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📜 History", "📥 Export", "📤 Import", "🔄 Reproduce", "📝 Methods"
-    ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📜 History", "📥 Export", "📤 Import", "🔄 Reproduce", "📝 Methods"])
 
     # =========================================================================
     # TAB 1: WORKFLOW HISTORY
@@ -166,42 +168,42 @@ def render_workflow_history():
     with col1:
         st.metric("Total Steps", len(history))
     with col2:
-        completed = sum(1 for s in history if s['status'] == 'completed')
+        completed = sum(1 for s in history if s["status"] == "completed")
         st.metric("Completed", completed)
     with col3:
-        failed = sum(1 for s in history if s['status'] == 'failed')
+        failed = sum(1 for s in history if s["status"] == "failed")
         st.metric("Failed", failed, delta_color="inverse" if failed > 0 else "off")
     with col4:
-        total_runtime = sum(s.get('runtime_seconds', 0) for s in history)
+        total_runtime = sum(s.get("runtime_seconds", 0) for s in history)
         st.metric("Total Runtime", format_runtime(total_runtime))
 
     st.markdown("---")
 
     # Timeline view
     for i, step in enumerate(history, 1):
-        icon = get_step_icon(step['step_type'])
-        status_badge = get_status_badge(step['status'])
-        timestamp = format_timestamp(step['timestamp'])
-        runtime = format_runtime(step.get('runtime_seconds', 0))
+        icon = get_step_icon(step["step_type"])
+        status_badge = get_status_badge(step["status"])
+        timestamp = format_timestamp(step["timestamp"])
+        runtime = format_runtime(step.get("runtime_seconds", 0))
 
         with st.expander(
             f"{icon} **Step {i}: {step['step_type'].replace('_', ' ').title()}** — {status_badge} — {timestamp}",
-            expanded=False
+            expanded=False,
         ):
             col1, col2 = st.columns([2, 1])
 
             with col1:
                 st.markdown("**Parameters:**")
-                st.json(step['parameters'])
+                st.json(step["parameters"])
 
-                if step.get('inputs'):
+                if step.get("inputs"):
                     st.markdown("**Inputs:**")
-                    for name, path in step['inputs'].items():
+                    for name, path in step["inputs"].items():
                         st.text(f"  {name}: {path}")
 
-                if step.get('outputs'):
+                if step.get("outputs"):
                     st.markdown("**Outputs:**")
-                    for name, path in step['outputs'].items():
+                    for name, path in step["outputs"].items():
                         st.text(f"  {name}: {path}")
 
             with col2:
@@ -209,21 +211,21 @@ def render_workflow_history():
                 st.text(f"Step ID: {step['step_id']}")
                 st.text(f"Runtime: {runtime}")
 
-                if step.get('tool_versions'):
+                if step.get("tool_versions"):
                     st.markdown("**Tool Versions:**")
-                    for tool, version in step['tool_versions'].items():
+                    for tool, version in step["tool_versions"].items():
                         st.text(f"  {tool}: {version}")
 
-                if step.get('output_metadata'):
+                if step.get("output_metadata"):
                     st.markdown("**Results:**")
-                    for key, value in step['output_metadata'].items():
+                    for key, value in step["output_metadata"].items():
                         st.text(f"  {key}: {value}")
 
-            if step.get('command_line'):
+            if step.get("command_line"):
                 st.markdown("**Command:**")
-                st.code(step['command_line'], language='bash')
+                st.code(step["command_line"], language="bash")
 
-            if step.get('error_message'):
+            if step.get("error_message"):
                 st.error(f"Error: {step['error_message']}")
 
     # Clear history button
@@ -254,20 +256,18 @@ def render_export_tab():
         include_checksums = st.checkbox(
             "Include file checksums",
             value=True,
-            help="Calculate SHA256 hashes for output files to verify data integrity"
+            help="Calculate SHA256 hashes for output files to verify data integrity",
         )
 
         include_commands = st.checkbox(
-            "Include command lines",
-            value=True,
-            help="Include the exact commands executed for each step"
+            "Include command lines", value=True, help="Include the exact commands executed for each step"
         )
 
     with col2:
         export_format = st.selectbox(
             "Export Format",
             ["JSON (.epinexus.json)", "Shell Script (.sh)"],
-            help="JSON for importing into EpiNexus, Shell script for manual execution"
+            help="JSON for importing into EpiNexus, Shell script for manual execution",
         )
 
     st.markdown("---")
@@ -278,16 +278,15 @@ def render_export_tab():
     if export_format.startswith("JSON"):
         with st.spinner("Generating export..."):
             export_data = WorkflowManager.export_workflow(
-                include_checksums=include_checksums,
-                include_commands=include_commands
+                include_checksums=include_checksums, include_commands=include_commands
             )
             export_json = json.dumps(export_data, indent=2, default=str)
 
         with st.expander("View JSON", expanded=False):
-            st.code(export_json, language='json')
+            st.code(export_json, language="json")
 
         # Download button
-        project_name = st.session_state.get('project_name', 'workflow')
+        project_name = st.session_state.get("project_name", "workflow")
         filename = f"{project_name}_{datetime.now().strftime('%Y%m%d')}.epinexus.json"
 
         st.download_button(
@@ -296,25 +295,20 @@ def render_export_tab():
             filename,
             "application/json",
             type="primary",
-            use_container_width=True
+            use_container_width=True,
         )
 
     else:  # Shell script
         script = WorkflowManager.generate_shell_script()
 
         with st.expander("View Script", expanded=False):
-            st.code(script, language='bash')
+            st.code(script, language="bash")
 
-        project_name = st.session_state.get('project_name', 'workflow')
+        project_name = st.session_state.get("project_name", "workflow")
         filename = f"{project_name}_{datetime.now().strftime('%Y%m%d')}.sh"
 
         st.download_button(
-            "📥 Download Shell Script",
-            script,
-            filename,
-            "text/x-shellscript",
-            type="primary",
-            use_container_width=True
+            "📥 Download Shell Script", script, filename, "text/x-shellscript", type="primary", use_container_width=True
         )
 
 
@@ -328,14 +322,12 @@ def render_import_tab():
     """)
 
     uploaded_file = st.file_uploader(
-        "Select workflow file",
-        type=['json', 'epinexus'],
-        help="Upload a .epinexus.json workflow file"
+        "Select workflow file", type=["json", "epinexus"], help="Upload a .epinexus.json workflow file"
     )
 
     if uploaded_file:
         try:
-            content = uploaded_file.read().decode('utf-8')
+            content = uploaded_file.read().decode("utf-8")
             workflow_data, validation = WorkflowManager.load_workflow_from_file(content)
 
             if workflow_data is None:
@@ -380,9 +372,9 @@ def render_import_tab():
             # Show workflow summary
             st.markdown("### Workflow Summary")
 
-            metadata = workflow_data.get('metadata', {})
-            project = workflow_data.get('project', {})
-            steps = workflow_data.get('workflow_steps', [])
+            metadata = workflow_data.get("metadata", {})
+            project = workflow_data.get("project", {})
+            steps = workflow_data.get("workflow_steps", [])
 
             col1, col2 = st.columns(2)
             with col1:
@@ -400,7 +392,7 @@ def render_import_tab():
             # Show steps
             st.markdown("### Steps")
             for i, step in enumerate(steps, 1):
-                icon = get_step_icon(step['step_type'])
+                icon = get_step_icon(step["step_type"])
                 st.markdown(f"{i}. {icon} **{step['step_type'].replace('_', ' ').title()}**")
 
             # Missing files
@@ -419,14 +411,14 @@ def render_reproduce_tab():
     """Render workflow reproduction interface."""
     st.subheader("Reproduce Workflow")
 
-    if 'imported_workflow' not in st.session_state:
+    if "imported_workflow" not in st.session_state:
         st.info("Import a workflow file first in the Import tab.")
         return
 
     workflow = st.session_state.imported_workflow
-    validation = st.session_state.get('imported_validation', ValidationResult(is_valid=True))
+    validation = st.session_state.get("imported_validation", ValidationResult(is_valid=True))
 
-    steps = workflow.get('workflow_steps', [])
+    steps = workflow.get("workflow_steps", [])
 
     if not steps:
         st.warning("No steps in imported workflow.")
@@ -439,8 +431,8 @@ def render_reproduce_tab():
 
     selected_steps = []
     for i, step in enumerate(steps):
-        icon = get_step_icon(step['step_type'])
-        step_name = step['step_type'].replace('_', ' ').title()
+        icon = get_step_icon(step["step_type"])
+        step_name = step["step_type"].replace("_", " ").title()
 
         col1, col2, col3 = st.columns([0.5, 2, 1])
         with col1:
@@ -458,7 +450,7 @@ def render_reproduce_tab():
         if st.session_state.get(f"editing_step_{i}", False):
             with st.expander(f"Edit {step_name} Parameters", expanded=True):
                 edited_params = {}
-                for key, value in step.get('parameters', {}).items():
+                for key, value in step.get("parameters", {}).items():
                     if isinstance(value, bool):
                         edited_params[key] = st.checkbox(key, value=value, key=f"param_{i}_{key}")
                     elif isinstance(value, int):
@@ -469,7 +461,7 @@ def render_reproduce_tab():
                         edited_params[key] = st.text_input(key, value=str(value), key=f"param_{i}_{key}")
 
                 if st.button("Save Changes", key=f"save_{i}"):
-                    st.session_state.imported_workflow['workflow_steps'][i]['parameters'] = edited_params
+                    st.session_state.imported_workflow["workflow_steps"][i]["parameters"] = edited_params
                     st.session_state[f"editing_step_{i}"] = False
                     st.rerun()
 
@@ -482,11 +474,7 @@ def render_reproduce_tab():
 
         remapped_files = {}
         for filepath in validation.files_missing:
-            new_path = st.text_input(
-                f"New path for: {Path(filepath).name}",
-                value="",
-                key=f"remap_{filepath}"
-            )
+            new_path = st.text_input(f"New path for: {Path(filepath).name}", value="", key=f"remap_{filepath}")
             if new_path:
                 remapped_files[filepath] = new_path
 
@@ -511,26 +499,21 @@ def render_reproduce_tab():
                 f"# Generated: {datetime.now().isoformat()}",
                 "",
                 "set -e",
-                ""
+                "",
             ]
 
             for i in selected_steps:
                 step = steps[i]
-                script_lines.append(f"# Step {i+1}: {step['step_type']}")
-                if step.get('command_line'):
-                    script_lines.append(step['command_line'])
+                script_lines.append(f"# Step {i + 1}: {step['step_type']}")
+                if step.get("command_line"):
+                    script_lines.append(step["command_line"])
                 else:
                     script_lines.append(f"# Parameters: {json.dumps(step['parameters'])}")
                 script_lines.append("")
 
             script = "\n".join(script_lines)
 
-            st.download_button(
-                "Download Script",
-                script,
-                "reproduce_workflow.sh",
-                "text/x-shellscript"
-            )
+            st.download_button("Download Script", script, "reproduce_workflow.sh", "text/x-shellscript")
 
 
 def render_methods_tab():
@@ -561,22 +544,14 @@ def render_methods_tab():
 
     with col1:
         st.download_button(
-            "📥 Download as Markdown",
-            methods_text,
-            "methods_section.md",
-            "text/markdown",
-            use_container_width=True
+            "📥 Download as Markdown", methods_text, "methods_section.md", "text/markdown", use_container_width=True
         )
 
     with col2:
         # Plain text version
         plain_text = methods_text.replace("### ", "").replace("**", "")
         st.download_button(
-            "📥 Download as Plain Text",
-            plain_text,
-            "methods_section.txt",
-            "text/plain",
-            use_container_width=True
+            "📥 Download as Plain Text", plain_text, "methods_section.txt", "text/plain", use_container_width=True
         )
 
     # Tips

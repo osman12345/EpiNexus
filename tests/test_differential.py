@@ -3,15 +3,14 @@ Unit tests for differential analysis module.
 """
 
 import pytest
-import numpy as np
 import pandas as pd
 from pathlib import Path
-import tempfile
 import sys
 
 # Check for scipy availability
 try:
     import scipy
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -19,12 +18,7 @@ except ImportError:
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.core.differential import (
-    Sample,
-    DifferentialConfig,
-    DifferentialAnalyzer,
-    DifferentialResults
-)
+from app.core.differential import Sample, DifferentialConfig, DifferentialAnalyzer, DifferentialResults
 
 
 class TestSample:
@@ -32,12 +26,7 @@ class TestSample:
 
     def test_sample_creation(self):
         """Test basic sample creation."""
-        sample = Sample(
-            sample_id="test_sample",
-            condition="Treatment",
-            histone_mark="H3K27ac",
-            replicate=1
-        )
+        sample = Sample(sample_id="test_sample", condition="Treatment", histone_mark="H3K27ac", replicate=1)
         assert sample.sample_id == "test_sample"
         assert sample.condition == "Treatment"
         assert sample.histone_mark == "H3K27ac"
@@ -45,11 +34,7 @@ class TestSample:
 
     def test_sample_id_string_conversion(self):
         """Test that sample_id is converted to string."""
-        sample = Sample(
-            sample_id=123,
-            condition="Control",
-            histone_mark="H3K4me3"
-        )
+        sample = Sample(sample_id=123, condition="Control", histone_mark="H3K4me3")
         assert sample.sample_id == "123"
         assert isinstance(sample.sample_id, str)
 
@@ -59,11 +44,7 @@ class TestDifferentialConfig:
 
     def test_config_defaults(self):
         """Test default configuration values."""
-        config = DifferentialConfig(
-            comparison_name="Test",
-            group1="Treatment",
-            group2="Control"
-        )
+        config = DifferentialConfig(comparison_name="Test", group1="Treatment", group2="Control")
         assert config.fdr_threshold == 0.1
         assert config.lfc_threshold == 0.5
         assert config.min_overlap == 2
@@ -77,7 +58,7 @@ class TestDifferentialConfig:
             group2="B",
             fdr_threshold=0.05,
             lfc_threshold=1.0,
-            normalize_method="TMM"
+            normalize_method="TMM",
         )
         assert config.fdr_threshold == 0.05
         assert config.lfc_threshold == 1.0
@@ -90,11 +71,7 @@ class TestDifferentialResults:
     def test_results_to_dict(self):
         """Test conversion to dictionary."""
         results = DifferentialResults(
-            comparison_name="Test",
-            total_peaks=1000,
-            significant_peaks=100,
-            gained_peaks=60,
-            lost_peaks=40
+            comparison_name="Test", total_peaks=1000, significant_peaks=100, gained_peaks=60, lost_peaks=40
         )
         result_dict = results.to_dict()
 
@@ -150,11 +127,10 @@ class TestDifferentialAnalyzer:
     def test_rle_normalization(self, analyzer):
         """Test RLE normalization."""
         # Create test count matrix
-        counts = pd.DataFrame({
-            "sample1": [100, 200, 300, 400],
-            "sample2": [110, 220, 280, 420],
-            "sample3": [90, 180, 320, 380]
-        }, index=["peak1", "peak2", "peak3", "peak4"])
+        counts = pd.DataFrame(
+            {"sample1": [100, 200, 300, 400], "sample2": [110, 220, 280, 420], "sample3": [90, 180, 320, 380]},
+            index=["peak1", "peak2", "peak3", "peak4"],
+        )
 
         size_factors = analyzer._rle_normalization(counts)
 
@@ -164,11 +140,10 @@ class TestDifferentialAnalyzer:
 
     def test_tmm_normalization(self, analyzer):
         """Test TMM normalization."""
-        counts = pd.DataFrame({
-            "sample1": [100, 200, 300, 400],
-            "sample2": [120, 240, 280, 480],
-            "sample3": [80, 160, 320, 360]
-        }, index=["peak1", "peak2", "peak3", "peak4"])
+        counts = pd.DataFrame(
+            {"sample1": [100, 200, 300, 400], "sample2": [120, 240, 280, 480], "sample3": [80, 160, 320, 360]},
+            index=["peak1", "peak2", "peak3", "peak4"],
+        )
 
         size_factors = analyzer._tmm_normalization(counts)
 
@@ -178,13 +153,15 @@ class TestDifferentialAnalyzer:
 
     def test_merge_peaks_pandas(self, analyzer):
         """Test peak merging with pandas fallback."""
-        peaks = pd.DataFrame({
-            "chrom": ["chr1", "chr1", "chr1", "chr2"],
-            "start": [1000, 1100, 5000, 10000],
-            "end": [1500, 1600, 5500, 10500],
-            "summit": [250, 250, 250, 250],
-            "sample": ["s1", "s2", "s1", "s1"]
-        })
+        peaks = pd.DataFrame(
+            {
+                "chrom": ["chr1", "chr1", "chr1", "chr2"],
+                "start": [1000, 1100, 5000, 10000],
+                "end": [1500, 1600, 5500, 10500],
+                "summit": [250, 250, 250, 250],
+                "sample": ["s1", "s2", "s1", "s1"],
+            }
+        )
 
         consensus = analyzer._merge_peaks_pandas(peaks, min_overlap=1, summit_extend=250)
 
@@ -204,23 +181,24 @@ class TestDifferentialFallback:
     def test_fallback_differential(self, analyzer):
         """Test scipy-based fallback differential analysis."""
         # Create test data
-        counts = pd.DataFrame({
-            "treat1": [100, 200, 50, 300, 150],
-            "treat2": [120, 180, 60, 280, 160],
-            "ctrl1": [50, 210, 100, 150, 140],
-            "ctrl2": [60, 190, 90, 160, 150]
-        }, index=["p1", "p2", "p3", "p4", "p5"])
+        counts = pd.DataFrame(
+            {
+                "treat1": [100, 200, 50, 300, 150],
+                "treat2": [120, 180, 60, 280, 160],
+                "ctrl1": [50, 210, 100, 150, 140],
+                "ctrl2": [60, 190, 90, 160, 150],
+            },
+            index=["p1", "p2", "p3", "p4", "p5"],
+        )
 
         samples = [
             Sample("treat1", "Treatment", "H3K27ac"),
             Sample("treat2", "Treatment", "H3K27ac"),
             Sample("ctrl1", "Control", "H3K27ac"),
-            Sample("ctrl2", "Control", "H3K27ac")
+            Sample("ctrl2", "Control", "H3K27ac"),
         ]
 
-        results = analyzer._run_differential_fallback(
-            counts, samples, "Treatment", "Control"
-        )
+        results = analyzer._run_differential_fallback(counts, samples, "Treatment", "Control")
 
         assert len(results) == 5
         assert "log2FC" in results.columns

@@ -7,7 +7,6 @@ BAM → Peaks (BED/narrowPeak)
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import subprocess
 import shutil
@@ -19,15 +18,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Import workflow manager for step recording
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     HAS_WORKFLOW_MANAGER = False
 
-st.set_page_config(
-    page_title="Peak Calling - EpiNexus",
-    page_icon="📍",
-    layout="wide"
-)
+st.set_page_config(page_title="Peak Calling - EpiNexus", page_icon="📍", layout="wide")
 
 
 def check_tool_installed(tool: str) -> bool:
@@ -38,36 +34,33 @@ def check_tool_installed(tool: str) -> bool:
 def get_available_tools():
     """Get list of available peak calling tools."""
     tools = {}
-    tools['macs2'] = check_tool_installed('macs2') or check_tool_installed('macs3')
-    tools['seacr'] = check_tool_installed('SEACR_1.3.sh') or os.path.exists(os.path.expanduser('~/SEACR/SEACR_1.3.sh'))
-    tools['samtools'] = check_tool_installed('samtools')
-    tools['bedtools'] = check_tool_installed('bedtools')
+    tools["macs2"] = check_tool_installed("macs2") or check_tool_installed("macs3")
+    tools["seacr"] = check_tool_installed("SEACR_1.3.sh") or os.path.exists(os.path.expanduser("~/SEACR/SEACR_1.3.sh"))
+    tools["samtools"] = check_tool_installed("samtools")
+    tools["bedtools"] = check_tool_installed("bedtools")
     return tools
 
 
-def run_macs2(bam_file: str, output_prefix: str, genome: str,
-              control_bam: str = None, call_summits: bool = True,
-              broad: bool = False, qvalue: float = 0.05,
-              extra_params: str = "") -> dict:
+def run_macs2(
+    bam_file: str,
+    output_prefix: str,
+    genome: str,
+    control_bam: str = None,
+    call_summits: bool = True,
+    broad: bool = False,
+    qvalue: float = 0.05,
+    extra_params: str = "",
+) -> dict:
     """
     Run MACS2 peak calling.
 
     Returns dict with status and output files.
     """
-    result = {
-        'success': False,
-        'stdout': '',
-        'stderr': '',
-        'peaks_file': ''
-    }
+    result = {"success": False, "stdout": "", "stderr": "", "peaks_file": ""}
 
     # Genome size mapping
-    genome_sizes = {
-        'hg38': 'hs', 'hg19': 'hs',
-        'mm10': 'mm', 'mm39': 'mm',
-        'dm6': 'dm'
-    }
-    gsize = genome_sizes.get(genome, 'hs')
+    genome_sizes = {"hg38": "hs", "hg19": "hs", "mm10": "mm", "mm39": "mm", "dm6": "dm"}
+    gsize = genome_sizes.get(genome, "hs")
 
     try:
         # Build MACS2 command
@@ -90,50 +83,50 @@ def run_macs2(bam_file: str, output_prefix: str, genome: str,
             shell=True,
             capture_output=True,
             text=True,
-            timeout=3600  # 1 hour timeout
+            timeout=3600,  # 1 hour timeout
         )
 
-        result['stdout'] = process.stdout
-        result['stderr'] = process.stderr
-        result['success'] = process.returncode == 0
+        result["stdout"] = process.stdout
+        result["stderr"] = process.stderr
+        result["success"] = process.returncode == 0
 
         # Find output peaks file
         if broad:
-            result['peaks_file'] = f"{output_prefix}_peaks.broadPeak"
+            result["peaks_file"] = f"{output_prefix}_peaks.broadPeak"
         else:
-            result['peaks_file'] = f"{output_prefix}_peaks.narrowPeak"
+            result["peaks_file"] = f"{output_prefix}_peaks.narrowPeak"
 
     except subprocess.TimeoutExpired:
-        result['stderr'] = "Peak calling timed out after 1 hour"
+        result["stderr"] = "Peak calling timed out after 1 hour"
     except Exception as e:
-        result['stderr'] = str(e)
+        result["stderr"] = str(e)
 
     return result
 
 
-def run_seacr(bedgraph_file: str, output_prefix: str,
-              control_bedgraph: str = None, threshold: float = 0.01,
-              norm: str = "norm", mode: str = "relaxed") -> dict:
+def run_seacr(
+    bedgraph_file: str,
+    output_prefix: str,
+    control_bedgraph: str = None,
+    threshold: float = 0.01,
+    norm: str = "norm",
+    mode: str = "relaxed",
+) -> dict:
     """
     Run SEACR peak calling for CUT&Tag/CUT&RUN data.
 
     Returns dict with status and output files.
     """
-    result = {
-        'success': False,
-        'stdout': '',
-        'stderr': '',
-        'peaks_file': ''
-    }
+    result = {"success": False, "stdout": "", "stderr": "", "peaks_file": ""}
 
     try:
         # Find SEACR script
-        seacr_path = shutil.which('SEACR_1.3.sh')
+        seacr_path = shutil.which("SEACR_1.3.sh")
         if not seacr_path:
-            seacr_path = os.path.expanduser('~/SEACR/SEACR_1.3.sh')
+            seacr_path = os.path.expanduser("~/SEACR/SEACR_1.3.sh")
 
         if not os.path.exists(seacr_path):
-            result['stderr'] = "SEACR not found"
+            result["stderr"] = "SEACR not found"
             return result
 
         # Build SEACR command
@@ -143,24 +136,18 @@ def run_seacr(bedgraph_file: str, output_prefix: str,
             cmd = f"bash {seacr_path} {bedgraph_file} {threshold} {norm} {mode} {output_prefix}"
 
         # Run SEACR
-        process = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=1800
-        )
+        process = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=1800)
 
-        result['stdout'] = process.stdout
-        result['stderr'] = process.stderr
-        result['success'] = process.returncode == 0
+        result["stdout"] = process.stdout
+        result["stderr"] = process.stderr
+        result["success"] = process.returncode == 0
 
-        result['peaks_file'] = f"{output_prefix}.{mode}.bed"
+        result["peaks_file"] = f"{output_prefix}.{mode}.bed"
 
     except subprocess.TimeoutExpired:
-        result['stderr'] = "Peak calling timed out"
+        result["stderr"] = "Peak calling timed out"
     except Exception as e:
-        result['stderr'] = str(e)
+        result["stderr"] = str(e)
 
     return result
 
@@ -190,24 +177,24 @@ def get_peak_stats(peaks_file: str) -> dict:
             return stats
 
         # Read peaks
-        peaks = pd.read_csv(peaks_file, sep='\t', header=None)
+        peaks = pd.read_csv(peaks_file, sep="\t", header=None)
 
-        stats['n_peaks'] = len(peaks)
+        stats["n_peaks"] = len(peaks)
 
         # For narrowPeak/broadPeak format
         if len(peaks.columns) >= 3:
-            peaks.columns = ['chr', 'start', 'end'] + [f'col{i}' for i in range(3, len(peaks.columns))]
-            widths = peaks['end'] - peaks['start']
-            stats['mean_width'] = int(widths.mean())
-            stats['median_width'] = int(widths.median())
-            stats['total_bp'] = int(widths.sum())
+            peaks.columns = ["chr", "start", "end"] + [f"col{i}" for i in range(3, len(peaks.columns))]
+            widths = peaks["end"] - peaks["start"]
+            stats["mean_width"] = int(widths.mean())
+            stats["median_width"] = int(widths.median())
+            stats["total_bp"] = int(widths.sum())
 
             # Signal if available (column 7 for narrowPeak)
             if len(peaks.columns) >= 7:
-                stats['mean_signal'] = float(peaks.iloc[:, 6].mean())
+                stats["mean_signal"] = float(peaks.iloc[:, 6].mean())
 
     except Exception as e:
-        stats['error'] = str(e)
+        stats["error"] = str(e)
 
     return stats
 
@@ -227,30 +214,30 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if tools['macs2']:
+        if tools["macs2"]:
             st.success("✅ MACS2/3 installed")
         else:
             st.warning("⚠️ MACS2 not found")
 
     with col2:
-        if tools['seacr']:
+        if tools["seacr"]:
             st.success("✅ SEACR installed")
         else:
             st.warning("⚠️ SEACR not found")
 
     with col3:
-        if tools['samtools']:
+        if tools["samtools"]:
             st.success("✅ Samtools installed")
         else:
             st.error("❌ Samtools required")
 
     with col4:
-        if tools['bedtools']:
+        if tools["bedtools"]:
             st.success("✅ Bedtools installed")
         else:
             st.warning("⚠️ Bedtools not found")
 
-    if not (tools['macs2'] or tools['seacr']):
+    if not (tools["macs2"] or tools["seacr"]):
         st.error("⚠️ No peak caller available. Please install MACS2 or SEACR.")
         st.code("conda install -c bioconda macs2")
         return
@@ -258,12 +245,7 @@ def main():
     st.markdown("---")
 
     # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📤 Upload BAM",
-        "🏔️ Call Peaks",
-        "📁 Upload Existing Peaks",
-        "📊 View Results"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload BAM", "🏔️ Call Peaks", "📁 Upload Existing Peaks", "📊 View Results"])
 
     with tab1:
         render_bam_upload()
@@ -288,11 +270,11 @@ def render_bam_upload():
     """)
 
     # Check for BAMs from alignment step
-    if 'aligned_bams' in st.session_state and st.session_state.aligned_bams:
+    if "aligned_bams" in st.session_state and st.session_state.aligned_bams:
         st.success(f"Found {len(st.session_state.aligned_bams)} BAM files from alignment step!")
 
         bams_df = pd.DataFrame(st.session_state.aligned_bams)
-        st.dataframe(bams_df[['sample', 'bam', 'genome']], use_container_width=True, hide_index=True)
+        st.dataframe(bams_df[["sample", "bam", "genome"]], use_container_width=True, hide_index=True)
 
         if st.button("Use these BAM files", type="primary"):
             st.session_state.peak_calling_bams = st.session_state.aligned_bams.copy()
@@ -304,11 +286,7 @@ def render_bam_upload():
     # Manual input
     st.subheader("Add BAM Files Manually")
 
-    input_method = st.radio(
-        "Input method",
-        ["Specify file path", "Upload BAM"],
-        horizontal=True
-    )
+    input_method = st.radio("Input method", ["Specify file path", "Upload BAM"], horizontal=True)
 
     if input_method == "Specify file path":
         col1, col2, col3 = st.columns(3)
@@ -321,31 +299,32 @@ def render_bam_upload():
             genome = st.selectbox("Genome", ["hg38", "hg19", "mm10", "mm39"], key="bam_genome")
 
         control_bam = st.text_input(
-            "Control/Input BAM (optional)",
-            help="IgG or Input control for background subtraction"
+            "Control/Input BAM (optional)", help="IgG or Input control for background subtraction"
         )
 
         if st.button("Add BAM"):
             if sample_name and bam_path:
-                if 'peak_calling_bams' not in st.session_state:
+                if "peak_calling_bams" not in st.session_state:
                     st.session_state.peak_calling_bams = []
 
-                st.session_state.peak_calling_bams.append({
-                    'sample': sample_name,
-                    'bam': bam_path,
-                    'control': control_bam if control_bam else None,
-                    'genome': genome
-                })
+                st.session_state.peak_calling_bams.append(
+                    {
+                        "sample": sample_name,
+                        "bam": bam_path,
+                        "control": control_bam if control_bam else None,
+                        "genome": genome,
+                    }
+                )
                 st.success(f"Added {sample_name}")
                 st.rerun()
 
     else:
-        uploaded_bam = st.file_uploader("Upload BAM file", type=['bam'])
+        uploaded_bam = st.file_uploader("Upload BAM file", type=["bam"])
         if uploaded_bam:
             st.info("BAM file uploaded. For large files, consider specifying the path instead.")
 
     # Show current BAM list
-    if 'peak_calling_bams' in st.session_state and st.session_state.peak_calling_bams:
+    if "peak_calling_bams" in st.session_state and st.session_state.peak_calling_bams:
         st.markdown("---")
         st.subheader("Current BAM Files")
 
@@ -362,7 +341,7 @@ def render_peak_calling(tools):
     st.header("Call Peaks")
 
     # Check for BAMs
-    if 'peak_calling_bams' not in st.session_state or not st.session_state.peak_calling_bams:
+    if "peak_calling_bams" not in st.session_state or not st.session_state.peak_calling_bams:
         st.warning("No BAM files loaded. Go to 'Upload BAM' tab first.")
         return
 
@@ -377,21 +356,18 @@ def render_peak_calling(tools):
 
         # Select peak caller
         available_callers = []
-        if tools['macs2']:
-            available_callers.append('MACS2')
-        if tools['seacr']:
-            available_callers.append('SEACR')
+        if tools["macs2"]:
+            available_callers.append("MACS2")
+        if tools["seacr"]:
+            available_callers.append("SEACR")
 
         peak_caller = st.selectbox(
-            "Peak caller",
-            available_callers,
-            help="MACS2 for ChIP-seq/ATAC-seq, SEACR for CUT&Tag/CUT&RUN"
+            "Peak caller", available_callers, help="MACS2 for ChIP-seq/ATAC-seq, SEACR for CUT&Tag/CUT&RUN"
         )
 
         # Assay type
         assay_type = st.selectbox(
-            "Assay type",
-            ["ChIP-seq (Histone)", "ChIP-seq (TF)", "CUT&Tag", "CUT&RUN", "ATAC-seq"]
+            "Assay type", ["ChIP-seq (Histone)", "ChIP-seq (TF)", "CUT&Tag", "CUT&RUN", "ATAC-seq"]
         )
 
         # Output directory
@@ -403,13 +379,15 @@ def render_peak_calling(tools):
         if peak_caller == "MACS2":
             # MACS2 parameters
             if assay_type in ["ChIP-seq (Histone)", "CUT&Tag", "CUT&RUN"]:
-                broad_peaks = st.checkbox("Call broad peaks", value=True,
-                                         help="For histone marks like H3K27me3, H3K36me3")
+                broad_peaks = st.checkbox(
+                    "Call broad peaks", value=True, help="For histone marks like H3K27me3, H3K36me3"
+                )
             else:
                 broad_peaks = st.checkbox("Call broad peaks", value=False)
 
-            call_summits = st.checkbox("Call summits", value=not broad_peaks,
-                                      help="Identify peak summits (narrow peaks only)")
+            call_summits = st.checkbox(
+                "Call summits", value=not broad_peaks, help="Identify peak summits (narrow peaks only)"
+            )
 
             qvalue = st.number_input("Q-value threshold", 0.001, 0.1, 0.05, 0.01)
 
@@ -425,31 +403,21 @@ def render_peak_calling(tools):
         else:  # SEACR
             # SEACR parameters
             threshold = st.number_input(
-                "FDR threshold (if no control)",
-                0.001, 0.1, 0.01, 0.001,
-                help="Used when no control BAM is provided"
+                "FDR threshold (if no control)", 0.001, 0.1, 0.01, 0.001, help="Used when no control BAM is provided"
             )
 
             seacr_mode = st.selectbox(
-                "Peak mode",
-                ["relaxed", "stringent"],
-                help="Stringent = fewer, higher confidence peaks"
+                "Peak mode", ["relaxed", "stringent"], help="Stringent = fewer, higher confidence peaks"
             )
 
-            seacr_norm = st.selectbox(
-                "Normalization",
-                ["norm", "non"],
-                help="norm = normalize signal to control"
-            )
+            seacr_norm = st.selectbox("Normalization", ["norm", "non"], help="norm = normalize signal to control")
 
     # Sample selection
     st.markdown("---")
     st.subheader("📋 Samples to Process")
 
     sample_selection = st.multiselect(
-        "Select samples",
-        [b['sample'] for b in bams],
-        default=[b['sample'] for b in bams]
+        "Select samples", [b["sample"] for b in bams], default=[b["sample"] for b in bams]
     )
 
     # Run peak calling
@@ -465,57 +433,60 @@ def render_peak_calling(tools):
 
         for i, sample_name in enumerate(sample_selection):
             # Find BAM info
-            bam_info = next((b for b in bams if b['sample'] == sample_name), None)
+            bam_info = next((b for b in bams if b["sample"] == sample_name), None)
             if not bam_info:
                 continue
 
-            status.text(f"Processing {sample_name} ({i+1}/{len(sample_selection)})...")
+            status.text(f"Processing {sample_name} ({i + 1}/{len(sample_selection)})...")
             progress.progress((i + 0.5) / len(sample_selection))
 
             output_prefix = os.path.join(output_dir, sample_name)
 
             if peak_caller == "MACS2":
                 result = run_macs2(
-                    bam_info['bam'],
+                    bam_info["bam"],
                     output_prefix,
-                    bam_info.get('genome', 'hg38'),
-                    control_bam=bam_info.get('control'),
+                    bam_info.get("genome", "hg38"),
+                    control_bam=bam_info.get("control"),
                     call_summits=call_summits,
                     broad=broad_peaks,
                     qvalue=qvalue,
-                    extra_params=extra_params if 'extra_params' in dir() else ""
+                    extra_params=extra_params if "extra_params" in dir() else "",
                 )
             else:  # SEACR
                 # First convert BAM to bedGraph
                 bg_file = f"{output_prefix}.bedgraph"
-                if bam_to_bedgraph(bam_info['bam'], bg_file, bam_info.get('genome', 'hg38')):
+                if bam_to_bedgraph(bam_info["bam"], bg_file, bam_info.get("genome", "hg38")):
                     control_bg = None
-                    if bam_info.get('control'):
+                    if bam_info.get("control"):
                         control_bg = f"{output_prefix}_control.bedgraph"
-                        bam_to_bedgraph(bam_info['control'], control_bg, bam_info.get('genome', 'hg38'))
+                        bam_to_bedgraph(bam_info["control"], control_bg, bam_info.get("genome", "hg38"))
 
                     result = run_seacr(
-                        bg_file, output_prefix,
+                        bg_file,
+                        output_prefix,
                         control_bedgraph=control_bg,
                         threshold=threshold,
                         norm=seacr_norm,
-                        mode=seacr_mode
+                        mode=seacr_mode,
                     )
                 else:
-                    result = {'success': False, 'stderr': 'Failed to create bedGraph'}
+                    result = {"success": False, "stderr": "Failed to create bedGraph"}
 
             # Get stats
-            if result['success'] and os.path.exists(result['peaks_file']):
-                stats = get_peak_stats(result['peaks_file'])
-                result['stats'] = stats
+            if result["success"] and os.path.exists(result["peaks_file"]):
+                stats = get_peak_stats(result["peaks_file"])
+                result["stats"] = stats
 
-            results.append({
-                'sample': sample_name,
-                'success': result['success'],
-                'peaks_file': result.get('peaks_file', ''),
-                'n_peaks': result.get('stats', {}).get('n_peaks', 0),
-                'error': result.get('stderr', '') if not result['success'] else ''
-            })
+            results.append(
+                {
+                    "sample": sample_name,
+                    "success": result["success"],
+                    "peaks_file": result.get("peaks_file", ""),
+                    "n_peaks": result.get("stats", {}).get("n_peaks", 0),
+                    "error": result.get("stderr", "") if not result["success"] else "",
+                }
+            )
 
             progress.progress((i + 1) / len(sample_selection))
 
@@ -530,41 +501,43 @@ def render_peak_calling(tools):
         st.dataframe(results_df, use_container_width=True, hide_index=True)
 
         # Summary
-        success_count = sum(r['success'] for r in results)
+        success_count = sum(r["success"] for r in results)
         st.info(f"✅ {success_count}/{len(results)} samples completed successfully")
 
         # Save to session state
-        if 'called_peaks' not in st.session_state:
+        if "called_peaks" not in st.session_state:
             st.session_state.called_peaks = []
 
         for r in results:
-            if r['success']:
-                st.session_state.called_peaks.append({
-                    'sample': r['sample'],
-                    'peaks_file': r['peaks_file'],
-                    'n_peaks': r['n_peaks'],
-                    'caller': peak_caller
-                })
+            if r["success"]:
+                st.session_state.called_peaks.append(
+                    {
+                        "sample": r["sample"],
+                        "peaks_file": r["peaks_file"],
+                        "n_peaks": r["n_peaks"],
+                        "caller": peak_caller,
+                    }
+                )
 
         # Record workflow step
         if HAS_WORKFLOW_MANAGER and success_count > 0:
-            total_peaks = sum(r['n_peaks'] for r in results if r['success'])
+            total_peaks = sum(r["n_peaks"] for r in results if r["success"])
             WorkflowManager.record_step(
                 step_type="peak_calling",
                 parameters={
-                    'caller': peak_caller,
-                    'qvalue': qvalue if peak_caller == "MACS2" else None,
-                    'broad_peaks': broad_peaks if peak_caller == "MACS2" else None,
-                    'call_summits': call_summits if peak_caller == "MACS2" else None,
-                    'samples_processed': len(sample_selection),
+                    "caller": peak_caller,
+                    "qvalue": qvalue if peak_caller == "MACS2" else None,
+                    "broad_peaks": broad_peaks if peak_caller == "MACS2" else None,
+                    "call_summits": call_summits if peak_caller == "MACS2" else None,
+                    "samples_processed": len(sample_selection),
                 },
-                inputs={'bam_files': [b['bam'] for b in bams if b['sample'] in sample_selection]},
-                outputs={'peaks_dir': output_dir},
+                inputs={"bam_files": [b["bam"] for b in bams if b["sample"] in sample_selection]},
+                outputs={"peaks_dir": output_dir},
                 tool_versions={peak_caller.lower(): WorkflowManager.get_tool_version(peak_caller.lower())},
                 output_metadata={
-                    'samples_successful': success_count,
-                    'total_peaks': total_peaks,
-                }
+                    "samples_successful": success_count,
+                    "total_peaks": total_peaks,
+                },
             )
 
 
@@ -579,9 +552,7 @@ def render_peak_upload():
 
     # File upload
     uploaded_files = st.file_uploader(
-        "Upload peak files",
-        type=['bed', 'narrowPeak', 'broadPeak', 'csv', 'tsv'],
-        accept_multiple_files=True
+        "Upload peak files", type=["bed", "narrowPeak", "broadPeak", "csv", "tsv"], accept_multiple_files=True
     )
 
     if uploaded_files:
@@ -590,9 +561,9 @@ def render_peak_upload():
 
             # Preview
             try:
-                df = pd.read_csv(f, sep='\t', header=None, nrows=5)
+                df = pd.read_csv(f, sep="\t", header=None, nrows=5)
                 st.dataframe(df, use_container_width=True)
-            except:
+            except Exception:
                 st.warning("Could not preview file")
 
         # Sample name mapping
@@ -600,11 +571,11 @@ def render_peak_upload():
         sample_names = {}
 
         for f in uploaded_files:
-            default_name = f.name.replace('.bed', '').replace('.narrowPeak', '').replace('.broadPeak', '')
+            default_name = f.name.replace(".bed", "").replace(".narrowPeak", "").replace(".broadPeak", "")
             sample_names[f.name] = st.text_input(f"Name for {f.name}", value=default_name, key=f"name_{f.name}")
 
         if st.button("Load Peak Files", type="primary"):
-            if 'uploaded_peaks' not in st.session_state:
+            if "uploaded_peaks" not in st.session_state:
                 st.session_state.uploaded_peaks = []
 
             for f in uploaded_files:
@@ -613,17 +584,15 @@ def render_peak_upload():
                 os.makedirs(peaks_dir, exist_ok=True)
                 output_path = os.path.join(peaks_dir, f.name)
 
-                with open(output_path, 'wb') as out:
+                with open(output_path, "wb") as out:
                     out.write(f.getvalue())
 
                 # Get stats
                 stats = get_peak_stats(output_path)
 
-                st.session_state.uploaded_peaks.append({
-                    'sample': sample_names[f.name],
-                    'peaks_file': output_path,
-                    'n_peaks': stats.get('n_peaks', 0)
-                })
+                st.session_state.uploaded_peaks.append(
+                    {"sample": sample_names[f.name], "peaks_file": output_path, "n_peaks": stats.get("n_peaks", 0)}
+                )
 
             st.success(f"Loaded {len(uploaded_files)} peak file(s)!")
             st.rerun()
@@ -636,10 +605,10 @@ def render_peak_results():
     # Combine called and uploaded peaks
     all_peaks = []
 
-    if 'called_peaks' in st.session_state:
+    if "called_peaks" in st.session_state:
         all_peaks.extend(st.session_state.called_peaks)
 
-    if 'uploaded_peaks' in st.session_state:
+    if "uploaded_peaks" in st.session_state:
         all_peaks.extend(st.session_state.uploaded_peaks)
 
     if not all_peaks:
@@ -651,17 +620,18 @@ def render_peak_results():
     st.dataframe(peaks_df, use_container_width=True, hide_index=True)
 
     # Visualization
-    if len(peaks_df) > 1 and 'n_peaks' in peaks_df.columns:
+    if len(peaks_df) > 1 and "n_peaks" in peaks_df.columns:
         st.subheader("Peak Counts by Sample")
 
         import plotly.express as px
+
         fig = px.bar(
             peaks_df,
-            x='sample',
-            y='n_peaks',
-            color='n_peaks',
-            color_continuous_scale='Viridis',
-            title="Number of Peaks per Sample"
+            x="sample",
+            y="n_peaks",
+            color="n_peaks",
+            color_continuous_scale="Viridis",
+            title="Number of Peaks per Sample",
         )
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)

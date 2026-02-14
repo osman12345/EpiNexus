@@ -11,16 +11,15 @@ Provides:
 import streamlit as st
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-import json
 from datetime import datetime
 
 
 class DataSource(Enum):
     """Source of the data."""
+
     DEMO = "demo"
     USER_UPLOAD = "user_upload"
     PREPROCESSING = "preprocessing"
@@ -31,6 +30,7 @@ class DataSource(Enum):
 @dataclass
 class DatasetInfo:
     """Information about a loaded dataset."""
+
     name: str
     source: DataSource
     data_type: str  # 'peaks', 'expression', 'annotation', etc.
@@ -51,27 +51,27 @@ class DataManager:
 
     # Session state keys
     _STATE_KEYS = {
-        'peaks': 'epinexus_peaks',
-        'expression': 'epinexus_expression',
-        'annotation': 'epinexus_annotation',
-        'samples': 'epinexus_samples',
-        'comparisons': 'epinexus_comparisons',
-        'results': 'epinexus_results',
-        'genes': 'epinexus_genes',
-        'datasets_info': 'epinexus_datasets_info',
-        'using_demo': 'using_demo_data',
+        "peaks": "epinexus_peaks",
+        "expression": "epinexus_expression",
+        "annotation": "epinexus_annotation",
+        "samples": "epinexus_samples",
+        "comparisons": "epinexus_comparisons",
+        "results": "epinexus_results",
+        "genes": "epinexus_genes",
+        "datasets_info": "epinexus_datasets_info",
+        "using_demo": "using_demo_data",
     }
 
     @classmethod
     def init(cls):
         """Initialize session state for data management."""
-        if 'epinexus_initialized' not in st.session_state:
+        if "epinexus_initialized" not in st.session_state:
             for key in cls._STATE_KEYS.values():
                 if key not in st.session_state:
                     st.session_state[key] = None
-            st.session_state['epinexus_datasets_info'] = {}
-            st.session_state['using_demo_data'] = True
-            st.session_state['epinexus_initialized'] = True
+            st.session_state["epinexus_datasets_info"] = {}
+            st.session_state["using_demo_data"] = True
+            st.session_state["epinexus_initialized"] = True
 
     @classmethod
     def load_data(
@@ -82,7 +82,7 @@ class DataManager:
         name: str = "",
         description: str = "",
         file_path: str = None,
-        metadata: Dict = None
+        metadata: Dict = None,
     ):
         """
         Load data into the session state.
@@ -103,7 +103,7 @@ class DataManager:
             st.session_state[key] = data
 
             # Track dataset info
-            n_records = len(data) if hasattr(data, '__len__') else 0
+            n_records = len(data) if hasattr(data, "__len__") else 0
 
             info = DatasetInfo(
                 name=name or data_type,
@@ -113,14 +113,14 @@ class DataManager:
                 loaded_at=datetime.now().isoformat(),
                 description=description,
                 file_path=file_path,
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
-            st.session_state['epinexus_datasets_info'][data_type] = info
+            st.session_state["epinexus_datasets_info"][data_type] = info
 
             # Update demo status
             if source != DataSource.DEMO:
-                st.session_state['using_demo_data'] = False
+                st.session_state["using_demo_data"] = False
 
     @classmethod
     def get_data(cls, data_type: str) -> Optional[Any]:
@@ -133,7 +133,7 @@ class DataManager:
     def get_info(cls, data_type: str) -> Optional[DatasetInfo]:
         """Get information about a loaded dataset."""
         cls.init()
-        info_dict = st.session_state.get('epinexus_datasets_info', {})
+        info_dict = st.session_state.get("epinexus_datasets_info", {})
         return info_dict.get(data_type)
 
     @classmethod
@@ -150,7 +150,7 @@ class DataManager:
             info = cls.get_info(data_type)
             return info is None or info.source == DataSource.DEMO
 
-        return st.session_state.get('using_demo_data', True)
+        return st.session_state.get("using_demo_data", True)
 
     @classmethod
     def clear_data(cls, data_type: str = None):
@@ -161,50 +161,43 @@ class DataManager:
             key = cls._STATE_KEYS.get(data_type)
             if key:
                 st.session_state[key] = None
-                info_dict = st.session_state.get('epinexus_datasets_info', {})
+                info_dict = st.session_state.get("epinexus_datasets_info", {})
                 info_dict.pop(data_type, None)
         else:
             # Clear all data
             for key in cls._STATE_KEYS.values():
                 if key in st.session_state:
                     st.session_state[key] = None
-            st.session_state['epinexus_datasets_info'] = {}
-            st.session_state['using_demo_data'] = True
+            st.session_state["epinexus_datasets_info"] = {}
+            st.session_state["using_demo_data"] = True
 
     @classmethod
     def get_all_datasets(cls) -> Dict[str, DatasetInfo]:
         """Get info about all loaded datasets."""
         cls.init()
-        return st.session_state.get('epinexus_datasets_info', {})
+        return st.session_state.get("epinexus_datasets_info", {})
 
     @classmethod
     def export_session(cls) -> Dict:
         """Export current session data for saving."""
         cls.init()
 
-        export = {
-            'metadata': {
-                'exported_at': datetime.now().isoformat(),
-                'version': '1.0'
-            },
-            'datasets': {},
-            'info': {}
-        }
+        export = {"metadata": {"exported_at": datetime.now().isoformat(), "version": "1.0"}, "datasets": {}, "info": {}}
 
         for data_type, key in cls._STATE_KEYS.items():
-            if data_type in ['datasets_info', 'using_demo']:
+            if data_type in ["datasets_info", "using_demo"]:
                 continue
 
             data = st.session_state.get(key)
             if data is not None:
                 if isinstance(data, pd.DataFrame):
-                    export['datasets'][data_type] = data.to_dict('records')
+                    export["datasets"][data_type] = data.to_dict("records")
                 elif isinstance(data, (list, dict)):
-                    export['datasets'][data_type] = data
+                    export["datasets"][data_type] = data
 
-        export['info'] = {
-            k: v.__dict__ if hasattr(v, '__dict__') else str(v)
-            for k, v in st.session_state.get('epinexus_datasets_info', {}).items()
+        export["info"] = {
+            k: v.__dict__ if hasattr(v, "__dict__") else str(v)
+            for k, v in st.session_state.get("epinexus_datasets_info", {}).items()
         }
 
         return export
@@ -218,8 +211,9 @@ def render_data_status_indicator():
     """
     DataManager.init()
 
-    if st.session_state.get('using_demo_data', True):
-        st.markdown("""
+    if st.session_state.get("using_demo_data", True):
+        st.markdown(
+            """
         <div style="background: linear-gradient(90deg, #fff3cd, #ffeeba);
                     border: 1px solid #ffc107;
                     border-radius: 8px;
@@ -236,21 +230,21 @@ def render_data_status_indicator():
                 </span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     else:
         # Show what data is loaded
         datasets = DataManager.get_all_datasets()
-        user_datasets = [
-            info for info in datasets.values()
-            if info.source != DataSource.DEMO
-        ]
+        user_datasets = [info for info in datasets.values() if info.source != DataSource.DEMO]
 
         if user_datasets:
             dataset_names = ", ".join([d.name for d in user_datasets[:3]])
             if len(user_datasets) > 3:
                 dataset_names += f" + {len(user_datasets) - 3} more"
 
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="background: linear-gradient(90deg, #d4edda, #c3e6cb);
                         border: 1px solid #28a745;
                         border-radius: 8px;
@@ -267,7 +261,9 @@ def render_data_status_indicator():
                     </span>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
 
 def render_data_source_badge(data_type: str):
@@ -282,29 +278,35 @@ def render_data_source_badge(data_type: str):
     info = DataManager.get_info(data_type)
 
     if info is None or info.source == DataSource.DEMO:
-        st.markdown("""
+        st.markdown(
+            """
         <span style="background: #fff3cd; color: #856404;
                      padding: 0.2rem 0.5rem; border-radius: 4px;
                      font-size: 0.75rem; font-weight: 600;">
             📌 DEMO DATA
         </span>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     else:
         source_labels = {
             DataSource.USER_UPLOAD: "📤 UPLOADED",
             DataSource.PREPROCESSING: "⚙️ PROCESSED",
             DataSource.ENCODE: "🏛️ ENCODE",
-            DataSource.EXTERNAL: "🔗 EXTERNAL"
+            DataSource.EXTERNAL: "🔗 EXTERNAL",
         }
         label = source_labels.get(info.source, "✅ YOUR DATA")
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <span style="background: #d4edda; color: #155724;
                      padding: 0.2rem 0.5rem; border-radius: 4px;
                      font-size: 0.75rem; font-weight: 600;">
             {label}
         </span>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_data_summary_sidebar():
@@ -322,13 +324,16 @@ def render_data_summary_sidebar():
 
         for data_type, info in datasets.items():
             icon = "📌" if info.source == DataSource.DEMO else "✅"
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="display: flex; justify-content: space-between;
                         padding: 0.25rem 0; font-size: 0.85rem;">
                 <span>{icon} {info.name}</span>
                 <span style="color: #666;">{info.n_records:,}</span>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
 
 def render_load_demo_button(data_type: str, demo_loader_func, button_text: str = "Load Demo Data"):
@@ -351,7 +356,7 @@ def render_load_demo_button(data_type: str, demo_loader_func, button_text: str =
                 data=demo_data,
                 source=DataSource.DEMO,
                 name=f"Demo {data_type.title()}",
-                description="Simulated demonstration data"
+                description="Simulated demonstration data",
             )
 
             st.success("Demo data loaded!")
@@ -361,12 +366,7 @@ def render_load_demo_button(data_type: str, demo_loader_func, button_text: str =
         st.caption("⚠️ This loads simulated data for demonstration purposes only.")
 
 
-def render_upload_data_section(
-    data_type: str,
-    accepted_types: List[str],
-    parser_func,
-    label: str = "Upload Data"
-):
+def render_upload_data_section(data_type: str, accepted_types: List[str], parser_func, label: str = "Upload Data"):
     """
     Render a standardized data upload section.
 
@@ -379,9 +379,7 @@ def render_upload_data_section(
     st.markdown(f"#### 📤 {label}")
 
     uploaded = st.file_uploader(
-        f"Choose file ({', '.join(accepted_types)})",
-        type=accepted_types,
-        key=f"upload_{data_type}"
+        f"Choose file ({', '.join(accepted_types)})", type=accepted_types, key=f"upload_{data_type}"
     )
 
     if uploaded:
@@ -394,10 +392,10 @@ def render_upload_data_section(
                 source=DataSource.USER_UPLOAD,
                 name=uploaded.name,
                 description=f"Uploaded from {uploaded.name}",
-                file_path=uploaded.name
+                file_path=uploaded.name,
             )
 
-            n_records = len(data) if hasattr(data, '__len__') else "N/A"
+            n_records = len(data) if hasattr(data, "__len__") else "N/A"
             st.success(f"✅ Loaded {n_records} records from {uploaded.name}")
 
             return data
@@ -410,15 +408,11 @@ def render_upload_data_section(
 
 
 # Demo data generators
-def generate_demo_peaks(
-    n_peaks: int = 5000,
-    assay_type: str = "ChIP-seq",
-    mark_or_tf: str = "H3K27ac"
-) -> pd.DataFrame:
+def generate_demo_peaks(n_peaks: int = 5000, assay_type: str = "ChIP-seq", mark_or_tf: str = "H3K27ac") -> pd.DataFrame:
     """Generate realistic demo peak data."""
     np.random.seed(42)
 
-    chromosomes = [f'chr{i}' for i in range(1, 23)] + ['chrX']
+    chromosomes = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
     chr_weights = np.array([8, 7, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 3])
     chr_weights = chr_weights / chr_weights.sum()
 
@@ -433,61 +427,67 @@ def generate_demo_peaks(
         width_mean, width_std = 500, 200
         signal_mean = 3.0
 
-    peaks = pd.DataFrame({
-        'chr': np.random.choice(chromosomes, n_peaks, p=chr_weights),
-        'start': np.random.randint(1000000, 200000000, n_peaks),
-        'peak_id': [f'peak_{i}' for i in range(n_peaks)],
-        'signal': np.random.lognormal(signal_mean, 1, n_peaks),
-        'pvalue': 10 ** -np.random.uniform(2, 20, n_peaks),
-        'qvalue': 10 ** -np.random.uniform(1, 15, n_peaks)
-    })
+    peaks = pd.DataFrame(
+        {
+            "chr": np.random.choice(chromosomes, n_peaks, p=chr_weights),
+            "start": np.random.randint(1000000, 200000000, n_peaks),
+            "peak_id": [f"peak_{i}" for i in range(n_peaks)],
+            "signal": np.random.lognormal(signal_mean, 1, n_peaks),
+            "pvalue": 10 ** -np.random.uniform(2, 20, n_peaks),
+            "qvalue": 10 ** -np.random.uniform(1, 15, n_peaks),
+        }
+    )
 
     widths = np.maximum(50, np.random.normal(width_mean, width_std, n_peaks).astype(int))
-    peaks['end'] = peaks['start'] + widths
-    peaks['summit'] = peaks['start'] + widths // 2
+    peaks["end"] = peaks["start"] + widths
+    peaks["summit"] = peaks["start"] + widths // 2
 
-    return peaks[['chr', 'start', 'end', 'peak_id', 'signal', 'summit', 'pvalue', 'qvalue']]
+    return peaks[["chr", "start", "end", "peak_id", "signal", "summit", "pvalue", "qvalue"]]
 
 
 def generate_demo_expression(n_genes: int = 500) -> pd.DataFrame:
     """Generate realistic demo expression data."""
     np.random.seed(42)
 
-    gene_symbols = [f'GENE{i}' for i in range(n_genes)]
+    gene_symbols = [f"GENE{i}" for i in range(n_genes)]
 
     # Add some known genes
-    known = ['MYC', 'TP53', 'BRCA1', 'EGFR', 'KRAS', 'PTEN', 'BCL2', 'GAPDH', 'ACTB']
-    gene_symbols[:len(known)] = known
+    known = ["MYC", "TP53", "BRCA1", "EGFR", "KRAS", "PTEN", "BCL2", "GAPDH", "ACTB"]
+    gene_symbols[: len(known)] = known
 
-    expression = pd.DataFrame({
-        'gene_id': [f'ENSG{i:011d}' for i in range(n_genes)],
-        'gene_symbol': gene_symbols,
-        'baseMean': np.random.lognormal(5, 2, n_genes),
-        'log2FoldChange': np.random.normal(0, 1.5, n_genes),
-        'lfcSE': np.random.uniform(0.1, 0.5, n_genes),
-        'pvalue': 10 ** -np.random.uniform(0, 10, n_genes),
-        'padj': 10 ** -np.random.uniform(0, 8, n_genes)
-    })
+    expression = pd.DataFrame(
+        {
+            "gene_id": [f"ENSG{i:011d}" for i in range(n_genes)],
+            "gene_symbol": gene_symbols,
+            "baseMean": np.random.lognormal(5, 2, n_genes),
+            "log2FoldChange": np.random.normal(0, 1.5, n_genes),
+            "lfcSE": np.random.uniform(0.1, 0.5, n_genes),
+            "pvalue": 10 ** -np.random.uniform(0, 10, n_genes),
+            "padj": 10 ** -np.random.uniform(0, 8, n_genes),
+        }
+    )
 
     return expression
 
 
 def generate_demo_samples(n_samples: int = 8) -> pd.DataFrame:
     """Generate demo sample sheet."""
-    conditions = ['Control', 'Treatment']
-    marks = ['H3K27ac', 'H3K4me3']
+    conditions = ["Control", "Treatment"]
+    marks = ["H3K27ac", "H3K4me3"]
 
     samples = []
     for mark in marks:
         for condition in conditions:
             for rep in range(1, n_samples // 4 + 1):
-                samples.append({
-                    'SampleID': f'{condition}_{mark}_rep{rep}',
-                    'Condition': condition,
-                    'Factor': mark,
-                    'Replicate': rep,
-                    'bamReads': f'/data/{condition}_{mark}_rep{rep}.bam',
-                    'Peaks': f'/data/{condition}_{mark}_rep{rep}_peaks.bed'
-                })
+                samples.append(
+                    {
+                        "SampleID": f"{condition}_{mark}_rep{rep}",
+                        "Condition": condition,
+                        "Factor": mark,
+                        "Replicate": rep,
+                        "bamReads": f"/data/{condition}_{mark}_rep{rep}.bam",
+                        "Peaks": f"/data/{condition}_{mark}_rep{rep}_peaks.bed",
+                    }
+                )
 
     return pd.DataFrame(samples)

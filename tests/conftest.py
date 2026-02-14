@@ -2,7 +2,6 @@
 Shared test fixtures for EpiNexus test suite.
 """
 
-import os
 import tempfile
 from pathlib import Path
 
@@ -18,13 +17,15 @@ import pytest
 @pytest.fixture
 def sample_peaks():
     """A small set of peaks for basic testing."""
-    return pd.DataFrame({
-        "chr": ["chr1", "chr1", "chr2", "chr2", "chr3"],
-        "start": [1000, 5000, 2000, 8000, 3000],
-        "end": [2000, 6000, 3000, 9000, 4000],
-        "name": [f"peak_{i}" for i in range(5)],
-        "score": [100, 200, 150, 300, 250],
-    })
+    return pd.DataFrame(
+        {
+            "chr": ["chr1", "chr1", "chr2", "chr2", "chr3"],
+            "start": [1000, 5000, 2000, 8000, 3000],
+            "end": [2000, 6000, 3000, 9000, 4000],
+            "name": [f"peak_{i}" for i in range(5)],
+            "score": [100, 200, 150, 300, 250],
+        }
+    )
 
 
 @pytest.fixture
@@ -35,30 +36,36 @@ def sample_peaks_with_signal():
     chroms = np.random.choice(["chr1", "chr2", "chr3"], n)
     starts = np.random.randint(1000, 100000, n)
     ends = starts + np.random.randint(200, 2000, n)
-    return pd.DataFrame({
-        "chr": chroms,
-        "start": starts,
-        "end": ends,
-        "signal": np.random.uniform(1, 100, n),
-        "log2FC": np.random.normal(0, 1.5, n),
-        "pvalue": 10 ** -np.random.uniform(0.5, 8, n),
-        "FDR": np.random.uniform(0, 1, n),
-    })
+    return pd.DataFrame(
+        {
+            "chr": chroms,
+            "start": starts,
+            "end": ends,
+            "signal": np.random.uniform(1, 100, n),
+            "log2FC": np.random.normal(0, 1.5, n),
+            "pvalue": 10 ** -np.random.uniform(0.5, 8, n),
+            "FDR": np.random.uniform(0, 1, n),
+        }
+    )
 
 
 @pytest.fixture
 def overlapping_peaks():
     """Two sets of peaks with known overlaps for testing overlap detection."""
-    query = pd.DataFrame({
-        "chr": ["chr1", "chr1", "chr2"],
-        "start": [100, 500, 200],
-        "end": [300, 700, 400],
-    })
-    subject = pd.DataFrame({
-        "chr": ["chr1", "chr1", "chr3"],
-        "start": [250, 800, 100],
-        "end": [350, 900, 300],
-    })
+    query = pd.DataFrame(
+        {
+            "chr": ["chr1", "chr1", "chr2"],
+            "start": [100, 500, 200],
+            "end": [300, 700, 400],
+        }
+    )
+    subject = pd.DataFrame(
+        {
+            "chr": ["chr1", "chr1", "chr3"],
+            "start": [250, 800, 100],
+            "end": [350, 900, 300],
+        }
+    )
     return query, subject
 
 
@@ -134,7 +141,7 @@ def db_engine(test_db_url):
     Uses StaticPool so that all connections share the same in-memory
     SQLite database (otherwise each connection gets its own empty DB).
     """
-    from sqlalchemy import create_engine, event
+    from sqlalchemy import create_engine
     from sqlalchemy.pool import StaticPool
     from app.models.database import Base
 

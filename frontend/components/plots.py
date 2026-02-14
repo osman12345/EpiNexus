@@ -11,10 +11,9 @@ Provides publication-quality plots for:
 
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Tuple
 
 
 def create_volcano_plot(
@@ -25,7 +24,7 @@ def create_volcano_plot(
     fdr_threshold: float = 0.1,
     lfc_threshold: float = 0.5,
     title: str = "Volcano Plot",
-    highlight_genes: Optional[List[str]] = None
+    highlight_genes: Optional[List[str]] = None,
 ) -> go.Figure:
     """
     Create an interactive volcano plot.
@@ -64,8 +63,8 @@ def create_volcano_plot(
     # Color mapping
     color_map = {
         "Gained": "#E41A1C",  # Red
-        "Lost": "#377EB8",    # Blue
-        "Not Significant": "#999999"
+        "Lost": "#377EB8",  # Blue
+        "Not Significant": "#999999",
     }
 
     # Create figure
@@ -77,18 +76,12 @@ def create_volcano_plot(
         color_discrete_map=color_map,
         hover_data=[gene_col, fdr_col, fold_change_col],
         title=title,
-        labels={
-            fold_change_col: "Log2 Fold Change",
-            "neg_log10_fdr": "-Log10(FDR)"
-        }
+        labels={fold_change_col: "Log2 Fold Change", "neg_log10_fdr": "-Log10(FDR)"},
     )
 
     # Add threshold lines
     fig.add_hline(
-        y=-np.log10(fdr_threshold),
-        line_dash="dash",
-        line_color="gray",
-        annotation_text=f"FDR = {fdr_threshold}"
+        y=-np.log10(fdr_threshold), line_dash="dash", line_color="gray", annotation_text=f"FDR = {fdr_threshold}"
     )
     fig.add_vline(x=lfc_threshold, line_dash="dash", line_color="gray")
     fig.add_vline(x=-lfc_threshold, line_dash="dash", line_color="gray")
@@ -105,18 +98,12 @@ def create_volcano_plot(
                 text=highlight_df[gene_col],
                 textposition="top center",
                 name="Highlighted",
-                hoverinfo="text"
+                hoverinfo="text",
             )
         )
 
     # Layout
-    fig.update_layout(
-        template="plotly_white",
-        legend_title="Category",
-        hovermode="closest",
-        width=800,
-        height=600
-    )
+    fig.update_layout(template="plotly_white", legend_title="Category", hovermode="closest", width=800, height=600)
 
     return fig
 
@@ -128,7 +115,7 @@ def create_ma_plot(
     fdr_col: str = "FDR",
     gene_col: str = "gene_name",
     fdr_threshold: float = 0.1,
-    title: str = "MA Plot"
+    title: str = "MA Plot",
 ) -> go.Figure:
     """
     Create an interactive MA plot (log2FC vs mean expression).
@@ -150,15 +137,10 @@ def create_ma_plot(
     # Classify significance
     df["significant"] = df[fdr_col] < fdr_threshold
     df["category"] = np.where(
-        ~df["significant"], "Not Significant",
-        np.where(df[fold_change_col] > 0, "Gained", "Lost")
+        ~df["significant"], "Not Significant", np.where(df[fold_change_col] > 0, "Gained", "Lost")
     )
 
-    color_map = {
-        "Gained": "#E41A1C",
-        "Lost": "#377EB8",
-        "Not Significant": "#999999"
-    }
+    color_map = {"Gained": "#E41A1C", "Lost": "#377EB8", "Not Significant": "#999999"}
 
     fig = px.scatter(
         df,
@@ -168,20 +150,13 @@ def create_ma_plot(
         color_discrete_map=color_map,
         hover_data=[gene_col, fdr_col],
         title=title,
-        labels={
-            mean_col: "Mean Concentration (log2)",
-            fold_change_col: "Log2 Fold Change"
-        }
+        labels={mean_col: "Mean Concentration (log2)", fold_change_col: "Log2 Fold Change"},
     )
 
     # Add zero line
     fig.add_hline(y=0, line_dash="solid", line_color="black", line_width=1)
 
-    fig.update_layout(
-        template="plotly_white",
-        width=800,
-        height=600
-    )
+    fig.update_layout(template="plotly_white", width=800, height=600)
 
     return fig
 
@@ -193,7 +168,7 @@ def create_pca_plot(
     color_col: str = "condition",
     label_col: str = "sample",
     variance_explained: Optional[Tuple[float, float]] = None,
-    title: str = "PCA Plot"
+    title: str = "PCA Plot",
 ) -> go.Figure:
     """
     Create an interactive PCA plot.
@@ -221,28 +196,18 @@ def create_pca_plot(
         color=color_col,
         text=label_col,
         title=title,
-        labels={pc1_col: xlabel, pc2_col: ylabel}
+        labels={pc1_col: xlabel, pc2_col: ylabel},
     )
 
-    fig.update_traces(
-        textposition="top center",
-        marker=dict(size=12)
-    )
+    fig.update_traces(textposition="top center", marker=dict(size=12))
 
-    fig.update_layout(
-        template="plotly_white",
-        width=700,
-        height=600
-    )
+    fig.update_layout(template="plotly_white", width=700, height=600)
 
     return fig
 
 
 def create_heatmap(
-    data: pd.DataFrame,
-    title: str = "Correlation Heatmap",
-    color_scale: str = "RdBu_r",
-    show_values: bool = True
+    data: pd.DataFrame, title: str = "Correlation Heatmap", color_scale: str = "RdBu_r", show_values: bool = True
 ) -> go.Figure:
     """
     Create a correlation/expression heatmap.
@@ -260,31 +225,26 @@ def create_heatmap(
     if data.shape[0] != data.shape[1]:
         data = data.corr()
 
-    fig = go.Figure(data=go.Heatmap(
-        z=data.values,
-        x=data.columns,
-        y=data.index,
-        colorscale=color_scale,
-        text=data.values.round(2) if show_values else None,
-        texttemplate="%{text}" if show_values else None,
-        textfont={"size": 10},
-        hoverongaps=False
-    ))
-
-    fig.update_layout(
-        title=title,
-        template="plotly_white",
-        width=700,
-        height=600
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=data.values,
+            x=data.columns,
+            y=data.index,
+            colorscale=color_scale,
+            text=data.values.round(2) if show_values else None,
+            texttemplate="%{text}" if show_values else None,
+            textfont={"size": 10},
+            hoverongaps=False,
+        )
     )
+
+    fig.update_layout(title=title, template="plotly_white", width=700, height=600)
 
     return fig
 
 
 def create_chromatin_state_plot(
-    df: pd.DataFrame,
-    state_col: str = "chromatin_state",
-    title: str = "Chromatin State Distribution"
+    df: pd.DataFrame, state_col: str = "chromatin_state", title: str = "Chromatin State Distribution"
 ) -> go.Figure:
     """
     Create a bar plot of chromatin state distribution.
@@ -309,23 +269,23 @@ def create_chromatin_state_plot(
         "Bivalent": "#984EA3",
         "Repressed": "#E41A1C",
         "Complex": "#A65628",
-        "Other": "#999999"
+        "Other": "#999999",
     }
 
     # Map colors
-    state_counts["Color"] = state_counts["State"].map(
-        lambda x: state_colors.get(x, "#999999")
-    )
+    state_counts["Color"] = state_counts["State"].map(lambda x: state_colors.get(x, "#999999"))
 
-    fig = go.Figure(data=[
-        go.Bar(
-            x=state_counts["State"],
-            y=state_counts["Count"],
-            marker_color=state_counts["Color"],
-            text=state_counts["Count"],
-            textposition="outside"
-        )
-    ])
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=state_counts["State"],
+                y=state_counts["Count"],
+                marker_color=state_counts["Color"],
+                text=state_counts["Count"],
+                textposition="outside",
+            )
+        ]
+    )
 
     fig.update_layout(
         title=title,
@@ -334,7 +294,7 @@ def create_chromatin_state_plot(
         template="plotly_white",
         showlegend=False,
         width=800,
-        height=500
+        height=500,
     )
 
     return fig
@@ -346,7 +306,7 @@ def create_integration_scatter(
     y_col: str = "me3_fold_change",
     color_col: str = "integration_category",
     gene_col: str = "gene_symbol",
-    title: str = "H3K27ac vs H3K27me3 Changes"
+    title: str = "H3K27ac vs H3K27me3 Changes",
 ) -> go.Figure:
     """
     Create scatter plot for two-mark integration.
@@ -372,7 +332,7 @@ def create_integration_scatter(
         "Repression_me3_only": "#ffff99",
         "Discordant_both_gained": "#984ea3",
         "Discordant_both_lost": "#e7298a",
-        "No_significant_change": "#999999"
+        "No_significant_change": "#999999",
     }
 
     fig = px.scatter(
@@ -383,10 +343,7 @@ def create_integration_scatter(
         color_discrete_map=color_map,
         hover_data=[gene_col],
         title=title,
-        labels={
-            x_col: "H3K27ac Log2 Fold Change",
-            y_col: "H3K27me3 Log2 Fold Change"
-        }
+        labels={x_col: "H3K27ac Log2 Fold Change", y_col: "H3K27me3 Log2 Fold Change"},
     )
 
     # Add quadrant lines
@@ -399,20 +356,12 @@ def create_integration_scatter(
     fig.add_annotation(x=2, y=-2, text="Activation", showarrow=False, font=dict(color="green"))
     fig.add_annotation(x=-2, y=2, text="Repression", showarrow=False, font=dict(color="red"))
 
-    fig.update_layout(
-        template="plotly_white",
-        width=800,
-        height=700
-    )
+    fig.update_layout(template="plotly_white", width=800, height=700)
 
     return fig
 
 
-def create_upset_plot(
-    df: pd.DataFrame,
-    set_columns: List[str],
-    title: str = "Mark Overlap"
-) -> go.Figure:
+def create_upset_plot(df: pd.DataFrame, set_columns: List[str], title: str = "Mark Overlap") -> go.Figure:
     """
     Create an UpSet-style plot for set intersections.
 
@@ -426,7 +375,7 @@ def create_upset_plot(
     """
     # Calculate intersections
     intersections = []
-    for i in range(1, 2**len(set_columns)):
+    for i in range(1, 2 ** len(set_columns)):
         # Convert to binary to get combination
         combo = []
         for j, col in enumerate(set_columns):
@@ -443,11 +392,7 @@ def create_upset_plot(
 
         count = mask.sum()
         if count > 0:
-            intersections.append({
-                "combination": " + ".join(combo),
-                "count": count,
-                "n_sets": len(combo)
-            })
+            intersections.append({"combination": " + ".join(combo), "count": count, "n_sets": len(combo)})
 
     int_df = pd.DataFrame(intersections)
     int_df = int_df.sort_values("count", ascending=False)
@@ -459,14 +404,9 @@ def create_upset_plot(
         color="n_sets",
         color_continuous_scale="Viridis",
         title=title,
-        labels={"combination": "Mark Combination", "count": "Gene Count", "n_sets": "# Marks"}
+        labels={"combination": "Mark Combination", "count": "Gene Count", "n_sets": "# Marks"},
     )
 
-    fig.update_layout(
-        template="plotly_white",
-        xaxis_tickangle=45,
-        width=900,
-        height=500
-    )
+    fig.update_layout(template="plotly_white", xaxis_tickangle=45, width=900, height=500)
 
     return fig

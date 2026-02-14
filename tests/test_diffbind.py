@@ -4,19 +4,13 @@ Unit tests for DiffBind-compatible interface.
 
 import pytest
 import pandas as pd
-import tempfile
 from pathlib import Path
 import sys
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.core.diffbind import (
-    DiffBindConfig,
-    DiffBindResults,
-    DiffBindRunner,
-    run_diffbind
-)
+from app.core.diffbind import DiffBindConfig, DiffBindResults, DiffBindRunner, run_diffbind
 
 
 class TestDiffBindConfig:
@@ -24,12 +18,7 @@ class TestDiffBindConfig:
 
     def test_config_defaults(self):
         """Test default configuration values."""
-        config = DiffBindConfig(
-            comparison_name="Test",
-            group1="Treatment",
-            group2="Control",
-            histone_mark="H3K27ac"
-        )
+        config = DiffBindConfig(comparison_name="Test", group1="Treatment", group2="Control", histone_mark="H3K27ac")
 
         assert config.genome == "hg38"
         assert config.fdr_threshold == 0.05
@@ -48,7 +37,7 @@ class TestDiffBindConfig:
             genome="mm10",
             fdr_threshold=0.01,
             lfc_threshold=2.0,
-            normalize_method="TMM"
+            normalize_method="TMM",
         )
 
         assert config.genome == "mm10"
@@ -63,11 +52,7 @@ class TestDiffBindResults:
     def test_results_creation(self):
         """Test basic results creation."""
         results = DiffBindResults(
-            comparison_name="Test",
-            total_peaks=10000,
-            significant_peaks=500,
-            gained_peaks=300,
-            lost_peaks=200
+            comparison_name="Test", total_peaks=10000, significant_peaks=500, gained_peaks=300, lost_peaks=200
         )
 
         assert results.comparison_name == "Test"
@@ -77,11 +62,7 @@ class TestDiffBindResults:
     def test_results_summary(self):
         """Test that summary is auto-generated."""
         results = DiffBindResults(
-            comparison_name="Test",
-            total_peaks=10000,
-            significant_peaks=500,
-            gained_peaks=300,
-            lost_peaks=200
+            comparison_name="Test", total_peaks=10000, significant_peaks=500, gained_peaks=300, lost_peaks=200
         )
 
         assert "comparison" in results.summary
@@ -90,11 +71,7 @@ class TestDiffBindResults:
 
     def test_results_with_dataframes(self):
         """Test results with DataFrames."""
-        all_peaks = pd.DataFrame({
-            "peak_id": ["p1", "p2", "p3"],
-            "log2FC": [1.5, -2.0, 0.5],
-            "FDR": [0.01, 0.001, 0.2]
-        })
+        all_peaks = pd.DataFrame({"peak_id": ["p1", "p2", "p3"], "log2FC": [1.5, -2.0, 0.5], "FDR": [0.01, 0.001, 0.2]})
 
         sig_peaks = all_peaks[all_peaks["FDR"] < 0.05]
 
@@ -105,7 +82,7 @@ class TestDiffBindResults:
             gained_peaks=1,
             lost_peaks=1,
             all_peaks=all_peaks,
-            significant_df=sig_peaks
+            significant_df=sig_peaks,
         )
 
         assert len(results.all_peaks) == 3
@@ -124,30 +101,10 @@ class TestDiffBindRunner:
     def sample_sheet_data(self):
         """Create sample sheet data."""
         return [
-            {
-                "SampleID": "treat_1",
-                "Condition": "Treatment",
-                "Factor": "H3K27ac",
-                "Replicate": 1
-            },
-            {
-                "SampleID": "treat_2",
-                "Condition": "Treatment",
-                "Factor": "H3K27ac",
-                "Replicate": 2
-            },
-            {
-                "SampleID": "ctrl_1",
-                "Condition": "Control",
-                "Factor": "H3K27ac",
-                "Replicate": 1
-            },
-            {
-                "SampleID": "ctrl_2",
-                "Condition": "Control",
-                "Factor": "H3K27ac",
-                "Replicate": 2
-            }
+            {"SampleID": "treat_1", "Condition": "Treatment", "Factor": "H3K27ac", "Replicate": 1},
+            {"SampleID": "treat_2", "Condition": "Treatment", "Factor": "H3K27ac", "Replicate": 2},
+            {"SampleID": "ctrl_1", "Condition": "Control", "Factor": "H3K27ac", "Replicate": 1},
+            {"SampleID": "ctrl_2", "Condition": "Control", "Factor": "H3K27ac", "Replicate": 2},
         ]
 
     def test_create_sample_sheet(self, runner, sample_sheet_data, tmp_path):

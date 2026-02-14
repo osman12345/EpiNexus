@@ -12,7 +12,7 @@ def render_empty_state(
     icon: str = "📊",
     message: str = "Upload your data to begin analysis.",
     requirements: list = None,
-    help_topic: str = None
+    help_topic: str = None,
 ):
     """
     Render a consistent empty state when no data is loaded.
@@ -29,14 +29,17 @@ def render_empty_state(
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="text-align: center; padding: 3rem; background: #f8f9fa;
                     border-radius: 12px; border: 2px dashed #dee2e6;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">{icon}</div>
             <h2 style="color: #6c757d; margin-bottom: 0.5rem;">{title}</h2>
             <p style="color: #6c757d; font-size: 1.1rem;">{message}</p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         st.markdown("")
 
@@ -58,7 +61,7 @@ def render_no_results_state(
     title: str = "No Results Yet",
     icon: str = "📋",
     message: str = "Run the analysis to see results.",
-    action_text: str = None
+    action_text: str = None,
 ):
     """
     Render a state when analysis hasn't been run yet.
@@ -80,14 +83,15 @@ def check_data_loaded() -> bool:
     # Check data manager
     try:
         from frontend.components.data_manager import DataManager
-        peaks = DataManager.get_data('peaks')
+
+        peaks = DataManager.get_data("peaks")
         if peaks is not None and len(peaks) > 0:
             return True
     except ImportError:
         pass
 
     # Check session state
-    if len(st.session_state.get('samples', [])) > 0:
+    if len(st.session_state.get("samples", [])) > 0:
         return True
 
     return False
@@ -97,7 +101,8 @@ def check_peaks_loaded() -> bool:
     """Check if peak data is loaded."""
     try:
         from frontend.components.data_manager import DataManager
-        peaks = DataManager.get_data('peaks')
+
+        peaks = DataManager.get_data("peaks")
         return peaks is not None and len(peaks) > 0
     except ImportError:
         return False
@@ -107,7 +112,8 @@ def check_expression_loaded() -> bool:
     """Check if expression data is loaded."""
     try:
         from frontend.components.data_manager import DataManager
-        expr = DataManager.get_data('expression')
+
+        expr = DataManager.get_data("expression")
         return expr is not None and len(expr) > 0
     except ImportError:
         return False

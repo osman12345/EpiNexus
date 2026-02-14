@@ -87,14 +87,24 @@ class TestSampleEndpoints:
         assert resp.status_code == 404
 
     def test_filter_by_histone_mark(self, api_client):
-        api_client.post("/samples", json={
-            "name": "s1", "histone_mark": "H3K27ac",
-            "condition": "Ctrl", "genome": "mm10",
-        })
-        api_client.post("/samples", json={
-            "name": "s2", "histone_mark": "H3K4me3",
-            "condition": "Ctrl", "genome": "mm10",
-        })
+        api_client.post(
+            "/samples",
+            json={
+                "name": "s1",
+                "histone_mark": "H3K27ac",
+                "condition": "Ctrl",
+                "genome": "mm10",
+            },
+        )
+        api_client.post(
+            "/samples",
+            json={
+                "name": "s2",
+                "histone_mark": "H3K4me3",
+                "condition": "Ctrl",
+                "genome": "mm10",
+            },
+        )
         resp = api_client.get("/samples", params={"histone_mark": "H3K4me3"})
         data = resp.json()
         assert all(s["histone_mark"] == "H3K4me3" for s in data["samples"])
@@ -193,11 +203,14 @@ class TestResultsEndpoints:
 
     def test_results_not_completed(self, api_client):
         """Requesting results for a pending job returns 400."""
-        job = api_client.post("/jobs", json={
-            "name": "Pending Job",
-            "job_type": "qc",
-            "config": {},
-        }).json()
+        job = api_client.post(
+            "/jobs",
+            json={
+                "name": "Pending Job",
+                "job_type": "qc",
+                "config": {},
+            },
+        ).json()
         resp = api_client.get(f"/results/{job['id']}")
         assert resp.status_code == 400
         assert "not completed" in resp.json()["detail"]
@@ -219,38 +232,47 @@ class TestComparisonEndpoints:
         """Helper to create two samples and return their IDs."""
         ids = []
         for name, cond in [("s1", "Treat"), ("s2", "Ctrl")]:
-            resp = api_client.post("/samples", json={
-                "name": name,
-                "histone_mark": "H3K27ac",
-                "condition": cond,
-                "genome": "mm10",
-            })
+            resp = api_client.post(
+                "/samples",
+                json={
+                    "name": name,
+                    "histone_mark": "H3K27ac",
+                    "condition": cond,
+                    "genome": "mm10",
+                },
+            )
             ids.append(resp.json()["id"])
         return ids
 
     def test_create_comparison(self, api_client):
         sample_ids = self._create_samples(api_client)
-        resp = api_client.post("/comparisons", json={
-            "name": "Test Comparison",
-            "group1": "Treat",
-            "group2": "Ctrl",
-            "histone_mark": "H3K27ac",
-            "genome": "mm10",
-            "sample_ids": sample_ids,
-        })
+        resp = api_client.post(
+            "/comparisons",
+            json={
+                "name": "Test Comparison",
+                "group1": "Treat",
+                "group2": "Ctrl",
+                "histone_mark": "H3K27ac",
+                "genome": "mm10",
+                "sample_ids": sample_ids,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "Test Comparison"
         assert "id" in data
 
     def test_create_comparison_bad_samples(self, api_client):
-        resp = api_client.post("/comparisons", json={
-            "name": "Bad",
-            "group1": "A",
-            "group2": "B",
-            "histone_mark": "H3K27ac",
-            "sample_ids": ["fake-id-1", "fake-id-2"],
-        })
+        resp = api_client.post(
+            "/comparisons",
+            json={
+                "name": "Bad",
+                "group1": "A",
+                "group2": "B",
+                "histone_mark": "H3K27ac",
+                "sample_ids": ["fake-id-1", "fake-id-2"],
+            },
+        )
         assert resp.status_code == 400
 
     def test_list_comparisons(self, api_client):

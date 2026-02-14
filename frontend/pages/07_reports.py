@@ -17,6 +17,7 @@ st.set_page_config(page_title="Reports - EpiNexus", page_icon="📋", layout="wi
 # Try to import data manager
 try:
     from frontend.components.data_manager import DataManager
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
@@ -25,9 +26,9 @@ except ImportError:
 def has_data():
     """Check if user has loaded data."""
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         return peaks is not None and len(peaks) > 0
-    return len(st.session_state.get('samples', [])) > 0
+    return len(st.session_state.get("samples", [])) > 0
 
 
 def render_empty_state():
@@ -37,7 +38,8 @@ def render_empty_state():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="text-align: center; padding: 3rem; background: #f8f9fa;
                     border-radius: 12px; border: 2px dashed #dee2e6;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
@@ -46,7 +48,9 @@ def render_empty_state():
                 Run your analysis first to generate reports and export data.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         st.markdown("")
 
@@ -69,11 +73,7 @@ def main():
         render_empty_state()
         return
 
-    tab1, tab2, tab3 = st.tabs([
-        "📊 Summary Report",
-        "📥 Data Export",
-        "📝 Methods"
-    ])
+    tab1, tab2, tab3 = st.tabs(["📊 Summary Report", "📥 Data Export", "📝 Methods"])
 
     with tab1:
         render_summary_report()
@@ -98,15 +98,18 @@ def render_summary_report():
 
         include_sections = st.multiselect(
             "Include sections",
-            ["QC Summary", "Differential Analysis", "Pathway Enrichment",
-             "TF Analysis", "Expression Integration", "Methods"],
-            default=["QC Summary", "Differential Analysis", "Pathway Enrichment"]
+            [
+                "QC Summary",
+                "Differential Analysis",
+                "Pathway Enrichment",
+                "TF Analysis",
+                "Expression Integration",
+                "Methods",
+            ],
+            default=["QC Summary", "Differential Analysis", "Pathway Enrichment"],
         )
 
-        report_format = st.selectbox(
-            "Report format",
-            ["HTML", "PDF", "Word (.docx)", "Markdown"]
-        )
+        report_format = st.selectbox("Report format", ["HTML", "PDF", "Word (.docx)", "Markdown"])
 
     with col2:
         st.subheader("Analysis Overview")
@@ -114,7 +117,7 @@ def render_summary_report():
         st.markdown(f"""
         **Project:** {project_name}
 
-        **Date:** {datetime.now().strftime('%Y-%m-%d')}
+        **Date:** {datetime.now().strftime("%Y-%m-%d")}
 
         **Samples:** 8
         - Control: 4
@@ -174,7 +177,7 @@ def render_summary_report():
                 "📥 Download Report",
                 f"# {report_title}\n\nGenerated: {datetime.now()}",
                 f"{project_name.replace(' ', '_')}_report.html",
-                mime="text/html"
+                mime="text/html",
             )
 
 
@@ -216,13 +219,10 @@ def render_data_export():
             # Create sample export data
             export_data = "Peak_ID\tChr\tStart\tEnd\tLog2FC\tFDR\n"
             for i in range(10):
-                export_data += f"peak_{i}\tchr1\t{1000000+i*10000}\t{1000200+i*10000}\t{np.random.normal(0, 1.5):.3f}\t{np.random.uniform(0, 0.1):.4f}\n"
+                export_data += f"peak_{i}\tchr1\t{1000000 + i * 10000}\t{1000200 + i * 10000}\t{np.random.normal(0, 1.5):.3f}\t{np.random.uniform(0, 0.1):.4f}\n"
 
             st.download_button(
-                "📥 Download Export",
-                export_data,
-                "histone_analysis_export.tsv",
-                mime="text/tab-separated-values"
+                "📥 Download Export", export_data, "histone_analysis_export.tsv", mime="text/tab-separated-values"
             )
 
 
@@ -270,21 +270,24 @@ active marks.
 
     st.markdown(methods_text)
 
-    st.download_button(
-        "📥 Download Methods Section",
-        methods_text,
-        "methods_section.md",
-        mime="text/markdown"
-    )
+    st.download_button("📥 Download Methods Section", methods_text, "methods_section.md", mime="text/markdown")
 
     st.subheader("Software Versions")
 
-    versions = pd.DataFrame({
-        'Software': ['DiffBind', 'DESeq2', 'ChIPseeker', 'clusterProfiler', 'MACS2', 'Bowtie2'],
-        'Version': ['3.8.4', '1.38.3', '1.34.1', '4.6.2', '2.2.7.1', '2.4.5'],
-        'Citation': ['Stark & Brown 2011', 'Love et al. 2014', 'Yu et al. 2015',
-                    'Wu et al. 2021', 'Zhang et al. 2008', 'Langmead & Salzberg 2012']
-    })
+    versions = pd.DataFrame(
+        {
+            "Software": ["DiffBind", "DESeq2", "ChIPseeker", "clusterProfiler", "MACS2", "Bowtie2"],
+            "Version": ["3.8.4", "1.38.3", "1.34.1", "4.6.2", "2.2.7.1", "2.4.5"],
+            "Citation": [
+                "Stark & Brown 2011",
+                "Love et al. 2014",
+                "Yu et al. 2015",
+                "Wu et al. 2021",
+                "Zhang et al. 2008",
+                "Langmead & Salzberg 2012",
+            ],
+        }
+    )
 
     st.dataframe(versions, use_container_width=True, hide_index=True)
 

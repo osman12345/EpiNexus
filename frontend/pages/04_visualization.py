@@ -10,7 +10,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from pathlib import Path
 import sys
 
@@ -22,22 +21,26 @@ st.set_page_config(page_title="Visualization - EpiNexus", page_icon="📈", layo
 try:
     from frontend.components.data_manager import DataManager
     from frontend.components.empty_states import render_empty_state, check_data_loaded
+
     HAS_DATA_MANAGER = True
 except ImportError:
     HAS_DATA_MANAGER = False
 
     def check_data_loaded() -> bool:
-        return len(st.session_state.get('samples', [])) > 0
+        return len(st.session_state.get("samples", [])) > 0
+
 
 from frontend.components.theme import COLORS
 
 # Try to import workflow manager
 try:
     from frontend.components.workflow_manager import WorkflowManager
+
     HAS_WORKFLOW_MANAGER = True
 except ImportError:
     try:
-        from components.workflow_manager import WorkflowManager
+        from components.workflow_manager import WorkflowManager  # noqa: F401
+
         HAS_WORKFLOW_MANAGER = True
     except ImportError:
         HAS_WORKFLOW_MANAGER = False
@@ -46,22 +49,22 @@ except ImportError:
 def get_peaks_data() -> Optional[pd.DataFrame]:
     """Get peaks data from session state or DataManager."""
     if HAS_DATA_MANAGER:
-        peaks = DataManager.get_data('peaks')
+        peaks = DataManager.get_data("peaks")
         if peaks is not None and len(peaks) > 0:
             return peaks
 
     # Try session state
-    if 'uploaded_peaks' in st.session_state:
+    if "uploaded_peaks" in st.session_state:
         return st.session_state.uploaded_peaks
 
-    if 'samples' in st.session_state and len(st.session_state.samples) > 0:
+    if "samples" in st.session_state and len(st.session_state.samples) > 0:
         # Build peaks from samples
         all_peaks = []
         for sample in st.session_state.samples:
-            if 'peaks' in sample:
-                df = sample['peaks'].copy()
-                df['sample'] = sample.get('name', 'Unknown')
-                df['condition'] = sample.get('condition', 'Unknown')
+            if "peaks" in sample:
+                df = sample["peaks"].copy()
+                df["sample"] = sample.get("name", "Unknown")
+                df["condition"] = sample.get("condition", "Unknown")
                 all_peaks.append(df)
         if all_peaks:
             return pd.concat(all_peaks, ignore_index=True)
@@ -85,20 +88,15 @@ def main() -> None:
                 "Signal heatmaps at genomic features",
                 "Average profile plots",
                 "Genomic distribution analysis",
-                "Multi-track signal browser"
-            ]
+                "Multi-track signal browser",
+            ],
         )
         return
 
     # Show data status
     st.success(f"Visualizing {len(peaks):,} peaks from your data")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🔥 Heatmaps",
-        "📊 Profile Plots",
-        "🥧 Genomic Distribution",
-        "📉 Signal Tracks"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔥 Heatmaps", "📊 Profile Plots", "🥧 Genomic Distribution", "📉 Signal Tracks"])
 
     with tab1:
         render_heatmaps(peaks)
@@ -119,24 +117,15 @@ def render_heatmaps(peaks: pd.DataFrame) -> None:
     with col1:
         st.subheader("Settings")
 
-        region_type = st.selectbox(
-            "Center on",
-            ["Peak Summit", "Peak Center", "TSS", "TES"]
-        )
+        region_type = st.selectbox("Center on", ["Peak Summit", "Peak Center", "TSS", "TES"])
 
         window = st.slider("Window (kb)", 1, 20, 5)
 
-        sort_by = st.selectbox(
-            "Sort by",
-            ["Signal intensity", "Peak width", "Chromosome"]
-        )
+        sort_by = st.selectbox("Sort by", ["Signal intensity", "Peak width", "Chromosome"])
 
         n_clusters = st.slider("Clusters", 1, 10, 4)
 
-        colorscale = st.selectbox(
-            "Color scale",
-            ["Reds", "Blues", "Viridis", "RdBu", "YlOrRd"]
-        )
+        colorscale = st.selectbox("Color scale", ["Reds", "Blues", "Viridis", "RdBu", "YlOrRd"])
 
     with col2:
         st.subheader(f"Peak Signal at {region_type} ±{window}kb")
@@ -156,13 +145,13 @@ def render_heatmaps(peaks: pd.DataFrame) -> None:
 
         # Get signal column if available
         signal_col = None
-        for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+        for col in ["signal", "signalValue", "score", "fold_enrichment"]:
             if col in sampled_peaks.columns:
                 signal_col = col
                 break
 
         for i, (_, peak) in enumerate(sampled_peaks.head(n_peaks).iterrows()):
-            peak_width = peak.get('end', 0) - peak.get('start', 0)
+            peak_width = peak.get("end", 0) - peak.get("start", 0)
             peak_signal = peak.get(signal_col, 1) if signal_col else 1
 
             # Create Gaussian-like signal centered on the peak
@@ -179,25 +168,17 @@ def render_heatmaps(peaks: pd.DataFrame) -> None:
         if sort_by == "Signal intensity":
             signal = signal[signal.sum(axis=1).argsort()[::-1]]
         elif sort_by == "Peak width":
-            widths = (sampled_peaks['end'] - sampled_peaks['start']).values[:n_peaks]
+            widths = (sampled_peaks["end"] - sampled_peaks["start"]).values[:n_peaks]
             signal = signal[widths.argsort()[::-1]]
 
-        fig = go.Figure(data=go.Heatmap(
-            z=signal,
-            colorscale=colorscale,
-            showscale=True
-        ))
+        fig = go.Figure(data=go.Heatmap(z=signal, colorscale=colorscale, showscale=True))
 
-        fig.update_layout(
-            xaxis_title=f"Distance from {region_type} (kb)",
-            yaxis_title="Peaks",
-            height=500
-        )
+        fig.update_layout(xaxis_title=f"Distance from {region_type} (kb)", yaxis_title="Peaks", height=500)
 
         # Update x-axis to show kb
         fig.update_xaxes(
             tickvals=[0, 25, 50, 75, 100],
-            ticktext=[f"-{window}", f"-{window//2}", "0", f"+{window//2}", f"+{window}"]
+            ticktext=[f"-{window}", f"-{window // 2}", "0", f"+{window // 2}", f"+{window}"],
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -210,8 +191,8 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
     st.header("Average Signal Profiles")
 
     # Check for sample/condition info
-    has_conditions = 'condition' in peaks.columns and peaks['condition'].nunique() > 1
-    has_samples = 'sample' in peaks.columns and peaks['sample'].nunique() > 1
+    has_conditions = "condition" in peaks.columns and peaks["condition"].nunique() > 1
+    has_samples = "sample" in peaks.columns and peaks["sample"].nunique() > 1
 
     col1, col2 = st.columns(2)
 
@@ -219,18 +200,18 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
         if has_conditions:
             st.subheader("Profile by Condition")
 
-            conditions = peaks['condition'].unique()
+            conditions = peaks["condition"].unique()
             x = np.linspace(-5, 5, 100)
 
             fig = go.Figure()
             colors = COLORS.QUALITATIVE[:5]
 
             for i, cond in enumerate(conditions):
-                cond_peaks = peaks[peaks['condition'] == cond]
+                cond_peaks = peaks[peaks["condition"] == cond]
 
                 # Calculate average signal profile
                 signal_col = None
-                for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+                for col in ["signal", "signalValue", "score", "fold_enrichment"]:
                     if col in cond_peaks.columns:
                         signal_col = col
                         break
@@ -240,18 +221,10 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
 
                 # Create profile based on average signal
                 signal = (1 + normalized) * np.exp(-0.5 * (x / (0.8 + normalized * 0.5)) ** 2) + 0.3
-                fig.add_trace(go.Scatter(
-                    x=x, y=signal,
-                    name=cond,
-                    line=dict(color=colors[i % len(colors)], width=2)
-                ))
+                fig.add_trace(go.Scatter(x=x, y=signal, name=cond, line=dict(color=colors[i % len(colors)], width=2)))
 
             fig.add_vline(x=0, line_dash="dash", line_color="gray")
-            fig.update_layout(
-                xaxis_title="Distance from Peak Center (kb)",
-                yaxis_title="Average Signal",
-                height=400
-            )
+            fig.update_layout(xaxis_title="Distance from Peak Center (kb)", yaxis_title="Average Signal", height=400)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.subheader("Average Signal Profile")
@@ -260,7 +233,7 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
 
             # Calculate from data
             signal_col = None
-            for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+            for col in ["signal", "signalValue", "score", "fold_enrichment"]:
                 if col in peaks.columns:
                     signal_col = col
                     break
@@ -274,34 +247,39 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
             signal_lower = signal - 0.3
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=x, y=signal, name='Mean', line=dict(color=COLORS.DOWN, width=2)))
-            fig.add_trace(go.Scatter(x=x, y=signal_upper, mode='lines', line=dict(width=0), showlegend=False))
-            fig.add_trace(go.Scatter(x=x, y=signal_lower, mode='lines', line=dict(width=0),
-                                    fill='tonexty', fillcolor='rgba(52, 152, 219, 0.2)', name='±SD'))
+            fig.add_trace(go.Scatter(x=x, y=signal, name="Mean", line=dict(color=COLORS.DOWN, width=2)))
+            fig.add_trace(go.Scatter(x=x, y=signal_upper, mode="lines", line=dict(width=0), showlegend=False))
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=signal_lower,
+                    mode="lines",
+                    line=dict(width=0),
+                    fill="tonexty",
+                    fillcolor="rgba(52, 152, 219, 0.2)",
+                    name="±SD",
+                )
+            )
 
             fig.add_vline(x=0, line_dash="dash", line_color="gray")
-            fig.update_layout(
-                xaxis_title="Distance from Peak Center (kb)",
-                yaxis_title="Average Signal",
-                height=400
-            )
+            fig.update_layout(xaxis_title="Distance from Peak Center (kb)", yaxis_title="Average Signal", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         if has_samples:
             st.subheader("Profile by Sample")
 
-            samples = peaks['sample'].unique()[:5]  # Limit to 5 samples
+            samples = peaks["sample"].unique()[:5]  # Limit to 5 samples
             x = np.linspace(-5, 5, 100)
 
             fig = go.Figure()
             colors = [COLORS.QUALITATIVE[i] for i in [1, 3, 2, 4, 0]]
 
             for i, sample in enumerate(samples):
-                sample_peaks = peaks[peaks['sample'] == sample]
+                sample_peaks = peaks[peaks["sample"] == sample]
 
                 signal_col = None
-                for col in ['signal', 'signalValue', 'score', 'fold_enrichment']:
+                for col in ["signal", "signalValue", "score", "fold_enrichment"]:
                     if col in sample_peaks.columns:
                         signal_col = col
                         break
@@ -310,31 +288,21 @@ def render_profile_plots(peaks: pd.DataFrame) -> None:
                 normalized = avg_signal / peaks[signal_col].max() if signal_col else 0.5
 
                 signal = (1 + normalized) * np.exp(-0.5 * (x / (0.8 + i * 0.1)) ** 2)
-                fig.add_trace(go.Scatter(
-                    x=x, y=signal,
-                    name=sample[:20],
-                    line=dict(color=colors[i % len(colors)], width=2)
-                ))
+                fig.add_trace(
+                    go.Scatter(x=x, y=signal, name=sample[:20], line=dict(color=colors[i % len(colors)], width=2))
+                )
 
             fig.add_vline(x=0, line_dash="dash", line_color="gray")
-            fig.update_layout(
-                xaxis_title="Distance from Peak Center (kb)",
-                yaxis_title="Average Signal",
-                height=400
-            )
+            fig.update_layout(xaxis_title="Distance from Peak Center (kb)", yaxis_title="Average Signal", height=400)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.subheader("Peak Width Distribution")
 
             # Show peak width distribution
-            widths = peaks['end'] - peaks['start']
+            widths = peaks["end"] - peaks["start"]
 
             fig = go.Figure(data=go.Histogram(x=widths, nbinsx=50))
-            fig.update_layout(
-                xaxis_title="Peak Width (bp)",
-                yaxis_title="Count",
-                height=400
-            )
+            fig.update_layout(xaxis_title="Peak Width (bp)", yaxis_title="Count", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
 
@@ -349,7 +317,7 @@ def render_genomic_distribution(peaks: pd.DataFrame) -> None:
 
         # Calculate from real data
         chr_col = None
-        for col in ['chr', 'chrom', 'chromosome', '#chr']:
+        for col in ["chr", "chrom", "chromosome", "#chr"]:
             if col in peaks.columns:
                 chr_col = col
                 break
@@ -358,35 +326,39 @@ def render_genomic_distribution(peaks: pd.DataFrame) -> None:
             chr_counts = peaks[chr_col].value_counts()
 
             # Sort chromosomes naturally
-            sorted_chrs = sorted(chr_counts.index.tolist(),
-                               key=lambda x: (0 if x.replace('chr', '').isdigit() else 1,
-                                            int(x.replace('chr', '')) if x.replace('chr', '').isdigit() else x))
+            sorted_chrs = sorted(
+                chr_counts.index.tolist(),
+                key=lambda x: (
+                    0 if x.replace("chr", "").isdigit() else 1,
+                    int(x.replace("chr", "")) if x.replace("chr", "").isdigit() else x,
+                ),
+            )
             chr_counts = chr_counts.reindex(sorted_chrs)
 
-            fig = px.bar(x=chr_counts.index, y=chr_counts.values,
-                        color=chr_counts.values,
-                        color_continuous_scale='Viridis')
-            fig.update_layout(
-                xaxis_title='Chromosome',
-                yaxis_title='Number of Peaks',
-                height=400,
-                showlegend=False
+            fig = px.bar(
+                x=chr_counts.index, y=chr_counts.values, color=chr_counts.values, color_continuous_scale="Viridis"
             )
+            fig.update_layout(xaxis_title="Chromosome", yaxis_title="Number of Peaks", height=400, showlegend=False)
             fig.update_xaxes(tickangle=-45)
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Peak Size Distribution")
 
-        widths = peaks['end'] - peaks['start']
+        widths = peaks["end"] - peaks["start"]
 
         # Create size categories
-        size_cats = pd.cut(widths, bins=[0, 200, 500, 1000, 2000, np.inf],
-                          labels=['<200bp', '200-500bp', '500-1kb', '1-2kb', '>2kb'])
+        size_cats = pd.cut(
+            widths, bins=[0, 200, 500, 1000, 2000, np.inf], labels=["<200bp", "200-500bp", "500-1kb", "1-2kb", ">2kb"]
+        )
         size_counts = size_cats.value_counts()
 
-        fig = px.pie(values=size_counts.values, names=size_counts.index, hole=0.4,
-                    color_discrete_sequence=px.colors.qualitative.Set2)
+        fig = px.pie(
+            values=size_counts.values,
+            names=size_counts.index,
+            hole=0.4,
+            color_discrete_sequence=px.colors.qualitative.Set2,
+        )
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -395,14 +367,14 @@ def render_genomic_distribution(peaks: pd.DataFrame) -> None:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    widths = peaks['end'] - peaks['start']
+    widths = peaks["end"] - peaks["start"]
 
     col1.metric("Total Peaks", f"{len(peaks):,}")
     col2.metric("Median Width", f"{widths.median():.0f} bp")
     col3.metric("Mean Width", f"{widths.mean():.0f} bp")
 
     chr_col = None
-    for col in ['chr', 'chrom', 'chromosome']:
+    for col in ["chr", "chrom", "chromosome"]:
         if col in peaks.columns:
             chr_col = col
             break
@@ -415,7 +387,7 @@ def render_signal_tracks(peaks: pd.DataFrame) -> None:
 
     # Check for signal column
     signal_col = None
-    for col in ['signal', 'signalValue', 'score', 'fold_enrichment', 'pValue', 'qValue']:
+    for col in ["signal", "signalValue", "score", "fold_enrichment", "pValue", "qValue"]:
         if col in peaks.columns:
             signal_col = col
             break
@@ -431,41 +403,37 @@ def render_signal_tracks(peaks: pd.DataFrame) -> None:
     with col1:
         # Histogram of signal values
         fig = go.Figure(data=go.Histogram(x=peaks[signal_col], nbinsx=50))
-        fig.update_layout(
-            xaxis_title=signal_col,
-            yaxis_title="Count",
-            height=400
-        )
+        fig.update_layout(xaxis_title=signal_col, yaxis_title="Count", height=400)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         # Signal by chromosome
         chr_col = None
-        for col in ['chr', 'chrom', 'chromosome']:
+        for col in ["chr", "chrom", "chromosome"]:
             if col in peaks.columns:
                 chr_col = col
                 break
 
         if chr_col:
             chr_signal = peaks.groupby(chr_col)[signal_col].mean()
-            sorted_chrs = sorted(chr_signal.index.tolist(),
-                               key=lambda x: (0 if x.replace('chr', '').isdigit() else 1,
-                                            int(x.replace('chr', '')) if x.replace('chr', '').isdigit() else x))
+            sorted_chrs = sorted(
+                chr_signal.index.tolist(),
+                key=lambda x: (
+                    0 if x.replace("chr", "").isdigit() else 1,
+                    int(x.replace("chr", "")) if x.replace("chr", "").isdigit() else x,
+                ),
+            )
             chr_signal = chr_signal.reindex(sorted_chrs)
 
             fig = px.bar(x=chr_signal.index, y=chr_signal.values)
-            fig.update_layout(
-                xaxis_title="Chromosome",
-                yaxis_title=f"Mean {signal_col}",
-                height=400
-            )
+            fig.update_layout(xaxis_title="Chromosome", yaxis_title=f"Mean {signal_col}", height=400)
             fig.update_xaxes(tickangle=-45)
             st.plotly_chart(fig, use_container_width=True)
 
     # Show top peaks
     st.subheader("Top Peaks by Signal")
 
-    display_cols = [c for c in ['chr', 'chrom', 'start', 'end', 'name', signal_col] if c in peaks.columns]
+    display_cols = [c for c in ["chr", "chrom", "start", "end", "name", signal_col] if c in peaks.columns]
     top_peaks = peaks.nlargest(20, signal_col)[display_cols]
     st.dataframe(top_peaks, use_container_width=True, hide_index=True)
 

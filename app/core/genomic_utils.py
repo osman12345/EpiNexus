@@ -10,7 +10,7 @@ and chromosome sorting.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ except ImportError:
     logger.info("ncls not installed – using sweep-line overlap algorithm")
 
 try:
-    import pyranges as pr
+    import pyranges as pr  # noqa: F401
 
     _HAS_PYRANGES = True
 except ImportError:
@@ -41,9 +41,7 @@ except ImportError:
 # ============================================================================
 
 
-def _build_ncls_index(
-    starts: np.ndarray, ends: np.ndarray
-) -> "NCLS":
+def _build_ncls_index(starts: np.ndarray, ends: np.ndarray) -> "NCLS":
     """Build an NCLS index from start/end arrays."""
     ids = np.arange(len(starts), dtype=np.int64)
     return NCLS(
@@ -140,9 +138,15 @@ def find_overlaps(
             # Sweep-line fallback – still O(n log n) via sorting
             results.extend(
                 _sweepline_overlaps(
-                    q_starts, q_ends, q_indices,
-                    s_starts, s_ends, s_indices,
-                    min_overlap_bp, min_overlap_frac, report,
+                    q_starts,
+                    q_ends,
+                    q_indices,
+                    s_starts,
+                    s_ends,
+                    s_indices,
+                    min_overlap_bp,
+                    min_overlap_frac,
+                    report,
                 )
             )
 
@@ -163,9 +167,15 @@ def find_overlaps(
 
 
 def _sweepline_overlaps(
-    q_starts, q_ends, q_indices,
-    s_starts, s_ends, s_indices,
-    min_overlap_bp, min_overlap_frac, report,
+    q_starts,
+    q_ends,
+    q_indices,
+    s_starts,
+    s_ends,
+    s_indices,
+    min_overlap_bp,
+    min_overlap_frac,
+    report,
 ) -> List[Tuple[int, int, int]]:
     """Sweep-line overlap detection (fallback when NCLS unavailable)."""
     results = []
@@ -180,7 +190,11 @@ def _sweepline_overlaps(
         q_len = qe - qs
 
         # Binary search for first possible overlapping subject
-        lo = np.searchsorted(s_starts_sorted, qs - (s_ends_sorted.max() - s_starts_sorted.min() if len(s_starts_sorted) > 0 else 0), side="left")
+        lo = np.searchsorted(
+            s_starts_sorted,
+            qs - (s_ends_sorted.max() - s_starts_sorted.min() if len(s_starts_sorted) > 0 else 0),
+            side="left",
+        )
         lo = max(0, lo)
 
         for j in range(lo, len(s_starts_sorted)):
@@ -222,8 +236,11 @@ def count_overlaps(
         Array of length len(query_df) with overlap counts.
     """
     counts_df = find_overlaps(
-        query_df, subject_df,
-        chrom_col=chrom_col, start_col=start_col, end_col=end_col,
+        query_df,
+        subject_df,
+        chrom_col=chrom_col,
+        start_col=start_col,
+        end_col=end_col,
         min_overlap_bp=min_overlap_bp,
         report="count",
     )
@@ -247,8 +264,11 @@ def count_overlaps_with_fraction(
     Direct replacement for transcription_factors._count_overlaps().
     """
     hits = find_overlaps(
-        query_df, subject_df,
-        chrom_col=chrom_col, start_col=start_col, end_col=end_col,
+        query_df,
+        subject_df,
+        chrom_col=chrom_col,
+        start_col=start_col,
+        end_col=end_col,
         min_overlap_frac=min_overlap_frac,
         report="first",
     )
@@ -273,8 +293,11 @@ def find_first_overlaps(
         the matching subject row in column ``subject_idx``.
     """
     return find_overlaps(
-        query_df, subject_df,
-        chrom_col=chrom_col, start_col=start_col, end_col=end_col,
+        query_df,
+        subject_df,
+        chrom_col=chrom_col,
+        start_col=start_col,
+        end_col=end_col,
         report="first",
     )
 
@@ -291,8 +314,11 @@ def exclude_overlapping(
     Direct replacement for super_enhancers._exclude_tss().
     """
     hits = find_overlaps(
-        peaks, exclusion_regions,
-        chrom_col=chrom_col, start_col=start_col, end_col=end_col,
+        peaks,
+        exclusion_regions,
+        chrom_col=chrom_col,
+        start_col=start_col,
+        end_col=end_col,
         report="first",
     )
     overlapping_indices = set(hits["query_idx"].values)
@@ -334,9 +360,7 @@ def detect_column(df: pd.DataFrame, candidates: List[str], required: bool = Fals
         if cand.lower() in cols_lower:
             return cols_lower[cand.lower()]
     if required:
-        raise ValueError(
-            f"Could not find any of {candidates} in columns: {list(df.columns)}"
-        )
+        raise ValueError(f"Could not find any of {candidates} in columns: {list(df.columns)}")
     return None
 
 
@@ -398,8 +422,7 @@ def load_peak_file(filepath_or_buffer, sep: str = "\t") -> pd.DataFrame:
 
     if not has_header:
         # Assign BED-style column names
-        bed_cols = ["chr", "start", "end", "name", "score", "strand",
-                    "signalValue", "pValue", "qValue", "peak"]
+        bed_cols = ["chr", "start", "end", "name", "score", "strand", "signalValue", "pValue", "qValue", "peak"]
         df.columns = bed_cols[: len(df.columns)]
 
     df = standardize_peak_columns(df)
@@ -416,6 +439,7 @@ _CHROM_ORDER.update({"chrX": 23, "chrY": 24, "chrM": 25, "chrMT": 25})
 
 def sort_chromosomes(chroms: List[str]) -> List[str]:
     """Sort chromosome names in natural order (1,2,...,22,X,Y,M)."""
+
     def _sort_key(c: str) -> Tuple[int, str]:
         c_stripped = c.replace("chr", "") if c.startswith("chr") else c
         if c in _CHROM_ORDER:
@@ -424,6 +448,7 @@ def sort_chromosomes(chroms: List[str]) -> List[str]:
             return (int(c_stripped), c)
         except ValueError:
             return (100, c)
+
     return sorted(chroms, key=_sort_key)
 
 

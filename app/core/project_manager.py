@@ -9,11 +9,10 @@ Handles:
 """
 
 import json
-import pickle
 import hashlib
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from dataclasses import dataclass, asdict
 import pandas as pd
 import numpy as np
@@ -22,6 +21,7 @@ import numpy as np
 @dataclass
 class ProjectMetadata:
     """Project metadata structure."""
+
     name: str
     description: str
     created_at: str
@@ -48,12 +48,7 @@ class ProjectManager:
         self.projects_dir.mkdir(parents=True, exist_ok=True)
 
     def create_project(
-        self,
-        name: str,
-        description: str = "",
-        author: str = "",
-        genome: str = "hg38",
-        marks: List[str] = None
+        self, name: str, description: str = "", author: str = "", genome: str = "hg38", marks: List[str] = None
     ) -> str:
         """Create a new project."""
 
@@ -77,7 +72,7 @@ class ProjectManager:
             version=self.PROJECT_VERSION,
             author=author,
             genome=genome,
-            marks=marks or []
+            marks=marks or [],
         )
 
         # Save metadata
@@ -85,12 +80,7 @@ class ProjectManager:
 
         return project_id
 
-    def save_session(
-        self,
-        project_id: str,
-        session_state: Dict[str, Any],
-        checkpoint_name: str = None
-    ) -> str:
+    def save_session(self, project_id: str, session_state: Dict[str, Any], checkpoint_name: str = None) -> str:
         """Save current session state to project."""
 
         project_path = self.projects_dir / project_id
@@ -102,11 +92,7 @@ class ProjectManager:
             checkpoint_name = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Prepare session data
-        session_data = {
-            "checkpoint_name": checkpoint_name,
-            "saved_at": datetime.now().isoformat(),
-            "state": {}
-        }
+        session_data = {"checkpoint_name": checkpoint_name, "saved_at": datetime.now().isoformat(), "state": {}}
 
         # Serialize session state
         for key, value in session_state.items():
@@ -114,7 +100,7 @@ class ProjectManager:
 
         # Save session file
         session_file = project_path / f"session_{checkpoint_name}.json"
-        with open(session_file, 'w') as f:
+        with open(session_file, "w") as f:
             json.dump(session_data, f, indent=2, default=str)
 
         # Save DataFrames separately as parquet
@@ -130,11 +116,7 @@ class ProjectManager:
 
         return checkpoint_name
 
-    def load_session(
-        self,
-        project_id: str,
-        checkpoint_name: str = None
-    ) -> Dict[str, Any]:
+    def load_session(self, project_id: str, checkpoint_name: str = None) -> Dict[str, Any]:
         """Load a saved session state."""
 
         project_path = self.projects_dir / project_id
@@ -153,7 +135,7 @@ class ProjectManager:
         if not session_file.exists():
             raise ValueError(f"Checkpoint {checkpoint_name} not found")
 
-        with open(session_file, 'r') as f:
+        with open(session_file, "r") as f:
             session_data = json.load(f)
 
         # Deserialize state
@@ -171,10 +153,7 @@ class ProjectManager:
             if project_path.is_dir():
                 try:
                     metadata = self._load_metadata(project_path)
-                    projects.append({
-                        "id": project_path.name,
-                        **asdict(metadata)
-                    })
+                    projects.append({"id": project_path.name, **asdict(metadata)})
                 except Exception:
                     continue
 
@@ -189,13 +168,9 @@ class ProjectManager:
 
         for f in project_path.glob("session_*.json"):
             checkpoint_name = f.stem.replace("session_", "")
-            with open(f, 'r') as file:
+            with open(f, "r") as file:
                 data = json.load(file)
-                checkpoints.append({
-                    "name": checkpoint_name,
-                    "saved_at": data.get("saved_at", ""),
-                    "file": str(f)
-                })
+                checkpoints.append({"name": checkpoint_name, "saved_at": data.get("saved_at", ""), "file": str(f)})
 
         checkpoints.sort(key=lambda x: x["saved_at"])
         return checkpoints
@@ -209,11 +184,7 @@ class ProjectManager:
             raise ValueError(f"Project {project_id} not found")
 
         # Create zip archive
-        output_file = shutil.make_archive(
-            output_path.replace('.zip', ''),
-            'zip',
-            project_path
-        )
+        output_file = shutil.make_archive(output_path.replace(".zip", ""), "zip", project_path)
 
         return output_file
 
@@ -223,7 +194,7 @@ class ProjectManager:
         import zipfile
 
         # Extract to temp location
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             # Read metadata to get project name
             temp_dir = self.projects_dir / "_temp_import"
             zip_ref.extractall(temp_dir)
@@ -258,12 +229,12 @@ class ProjectManager:
 
     def _save_metadata(self, project_path: Path, metadata: ProjectMetadata):
         """Save project metadata."""
-        with open(project_path / "metadata.json", 'w') as f:
+        with open(project_path / "metadata.json", "w") as f:
             json.dump(asdict(metadata), f, indent=2)
 
     def _load_metadata(self, project_path: Path) -> ProjectMetadata:
         """Load project metadata."""
-        with open(project_path / "metadata.json", 'r') as f:
+        with open(project_path / "metadata.json", "r") as f:
             data = json.load(f)
             return ProjectMetadata(**data)
 

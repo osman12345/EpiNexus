@@ -7,11 +7,6 @@ and response serialization.  They complement the unit-level tests in
 test_api.py by testing multi-step workflows and edge cases.
 """
 
-import os
-import json
-import tempfile
-from pathlib import Path
-
 import pytest
 
 
@@ -23,13 +18,16 @@ import pytest
 @pytest.fixture
 def _sample(api_client):
     """Create a sample and return its JSON representation."""
-    resp = api_client.post("/samples", json={
-        "name": "integ_sample",
-        "histone_mark": "H3K27ac",
-        "condition": "Treatment",
-        "replicate": 1,
-        "genome": "hg38",
-    })
+    resp = api_client.post(
+        "/samples",
+        json={
+            "name": "integ_sample",
+            "histone_mark": "H3K27ac",
+            "condition": "Treatment",
+            "replicate": 1,
+            "genome": "hg38",
+        },
+    )
     assert resp.status_code == 200
     return resp.json()
 
@@ -37,11 +35,14 @@ def _sample(api_client):
 @pytest.fixture
 def _job(api_client):
     """Create a pending job and return its JSON."""
-    resp = api_client.post("/jobs", json={
-        "name": "Integration Job",
-        "job_type": "qc",
-        "config": {"foo": "bar"},
-    })
+    resp = api_client.post(
+        "/jobs",
+        json={
+            "name": "Integration Job",
+            "job_type": "qc",
+            "config": {"foo": "bar"},
+        },
+    )
     assert resp.status_code == 200
     return resp.json()
 
@@ -56,12 +57,15 @@ class TestSampleLifecycle:
 
     def test_full_sample_lifecycle(self, api_client):
         # Create
-        resp = api_client.post("/samples", json={
-            "name": "lifecycle_s1",
-            "histone_mark": "H3K4me3",
-            "condition": "Control",
-            "genome": "mm10",
-        })
+        resp = api_client.post(
+            "/samples",
+            json={
+                "name": "lifecycle_s1",
+                "histone_mark": "H3K4me3",
+                "condition": "Control",
+                "genome": "mm10",
+            },
+        )
         assert resp.status_code == 200
         sample = resp.json()
         sample_id = sample["id"]
@@ -89,11 +93,14 @@ class TestSampleValidation:
     """Input validation for sample endpoints."""
 
     def test_create_sample_missing_name(self, api_client):
-        resp = api_client.post("/samples", json={
-            "histone_mark": "H3K27ac",
-            "condition": "Treatment",
-            "genome": "hg38",
-        })
+        resp = api_client.post(
+            "/samples",
+            json={
+                "histone_mark": "H3K27ac",
+                "condition": "Treatment",
+                "genome": "hg38",
+            },
+        )
         assert resp.status_code == 422  # Pydantic validation error
 
     def test_create_duplicate_samples(self, api_client):
@@ -130,11 +137,14 @@ class TestJobLifecycle:
     """End-to-end job management."""
 
     def test_create_and_cancel_job(self, api_client):
-        resp = api_client.post("/jobs", json={
-            "name": "Cancel Me",
-            "job_type": "qc",
-            "config": {},
-        })
+        resp = api_client.post(
+            "/jobs",
+            json={
+                "name": "Cancel Me",
+                "job_type": "qc",
+                "config": {},
+            },
+        )
         assert resp.status_code == 200
         job_id = resp.json()["id"]
 
@@ -150,11 +160,14 @@ class TestJobLifecycle:
         """Creating multiple jobs should all appear in the list."""
         ids = []
         for i in range(5):
-            r = api_client.post("/jobs", json={
-                "name": f"batch_{i}",
-                "job_type": "qc",
-                "config": {},
-            })
+            r = api_client.post(
+                "/jobs",
+                json={
+                    "name": f"batch_{i}",
+                    "job_type": "qc",
+                    "config": {},
+                },
+            )
             ids.append(r.json()["id"])
 
         resp = api_client.get("/jobs")
@@ -175,23 +188,29 @@ class TestComparisonWorkflow:
         # Create treatment and control samples
         sample_ids = []
         for name, cond in [("t1", "Treated"), ("t2", "Treated"), ("c1", "Control"), ("c2", "Control")]:
-            r = api_client.post("/samples", json={
-                "name": name,
-                "histone_mark": "H3K27ac",
-                "condition": cond,
-                "genome": "hg38",
-            })
+            r = api_client.post(
+                "/samples",
+                json={
+                    "name": name,
+                    "histone_mark": "H3K27ac",
+                    "condition": cond,
+                    "genome": "hg38",
+                },
+            )
             sample_ids.append(r.json()["id"])
 
         # Create comparison
-        resp = api_client.post("/comparisons", json={
-            "name": "Treated_vs_Control",
-            "group1": "Treated",
-            "group2": "Control",
-            "histone_mark": "H3K27ac",
-            "genome": "hg38",
-            "sample_ids": sample_ids,
-        })
+        resp = api_client.post(
+            "/comparisons",
+            json={
+                "name": "Treated_vs_Control",
+                "group1": "Treated",
+                "group2": "Control",
+                "histone_mark": "H3K27ac",
+                "genome": "hg38",
+                "sample_ids": sample_ids,
+            },
+        )
         assert resp.status_code == 200
         comp = resp.json()
         assert comp["name"] == "Treated_vs_Control"

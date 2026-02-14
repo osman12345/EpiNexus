@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, asdict, field
 from enum import Enum
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 import pandas as pd
 
@@ -149,7 +149,12 @@ class BatchProcessor:
         return created_jobs
 
     def start_processing(self, job_ids: List[str] = None):
-        """Start processing jobs, enforcing per-job-type timeouts."""
+        """Start processing jobs, enforcing per-job-type timeouts.
+
+        Uses a lock to synchronize job status updates between the monitor
+        thread and the worker threads.  The monitor thread is non-daemon so
+        it completes gracefully on application shutdown.
+        """
         from concurrent.futures import TimeoutError as FuturesTimeout
 
         if self.executor is None:
@@ -161,13 +166,18 @@ class BatchProcessor:
         else:
             jobs_to_run = [j for j in self.jobs.values() if j.status == JobStatus.PENDING]
 
-        # Submit jobs
-        futures = {}
+        # Submit jobs with per-job cancel events
+        futures: Dict[Future, Job] = {}
+        cancel_events: Dict[str, threading.Event] = {}
+        status_lock = threading.Lock()
+
         for job in jobs_to_run:
-            future = self.executor.submit(self._run_job, job)
+            cancel_event = threading.Event()
+            cancel_events[job.id] = cancel_event
+            future = self.executor.submit(self._run_job, job, cancel_event=cancel_event)
             futures[future] = job
 
-        # Monitor for timeouts in a background thread
+        # Monitor thread — non-daemon so it completes on shutdown
         def _monitor_futures():
             for future in as_completed(futures):
                 job = futures[future]
@@ -176,25 +186,35 @@ class BatchProcessor:
                     future.result(timeout=timeout)
                 except FuturesTimeout:
                     logger.error(f"Job {job.id} ({job.job_type}) timed out after {timeout}s")
-                    job.status = JobStatus.FAILED
-                    job.error = f"Timed out after {timeout} seconds"
-                    job.completed_at = datetime.now().isoformat()
-                    self._save_job(job)
-                    future.cancel()
+                    # Signal cancellation to the running job
+                    cancel_event = cancel_events.get(job.id)
+                    if cancel_event:
+                        cancel_event.set()
+                    with status_lock:
+                        if job.status == JobStatus.RUNNING:
+                            job.status = JobStatus.FAILED
+                            job.error = f"Timed out after {timeout} seconds"
+                            job.completed_at = datetime.now().isoformat()
+                            self._save_job(job)
                 except Exception:
                     pass  # Already handled inside _run_job
 
-        monitor = threading.Thread(target=_monitor_futures, daemon=True)
+        monitor = threading.Thread(target=_monitor_futures, daemon=False, name="job-monitor")
         monitor.start()
 
         return len(futures)
 
-    def _run_job(self, job: Job) -> None:
+    def _run_job(self, job: Job, cancel_event: Optional[threading.Event] = None) -> None:
         """Execute a single job through its registered handler.
 
         Updates job status to RUNNING, invokes the handler with a progress
         callback, and transitions the job to COMPLETED or FAILED on
         completion/error.  Results are persisted via ``_save_job``.
+
+        Args:
+            job: The job to execute.
+            cancel_event: Optional event that, when set, signals the job
+                should check for cancellation at progress-update points.
         """
 
         job.status = JobStatus.RUNNING
@@ -207,23 +227,28 @@ class BatchProcessor:
             if handler is None:
                 raise ValueError(f"Unknown job type: {job.job_type}")
 
-            # Run handler with progress callback
+            # Run handler with progress callback that checks for cancellation
             def update_progress(progress: float, message: str = ""):
+                if cancel_event and cancel_event.is_set():
+                    raise TimeoutError(f"Job {job.id} cancelled by timeout monitor")
                 job.progress = progress
                 job.message = message
                 self._save_job(job)
 
             result = handler(job.params, update_progress)
 
-            job.status = JobStatus.COMPLETED
-            job.progress = 100.0
-            job.result = result
-            job.completed_at = datetime.now().isoformat()
+            # Only mark completed if not already failed by timeout monitor
+            if job.status == JobStatus.RUNNING:
+                job.status = JobStatus.COMPLETED
+                job.progress = 100.0
+                job.result = result
+                job.completed_at = datetime.now().isoformat()
 
         except Exception as e:
-            job.status = JobStatus.FAILED
-            job.error = str(e)
-            job.completed_at = datetime.now().isoformat()
+            if job.status == JobStatus.RUNNING:
+                job.status = JobStatus.FAILED
+                job.error = str(e)
+                job.completed_at = datetime.now().isoformat()
 
         self._save_job(job)
         return job

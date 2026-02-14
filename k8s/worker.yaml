@@ -40,6 +40,25 @@ spec:
           resources:
             requests: { cpu: 500m, memory: 1Gi }
             limits:   { cpu: "4",  memory: 4Gi }
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "rq info --url redis://:$REDIS_PASSWORD@redis:6379/0 2>/dev/null | grep -q worker"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "rq info --url redis://:$REDIS_PASSWORD@redis:6379/0 2>/dev/null | grep -q worker"
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
           volumeMounts:
             - name: data
               mountPath: /app/data

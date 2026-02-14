@@ -164,7 +164,7 @@ class QCAnalyzer:
                     fields = line.split("\t")
                     if len(fields) > 8:
                         tlen = abs(int(fields[8]))
-                        if 0 < tlen < 1000:  # Filter reasonable sizes
+                        if 0 < tlen < 700:  # Filter reasonable sizes (CUT&Tag typically <700bp)
                             sizes.append(tlen)
 
             if sizes:
@@ -181,6 +181,10 @@ class QCAnalyzer:
         """
         Calculate Fraction of Reads in Peaks (FRiP).
 
+        Uses ``samtools view -c -L`` for accurate read counting rather than
+        line-counting bedtools intersect output, which can miscount with
+        multi-overlap scenarios.
+
         Args:
             bam_path: Path to BAM file
             peak_path: Path to peak BED file
@@ -189,16 +193,15 @@ class QCAnalyzer:
             Tuple of (reads_in_peaks, frip_score)
         """
         try:
-            # Count reads in peaks using bedtools
+            # Count reads overlapping peaks using samtools view -c -L
+            # This accurately counts reads (not lines) that overlap the BED regions
             result = subprocess.run(
-                [self.bedtools, "intersect", "-a", bam_path, "-b", peak_path, "-bed", "-u"],
+                [self.samtools, "view", "-c", "-F", "4", "-L", peak_path, bam_path],
                 capture_output=True,
                 text=True,
                 check=True,
             )
-
-            # Count reads
-            reads_in_peaks = len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
+            reads_in_peaks = int(result.stdout.strip()) if result.stdout.strip() else 0
 
             # Get total mapped reads
             total_result = subprocess.run(
@@ -292,7 +295,10 @@ class QCAnalyzer:
                 f"High duplication: {metrics.duplicate_rate:.1%} (threshold: {self.MAX_DUPLICATE_RATE:.1%})"
             )
 
-        if metrics.frip_score < self.MIN_FRIP and metrics.frip_score > 0:
+        if metrics.frip_score == 0 and metrics.peak_count and metrics.peak_count > 0:
+            warnings.append("FRiP score is 0.0 — no reads overlap peaks; possible failed sample")
+
+        elif metrics.frip_score < self.MIN_FRIP and metrics.frip_score > 0:
             warnings.append(f"Low FRiP: {metrics.frip_score:.2%} (threshold: {self.MIN_FRIP:.1%})")
 
         if metrics.peak_count < self.MIN_PEAK_COUNT and metrics.peak_count > 0:

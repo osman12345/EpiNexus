@@ -10,7 +10,20 @@ Defines tables for:
 
 import uuid
 from typing import Dict, Any
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON, Enum as SQLEnum, Table
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    Float,
+    DateTime,
+    ForeignKey,
+    Text,
+    JSON,
+    Enum as SQLEnum,
+    Table,
+    CheckConstraint,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import enum
@@ -114,6 +127,15 @@ class Sample(Base):
     """Sample metadata table."""
 
     __tablename__ = "samples"
+    __table_args__ = (
+        UniqueConstraint("name", "histone_mark", "condition", "replicate", name="uq_sample_identity"),
+        CheckConstraint("mapping_rate IS NULL OR (mapping_rate >= 0 AND mapping_rate <= 1)", name="ck_mapping_rate"),
+        CheckConstraint(
+            "duplicate_rate IS NULL OR (duplicate_rate >= 0 AND duplicate_rate <= 1)", name="ck_duplicate_rate"
+        ),
+        CheckConstraint("frip_score IS NULL OR (frip_score >= 0 AND frip_score <= 1)", name="ck_frip_score"),
+        CheckConstraint("replicate >= 1", name="ck_replicate_positive"),
+    )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, index=True)
@@ -183,6 +205,13 @@ class Comparison(Base):
     """Differential analysis comparison definition."""
 
     __tablename__ = "comparisons"
+    __table_args__ = (
+        UniqueConstraint("name", "histone_mark", name="uq_comparison_name_mark"),
+        CheckConstraint("fdr_threshold >= 0 AND fdr_threshold <= 1", name="ck_fdr_range"),
+        CheckConstraint("lfc_threshold >= 0", name="ck_lfc_positive"),
+        CheckConstraint("min_overlap >= 1", name="ck_min_overlap_positive"),
+        CheckConstraint("summit_size >= 50", name="ck_summit_size_min"),
+    )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, index=True)

@@ -41,6 +41,13 @@ def get_available_tools():
     return tools
 
 
+def _validate_path(path: str, label: str) -> None:
+    """Validate that a file path doesn't contain shell-injection characters."""
+    dangerous = set(";|&$`\\'\"\n\r(){}[]!#~")
+    if any(c in path for c in dangerous):
+        raise ValueError(f"Invalid characters in {label}: {path!r}")
+
+
 def run_alignment(
     fastq_r1: str,
     fastq_r2: str,
@@ -53,49 +60,78 @@ def run_alignment(
     """
     Run alignment using specified aligner.
 
+    Uses subprocess.PIPE chaining (no shell=True) to avoid shell injection.
     Returns dict with status, stdout, stderr, and output file.
     """
     result = {"success": False, "stdout": "", "stderr": "", "output_bam": output_bam}
 
     try:
+        # Validate all user-supplied paths
+        _validate_path(fastq_r1, "FASTQ R1")
+        if fastq_r2:
+            _validate_path(fastq_r2, "FASTQ R2")
+        _validate_path(output_bam, "output BAM")
+        _validate_path(index_path, "index path")
+        threads = int(threads)  # ensure integer
+
+        # Build aligner command as list (no shell expansion)
         if aligner == "bowtie2":
-            # Bowtie2 alignment
-            if fastq_r2:  # Paired-end
-                cmd = f"bowtie2 -x {index_path} -1 {fastq_r1} -2 {fastq_r2} -p {threads} {extra_params}"
-            else:  # Single-end
-                cmd = f"bowtie2 -x {index_path} -U {fastq_r1} -p {threads} {extra_params}"
-
-            # Pipe to samtools for BAM conversion and sorting
-            full_cmd = f"{cmd} | samtools view -bS - | samtools sort -@ {threads} -o {output_bam}"
-
+            aligner_cmd = ["bowtie2", "-x", index_path, "-p", str(threads)]
+            if fastq_r2:
+                aligner_cmd += ["-1", fastq_r1, "-2", fastq_r2]
+            else:
+                aligner_cmd += ["-U", fastq_r1]
         elif aligner == "bwa":
-            # BWA-MEM alignment
-            if fastq_r2:  # Paired-end
-                cmd = f"bwa mem -t {threads} {extra_params} {index_path} {fastq_r1} {fastq_r2}"
-            else:  # Single-end
-                cmd = f"bwa mem -t {threads} {extra_params} {index_path} {fastq_r1}"
+            aligner_cmd = ["bwa", "mem", "-t", str(threads), index_path, fastq_r1]
+            if fastq_r2:
+                aligner_cmd.append(fastq_r2)
+        else:
+            raise ValueError(f"Unknown aligner: {aligner}")
 
-            full_cmd = f"{cmd} | samtools view -bS - | samtools sort -@ {threads} -o {output_bam}"
-
-        # Run the command
-        process = subprocess.run(
-            full_cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=7200,  # 2 hour timeout
+        # Safe pipe chain: aligner | samtools view | samtools sort
+        p_align = subprocess.Popen(aligner_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p_view = subprocess.Popen(
+            ["samtools", "view", "-bS", "-"],
+            stdin=p_align.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
+        p_align.stdout.close()  # allow SIGPIPE
 
-        result["stdout"] = process.stdout
-        result["stderr"] = process.stderr
-        result["success"] = process.returncode == 0
+        p_sort = subprocess.Popen(
+            ["samtools", "sort", "-@", str(threads), "-o", output_bam],
+            stdin=p_view.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        p_view.stdout.close()
+
+        sort_stdout, sort_stderr = p_sort.communicate(timeout=7200)
+
+        # Collect stderr from all stages
+        align_stderr = p_align.stderr.read().decode() if p_align.stderr else ""
+        view_stderr = p_view.stderr.read().decode() if p_view.stderr else ""
+        all_stderr = align_stderr + view_stderr + sort_stderr.decode()
+
+        result["stderr"] = all_stderr
+        result["success"] = p_sort.returncode == 0
 
         # Index the BAM file
         if result["success"]:
-            subprocess.run(f"samtools index {output_bam}", shell=True)
+            subprocess.run(
+                ["samtools", "index", output_bam],
+                check=False,
+                capture_output=True,
+            )
 
     except subprocess.TimeoutExpired:
         result["stderr"] = "Alignment timed out after 2 hours"
+        # Clean up child processes
+        for p in [p_align, p_view, p_sort]:
+            try:
+                p.kill()
+            except Exception:
+                pass
     except Exception as e:
         result["stderr"] = str(e)
 
@@ -107,8 +143,12 @@ def get_alignment_stats(bam_file: str) -> dict:
     stats = {}
 
     try:
-        # Get flagstat
-        result = subprocess.run(f"samtools flagstat {bam_file}", shell=True, capture_output=True, text=True)
+        # Get flagstat (no shell=True)
+        result = subprocess.run(
+            ["samtools", "flagstat", bam_file],
+            capture_output=True,
+            text=True,
+        )
 
         if result.returncode == 0:
             lines = result.stdout.strip().split("\n")

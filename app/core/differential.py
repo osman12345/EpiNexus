@@ -571,25 +571,40 @@ class DifferentialAnalyzer:
         """
         Quantile normalization.
 
-        Forces all samples to have the same distribution.
-        Can be aggressive but useful for removing batch effects.
+        Forces all samples to have the same distribution by:
+        1. Sorting each column independently
+        2. Computing the mean across rows of the sorted matrix (reference distribution)
+        3. Assigning reference values back to each column by rank
 
         Args:
-            counts: Count matrix
+            counts: Count matrix (rows = features, columns = samples)
 
         Returns:
             Quantile-normalized count matrix
         """
-        # Rank the values
-        ranked = counts.rank(axis=0)
+        import numpy as np
 
-        # Calculate mean for each rank across samples
-        sorted_means = counts.apply(lambda x: sorted(x)).mean(axis=1)
+        # Step 1: Sort each column independently to build the sorted matrix
+        sorted_matrix = np.sort(counts.values, axis=0)
 
-        # Map ranks to mean values
+        # Step 2: Compute the reference distribution (mean of each rank position)
+        reference = sorted_matrix.mean(axis=1)
+
+        # Step 3: Rank each column (average ties) and map ranks to reference values
+        ranked = counts.rank(axis=0, method="average")
+
         normalized = counts.copy()
         for col in counts.columns:
-            normalized[col] = sorted_means.iloc[(ranked[col] - 1).astype(int).values].values
+            ranks = ranked[col].values
+            # For integer ranks, map directly; for tied (averaged) ranks, interpolate
+            int_ranks = ranks.astype(int)
+            frac = ranks - int_ranks
+
+            # Clip to valid index range (ranks are 1-based, reference is 0-based)
+            lower_idx = np.clip(int_ranks - 1, 0, len(reference) - 1)
+            upper_idx = np.clip(int_ranks, 0, len(reference) - 1)
+
+            normalized[col] = reference[lower_idx] * (1 - frac) + reference[upper_idx] * frac
 
         return normalized
 

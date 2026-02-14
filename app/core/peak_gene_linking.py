@@ -193,7 +193,7 @@ class PeakGeneLinkingEngine:
                         "gene_tss": gene["tss"],
                         "distance": distance,
                         "activity": peak.get(self.activity_column, 1.0),
-                        "contact": 1.0 / (1.0 + distance / 10000),
+                        "contact": 1.0 / (1.0 + (distance / 5000) ** 0.87),  # Fulco et al. 2019 power-law
                         "abc_score": 0.0,  # Not calculated for distance method
                         "method": "Distance",
                     }
@@ -307,11 +307,10 @@ def load_gene_annotations(genome: str = "hg38", source: str = "gencode") -> pd.D
     """
     import os
 
-    # Try local annotation files first
+    # Try local annotation files first (relative to project only)
     local_paths = [
         f"data/references/{genome}/genes.bed",
         f"data/annotations/{genome}_genes.tsv",
-        f"/sessions/wonderful-happy-thompson/mnt/Epigenitics/histone_analyzer/data/references/{genome}/genes.bed",
     ]
 
     for path in local_paths:

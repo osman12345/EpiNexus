@@ -29,6 +29,9 @@ import streamlit as st
 
 # ---------------------------------------------------------------------------
 # CSS shared across all skeletons
+# SAFETY NOTE: All HTML passed to unsafe_allow_html=True in this module is
+# hardcoded below.  Never interpolate user-supplied content into these
+# templates without sanitization (e.g. bleach or nh3).
 # ---------------------------------------------------------------------------
 _SKELETON_CSS = """
 <style>

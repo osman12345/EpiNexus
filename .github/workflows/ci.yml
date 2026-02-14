@@ -35,10 +35,10 @@ jobs:
           pip install mypy types-requests types-PyYAML
       - name: Run mypy type checking
         run: |
-          mypy app/ --ignore-missing-imports --no-strict-optional --warn-return-any \
-            --disallow-untyped-defs --exclude 'migrations/' || true
-        # NOTE: Running with '|| true' initially to collect baseline errors.
-        # Once type errors are addressed, remove '|| true' to enforce strict checks.
+          mypy app/ --ignore-missing-imports --warn-return-any \
+            --exclude 'migrations/' || true
+        # NOTE: strict-optional now enabled; || true kept until baseline errors resolved.
+        # Remove || true once errors reach zero to enforce strict type checking.
 
   security:
     runs-on: ubuntu-latest

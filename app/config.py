@@ -142,9 +142,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     streamlit_port: int = 8501
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     def ensure_directories(self):
         """Create necessary directories if they don't exist."""

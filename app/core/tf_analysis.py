@@ -130,11 +130,10 @@ class TFAnalysisEngine:
         """Load gene annotations for the genome."""
         import os
 
-        # Look for annotation files
+        # Look for annotation files (relative to project only)
         annotation_paths = [
             f"data/references/{self.genome}/genes.bed",
             f"data/annotations/{self.genome}_genes.bed",
-            f"/sessions/wonderful-happy-thompson/mnt/Epigenitics/histone_analyzer/data/references/{self.genome}/genes.bed",
         ]
 
         for path in annotation_paths:
@@ -265,13 +264,9 @@ class TFAnalysisEngine:
                 # Check if within gene body
                 in_gene = ((chr_genes["start"] <= peak_center) & (chr_genes["end"] >= peak_center)).any()
                 if in_gene:
-                    # Estimate: most gene body is intronic
-                    if np.random.random() < 0.9:  # 90% intronic
-                        distribution["Intron"] += 1
-                    else:
-                        # Split among exon, UTRs
-                        region = np.random.choice(["Exon", "5' UTR", "3' UTR"], p=[0.6, 0.2, 0.2])
-                        distribution[region] += 1
+                    # Without exon-level annotations, classify as "Gene Body"
+                    # to avoid non-deterministic random assignment
+                    distribution["Intron"] += 1
                 else:
                     distribution["Intergenic"] += 1
 
@@ -316,11 +311,16 @@ class TFAnalysisEngine:
     def _analyze_signal(self, peaks: pd.DataFrame) -> Dict:
         """Analyze peak signal characteristics."""
         if "signal" not in peaks.columns:
-            peaks["signal"] = np.random.lognormal(3, 1, len(peaks))
+            return {
+                "available": False,
+                "note": "Signal column not found in peak data. "
+                "Provide a 'signal' column (e.g. from MACS2 signalValue) for signal analysis.",
+            }
 
         signals = peaks["signal"]
 
         return {
+            "available": True,
             "mean_signal": float(signals.mean()),
             "median_signal": float(signals.median()),
             "std_signal": float(signals.std()),
@@ -880,27 +880,15 @@ class MotifEnrichmentAnalyzer:
             "de_novo_motifs": [],
         }
 
-        # Add secondary motifs with lower enrichment
-        other_tfs = [tf for tf in self.KNOWN_TF_MOTIFS.keys() if tf != tf_name.upper()]
-        for other_tf in other_tfs[:5]:
-            motif = self.KNOWN_TF_MOTIFS[other_tf]
-            other_rate = np.random.uniform(0.08, 0.25)
-            other_count = int(n_peaks * other_rate)
-            other_pvalue = stats.binom_test(other_count, n_peaks, 0.05, alternative="greater")
-
-            results["secondary_motifs"].append(
-                {
-                    "tf_name": other_tf,
-                    "consensus": motif["consensus"],
-                    "name": motif["name"],
-                    "jaspar_id": motif.get("jaspar_id", ""),
-                    "peaks_with_motif": other_count,
-                    "fraction_with_motif": other_rate,
-                    "enrichment_pvalue": other_pvalue,
-                    "possible_cobinder": other_rate > 0.15,
-                    "estimated": True,
-                }
-            )
+        # Note: secondary motif estimates require real sequence scanning.
+        # Without sequences, we cannot reliably estimate co-binding enrichment.
+        results["secondary_motifs"] = [
+            {
+                "note": "Secondary motif analysis requires genome sequences. "
+                "Provide sequences or a genome FASTA for real PWM scanning.",
+                "estimated": True,
+            }
+        ]
 
         # De novo motifs (would need real analysis)
         results["de_novo_motifs"] = [

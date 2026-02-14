@@ -41,6 +41,13 @@ def get_available_tools():
     return tools
 
 
+def _validate_path(path: str, label: str) -> None:
+    """Validate that a file path doesn't contain shell-injection characters."""
+    dangerous = set(";|&$`\\'\"\n\r(){}[]!#~")
+    if any(c in path for c in dangerous):
+        raise ValueError(f"Invalid characters in {label}: {path!r}")
+
+
 def run_macs2(
     bam_file: str,
     output_prefix: str,
@@ -54,6 +61,7 @@ def run_macs2(
     """
     Run MACS2 peak calling.
 
+    Uses list-based subprocess (no shell=True) to avoid shell injection.
     Returns dict with status and output files.
     """
     result = {"success": False, "stdout": "", "stderr": "", "peaks_file": ""}
@@ -63,24 +71,38 @@ def run_macs2(
     gsize = genome_sizes.get(genome, "hs")
 
     try:
-        # Build MACS2 command
-        cmd = f"macs2 callpeak -t {bam_file} -g {gsize} -n {output_prefix} -q {qvalue}"
+        # Validate paths
+        _validate_path(bam_file, "BAM file")
+        _validate_path(output_prefix, "output prefix")
+        if control_bam:
+            _validate_path(control_bam, "control BAM")
+
+        # Build MACS2 command as list
+        cmd = [
+            "macs2",
+            "callpeak",
+            "-t",
+            bam_file,
+            "-g",
+            gsize,
+            "-n",
+            output_prefix,
+            "-q",
+            str(qvalue),
+        ]
 
         if control_bam:
-            cmd += f" -c {control_bam}"
+            cmd += ["-c", control_bam]
 
         if call_summits and not broad:
-            cmd += " --call-summits"
+            cmd.append("--call-summits")
 
         if broad:
-            cmd += " --broad"
+            cmd.append("--broad")
 
-        cmd += f" {extra_params}"
-
-        # Run MACS2
+        # Run MACS2 (no shell=True)
         process = subprocess.run(
             cmd,
-            shell=True,
             capture_output=True,
             text=True,
             timeout=3600,  # 1 hour timeout
@@ -115,11 +137,24 @@ def run_seacr(
     """
     Run SEACR peak calling for CUT&Tag/CUT&RUN data.
 
+    Uses list-based subprocess (no shell=True) to avoid shell injection.
     Returns dict with status and output files.
     """
     result = {"success": False, "stdout": "", "stderr": "", "peaks_file": ""}
 
     try:
+        # Validate paths
+        _validate_path(bedgraph_file, "bedGraph file")
+        _validate_path(output_prefix, "output prefix")
+        if control_bedgraph:
+            _validate_path(control_bedgraph, "control bedGraph")
+
+        # Validate constrained parameters
+        if norm not in ("norm", "non"):
+            raise ValueError(f"Invalid norm value: {norm}")
+        if mode not in ("relaxed", "stringent"):
+            raise ValueError(f"Invalid mode value: {mode}")
+
         # Find SEACR script
         seacr_path = shutil.which("SEACR_1.3.sh")
         if not seacr_path:
@@ -129,14 +164,14 @@ def run_seacr(
             result["stderr"] = "SEACR not found"
             return result
 
-        # Build SEACR command
+        # Build SEACR command as list (no shell=True)
         if control_bedgraph:
-            cmd = f"bash {seacr_path} {bedgraph_file} {control_bedgraph} {norm} {mode} {output_prefix}"
+            cmd = ["bash", seacr_path, bedgraph_file, control_bedgraph, norm, mode, output_prefix]
         else:
-            cmd = f"bash {seacr_path} {bedgraph_file} {threshold} {norm} {mode} {output_prefix}"
+            cmd = ["bash", seacr_path, bedgraph_file, str(threshold), norm, mode, output_prefix]
 
         # Run SEACR
-        process = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=1800)
+        process = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
 
         result["stdout"] = process.stdout
         result["stderr"] = process.stderr
@@ -153,15 +188,18 @@ def run_seacr(
 
 
 def bam_to_bedgraph(bam_file: str, output_bg: str, genome: str) -> bool:
-    """Convert BAM to bedGraph for SEACR."""
+    """Convert BAM to bedGraph for SEACR (no shell=True)."""
     try:
-        # Get chromosome sizes
-        chrom_sizes = os.path.expanduser(f"~/genomes/{genome}/{genome}.chrom.sizes")
+        _validate_path(bam_file, "BAM file")
+        _validate_path(output_bg, "output bedGraph")
 
-        # BAM to bedGraph
-        cmd = f"bedtools genomecov -bg -ibam {bam_file} > {output_bg}"
-
-        process = subprocess.run(cmd, shell=True, capture_output=True)
+        # BAM to bedGraph using Popen to redirect stdout to file
+        with open(output_bg, "w") as outfile:
+            process = subprocess.run(
+                ["bedtools", "genomecov", "-bg", "-ibam", bam_file],
+                stdout=outfile,
+                stderr=subprocess.PIPE,
+            )
         return process.returncode == 0
 
     except Exception:

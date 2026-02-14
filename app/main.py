@@ -13,9 +13,9 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -66,15 +66,36 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware - restricted to configured origins
-_cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:8501").split(",")
+# CORS middleware - restricted to configured origins; require explicit config in production
+_cors_origins_raw = os.environ.get("CORS_ORIGINS", settings.cors_origins)
+_cors_origins = [origin.strip() for origin in _cors_origins_raw.split(",") if origin.strip()]
+if not _cors_origins:
+    logger.warning("No CORS origins configured; defaulting to localhost")
+    _cors_origins = ["http://localhost:8501"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in _cors_origins],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# Maximum upload file size (500 MB default, configurable via env)
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB", "500")) * 1024 * 1024
+
+
+# Standardized error response handler (M11)
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Return consistent JSON error format for all HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "status_code": exc.status_code,
+            "detail": exc.detail,
+        },
+    )
 
 
 # Dependency for database session
@@ -118,11 +139,11 @@ async def get_config():
 
 @app.get("/samples", response_model=SampleListResponse)
 async def list_samples(
-    histone_mark: str = None,
-    condition: str = None,
-    genome: str = None,
-    skip: int = 0,
-    limit: int = 100,
+    histone_mark: str = Query(None, max_length=50),
+    condition: str = Query(None, max_length=100),
+    genome: str = Query(None, max_length=20),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
     """List all samples with optional filtering."""
@@ -144,6 +165,8 @@ async def list_samples(
 @app.post("/samples", response_model=SampleResponse)
 async def create_sample(sample: SampleCreate, db: Session = Depends(get_db)):
     """Create a new sample."""
+    from sqlalchemy.exc import IntegrityError
+
     db_sample = Sample(
         name=sample.name,
         histone_mark=sample.histone_mark,
@@ -159,7 +182,15 @@ async def create_sample(sample: SampleCreate, db: Session = Depends(get_db)):
         sample_metadata=sample.metadata,
     )
     db.add(db_sample)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Sample already exists with name={sample.name}, mark={sample.histone_mark}, "
+            f"condition={sample.condition}, replicate={sample.replicate}",
+        )
     db.refresh(db_sample)
     return SampleResponse.model_validate(db_sample)
 
@@ -191,6 +222,11 @@ async def upload_sample_sheet(file: UploadFile = File(...), db: Session = Depend
     import io
 
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(content) / 1024 / 1024:.1f} MB). Maximum: {MAX_UPLOAD_SIZE / 1024 / 1024:.0f} MB",
+        )
     if not content or not content.strip():
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
@@ -294,7 +330,11 @@ async def get_comparison(comparison_id: str, db: Session = Depends(get_db)):
 
 @app.get("/jobs", response_model=JobListResponse)
 async def list_jobs(
-    status: str = None, job_type: str = None, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)
+    status: str = Query(None, max_length=20),
+    job_type: str = Query(None, max_length=30),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
 ):
     """List all jobs with optional filtering."""
     from .models.database import JobStatus as DBJobStatus, JobType

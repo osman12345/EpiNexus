@@ -10,7 +10,7 @@ Defines schemas for:
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
 
 
@@ -93,8 +93,7 @@ class SampleResponse(SampleBase):
     mapping_rate: Optional[float] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SampleListResponse(BaseModel):
@@ -141,8 +140,7 @@ class ComparisonResponse(ComparisonBase):
     results_dir: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -176,8 +174,7 @@ class JobResponse(JobBase):
     error_message: Optional[str] = None
     results: Optional[Dict[str, Any]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobStatus(BaseModel):

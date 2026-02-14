@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from dataclasses import dataclass
 import pandas as pd
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -367,10 +366,10 @@ class MarkIntegration:
         """Classify chromatin states based on mark presence."""
         df = df.copy()
 
-        # Mark presence
-        df["has_ac"] = ~df.get("ac_fdr", pd.Series([np.nan])).isna()
-        df["has_me3"] = ~df.get("me3_fdr", pd.Series([np.nan])).isna()
-        df["has_me1"] = ~df.get("me1_fdr", pd.Series([np.nan])).isna()
+        # Mark presence — use pd.notna on column if present, else False
+        df["has_ac"] = pd.notna(df["ac_fdr"]) if "ac_fdr" in df.columns else False
+        df["has_me3"] = pd.notna(df["me3_fdr"]) if "me3_fdr" in df.columns else False
+        df["has_me1"] = pd.notna(df["me1_fdr"]) if "me1_fdr" in df.columns else False
 
         df["n_marks"] = df["has_ac"].astype(int) + df["has_me3"].astype(int) + df["has_me1"].astype(int)
 
@@ -409,7 +408,7 @@ class MarkIntegration:
         df["me1_gained"] = df.get("me1_fold_change", 0) > 0
         df["me1_lost"] = df.get("me1_fold_change", 0) < 0
 
-        def get_transition(row):
+        def get_transition(row) -> str:
             # Strong activation: lose me3, gain ac and me1
             if row.get("me3_lost", False) and row.get("ac_gained", False) and row.get("me1_gained", False):
                 return "Strong_activation"
@@ -437,7 +436,7 @@ class MarkIntegration:
         high_conf = df[df["integration_category"].isin(["Strong_activation", "Strong_repression"])].copy()
 
         # If RNA-seq available, also require expression change
-        if "expression_FDR" in df.columns:
+        if "expression_FDR" in df.columns and "log2FC" in df.columns:
             high_conf = high_conf[
                 (high_conf["expression_FDR"] < config.de_fdr) & (abs(high_conf["log2FC"]) > config.de_lfc)
             ]

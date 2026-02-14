@@ -103,8 +103,8 @@ class TestSampleValidation:
         )
         assert resp.status_code == 422  # Pydantic validation error
 
-    def test_create_duplicate_samples(self, api_client):
-        """Creating two samples with the same name should succeed (names are not unique)."""
+    def test_create_duplicate_samples_rejected(self, api_client):
+        """Exact duplicate samples (same name+mark+condition+replicate) are rejected by unique constraint."""
         payload = {
             "name": "dup_sample",
             "histone_mark": "H3K27ac",
@@ -112,7 +112,24 @@ class TestSampleValidation:
             "genome": "hg38",
         }
         r1 = api_client.post("/samples", json=payload)
+        assert r1.status_code == 200
+
+        # Second identical sample should fail due to unique constraint
         r2 = api_client.post("/samples", json=payload)
+        assert r2.status_code == 409  # Conflict — duplicate sample
+
+    def test_create_samples_different_replicate(self, api_client):
+        """Samples with same name but different replicate should succeed."""
+        payload1 = {
+            "name": "rep_sample",
+            "histone_mark": "H3K27ac",
+            "condition": "Ctrl",
+            "replicate": 1,
+            "genome": "hg38",
+        }
+        payload2 = {**payload1, "replicate": 2}
+        r1 = api_client.post("/samples", json=payload1)
+        r2 = api_client.post("/samples", json=payload2)
         assert r1.status_code == 200
         assert r2.status_code == 200
         assert r1.json()["id"] != r2.json()["id"]

@@ -467,14 +467,15 @@ class AnnotationDatabase:
             logger.info(f"Loading cached annotation for {genome} (parquet)")
             return self._load_cached(cache_dir)
 
-        # Legacy pickle cache – load then migrate to parquet
+        # Legacy pickle cache – skip (unsafe deserialization removed).
+        # If a .pkl file exists, log a warning and re-download instead.
         legacy_pkl = self.CACHE_DIR / f"{genome}_genes.pkl"
         if legacy_pkl.exists():
-            logger.info(f"Migrating legacy pickle cache for {genome} to parquet")
-            annotation = self._load_cached_pickle(legacy_pkl)
-            self._save_cached(annotation, cache_dir)
-            legacy_pkl.unlink()
-            return annotation
+            logger.warning(
+                f"Legacy pickle cache found for {genome} at {legacy_pkl}. "
+                "Pickle deserialization has been removed for security. "
+                "Re-downloading GTF instead. Delete the .pkl file manually."
+            )
 
         # Download and parse GTF
         if genome in GeneAnnotation.GTF_URLS:
@@ -535,19 +536,6 @@ class AnnotationDatabase:
 
         return annotation
 
-    @staticmethod
-    def _load_cached_pickle(cache_file: Path) -> "GeneAnnotation":
-        """Load legacy pickle cache (for one-time migration to parquet)."""
-        import pickle
-
-        with open(cache_file, "rb") as f:
-            data = pickle.load(f)
-
-        annotation = GeneAnnotation.__new__(GeneAnnotation)
-        annotation.genes = data["genes"]
-        annotation.transcripts = data["transcripts"]
-        annotation.exons = data["exons"]
-        annotation.gene_info = data["gene_info"]
-        annotation.genome = data["genome"]
-
-        return annotation
+    # NOTE: _load_cached_pickle has been removed to eliminate unsafe
+    # pickle deserialization (arbitrary code execution risk).  Legacy .pkl
+    # cache files are now ignored; the GTF is re-downloaded instead.
